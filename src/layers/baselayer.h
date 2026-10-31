@@ -255,6 +255,8 @@ public:
     virtual void updateAudioOutput();
     virtual void setVolume(int v, bool storeLevel = true);
     virtual void setVolumeScaling(float vScale);
+    float slideVolumeScaling() const;
+    void setSlideVolumeScaling(float vScale);
     virtual void setVolumeMute(bool v);
 
     virtual bool existOnMasterOnly() const;
@@ -367,7 +369,7 @@ public:
     void setKeepVisibilityForNumSlides(int k);
 
     int volume() const;
-    // The stored volume as heard at visibility a, which also includes the volume scaling.
+    // The stored volume as heard at visibility a, including the master and slide volume scaling.
     int volumeAtAlpha(float a) const;
     virtual unsigned int textureId() const;
     // Call after textureId() when sampling from another window's OpenGL context: makes that
@@ -634,6 +636,7 @@ protected:
     std::string m_filepath;
     int m_volume;
     float m_volumeScaling;
+    float m_slideVolumeScaling = 1.f;
     int m_visibilityMaximum = -1;
     // Live audio level state (see audioLevel()/reportAudioLevel()). The writer is always
     // the layer's own single audio path, readers are lock-free.

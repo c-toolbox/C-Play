@@ -201,11 +201,10 @@ std::shared_ptr<BaseLayer> makeLayerPtr(BaseLayer *layer) {
     });
 }
 
-void LayersModel::applyMasterVolumeToNewLayer(BaseLayer *layer) {
-    const auto *slides = qobject_cast<SlidesModel *>(parent());
-    if (!slides)
-        return;
-    layer->setVolumeScaling(slides->volumeScaling());
+void LayersModel::applyVolumeScaling(BaseLayer *layer) {
+    layer->setSlideVolumeScaling(static_cast<float>(m_slideVolume.load()) * 0.01f);
+    if (const auto *slides = qobject_cast<SlidesModel *>(parent()))
+        layer->setVolumeScaling(slides->volumeScaling());
     layer->setVolume(layer->volumeAtAlpha(layer->alpha()), false);
 }
 
@@ -954,7 +953,7 @@ int LayersModel::addLayer(QString title, int type, QString filepath, int stereoM
         if (useNoSignalImage)
             newLayer->setUseNoSignalImage(true);
         newLayer->initialize();
-        applyMasterVolumeToNewLayer(newLayer);
+        applyVolumeScaling(newLayer);
 
         const int layerIdx = rowForNewOwnLayer();
         int initialStatus = (newLayer->type() == BaseLayer::REST || newLayer->type() == BaseLayer::TCP) ? -1 : 0;
@@ -1451,6 +1450,84 @@ void LayersModel::setSlideSkipped(bool value) {
         setLayersNeedsSave(true);
 }
 
+int LayersModel::slideVolume() const {
+    return m_slideVolume;
+}
+
+void LayersModel::setSlideVolume(int value) {
+    // Also reached from the HTTP server and control layers. The signal is connected
+    // straight into QML, so change it on the thread the model lives on.
+    if (QThread::currentThread() != thread()) {
+        QMetaObject::invokeMethod(this, [this, value]() { setSlideVolume(value); }, Qt::QueuedConnection);
+        return;
+    }
+
+    m_slideVolumeFade.running = false;
+    stopTimerIfIdle();
+    value = std::clamp(value, 0, 100);
+    if (m_slideVolume == value)
+        return;
+    applySlideVolume(value);
+    if (!m_decodingLayers)
+        setLayersNeedsSave(true);
+}
+
+void LayersModel::applySlideVolume(int value) {
+    m_slideVolume = value;
+    {
+        std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
+        for (const auto &l : m_layers) {
+            if (l.first)
+                applyVolumeScaling(l.first.get());
+        }
+    }
+    Q_EMIT slideVolumeChanged();
+}
+
+void LayersModel::fadeSlideVolume(bool up) {
+    // The fade runs on the model's timer, so start it on the model's thread.
+    if (QThread::currentThread() != thread()) {
+        QMetaObject::invokeMethod(this, [this, up]() { fadeSlideVolume(up); }, Qt::QueuedConnection);
+        return;
+    }
+
+    if (m_slideVolumeFade.running && m_slideVolumeFade.up == up)
+        return;
+    const int volume = m_slideVolume;
+    const int to = !up ? 0 : (volume < m_slideVolumeFadeUpTo ? m_slideVolumeFadeUpTo : 100);
+    if (volume == to)
+        return;
+    // A fade down cutting a fade up short keeps the level that one is heading back to.
+    if (!up && !m_slideVolumeFade.running)
+        m_slideVolumeFadeUpTo = volume;
+
+    m_slideVolumeFade.running = true;
+    m_slideVolumeFade.up = up;
+    m_slideVolumeFade.from = volume;
+    m_slideVolumeFade.to = to;
+    m_slideVolumeFade.durationMs = PlaybackSettings::fadeDuration();
+    m_slideVolumeFade.elapsed.start();
+    ensureTimerRunning();
+    advanceSlideVolumeFade();
+}
+
+void LayersModel::advanceSlideVolumeFade() {
+    const SlideVolumeFade &fade = m_slideVolumeFade;
+    const int ms = static_cast<int>(fade.elapsed.elapsed());
+    const bool done = ms >= fade.durationMs;
+    const float t = done ? 1.f : static_cast<float>(ms) / static_cast<float>(fade.durationMs);
+    const int value = qRound(static_cast<float>(fade.from) + static_cast<float>(fade.to - fade.from) * t);
+    if (m_slideVolume != value)
+        applySlideVolume(value);
+    if (done) {
+        m_slideVolumeFade.running = false;
+        if (fade.up)
+            m_slideVolumeFadeUpTo = 100;
+        setLayersNeedsSave(true);
+        stopTimerIfIdle();
+    }
+}
+
 void LayersModel::setLayersNeedsSave(bool value) {
     // Also reached from the render thread via guessGridModeForDraggedLayer() for
     // dragged-and-dropped layers. The signal is connected straight into QML, so
@@ -1507,7 +1584,7 @@ void LayersModel::addCopyOfLayer(BaseLayer* srcLayer) {
 
         newLayer->setHierarchy(hierarchy());
         newLayer->initialize();
-        applyMasterVolumeToNewLayer(newLayer);
+        applyVolumeScaling(newLayer);
 
         const int layerIdx = rowForNewOwnLayer();
         beginInsertRows(QModelIndex(), layerIdx, layerIdx);
@@ -2230,6 +2307,9 @@ void LayersModel::decodeFromJSON(QJsonObject &obj, const QStringList &forRelativ
     // Applied once the layers are loaded, so a skipped master zeroes the loaded opacities.
     const bool skipped = obj.value(QStringLiteral("skipped")).toBool(false);
     setSlideSkipped(false);
+    // Set before the layers are added, which then pick it up.
+    setSlideVolume(obj.value(QStringLiteral("slideVolume")).toInt(100));
+    m_slideVolumeFadeUpTo = 100;
     if (obj.contains(QStringLiteral("name"))) {
         QString name = obj.value(QStringLiteral("name")).toString();
         setLayersName(name);
@@ -2721,6 +2801,8 @@ void LayersModel::encodeToJSON(QJsonObject &obj, const QStringList &forRelativeP
     obj.insert(QStringLiteral("visibility"), QJsonValue(getLayersVisibility()));
     if (m_slideSkipped)
         obj.insert(QStringLiteral("skipped"), QJsonValue(true));
+    if (m_slideVolume != 100)
+        obj.insert(QStringLiteral("slideVolume"), QJsonValue(m_slideVolume.load()));
 
     if (!m_notes.isEmpty()) {
         obj.insert(QStringLiteral("notes"), QJsonValue(m_notes));
@@ -4951,7 +5033,8 @@ void LayersModel::ensureTimerRunning() {
 }
 
 void LayersModel::stopTimerIfIdle() {
-    if (!m_timelineRunning && !m_outroRunning && !hasTimedLayerPlays() && m_layerFades.isEmpty() && m_timelineTimer)
+    if (!m_timelineRunning && !m_outroRunning && !hasTimedLayerPlays() && m_layerFades.isEmpty()
+        && !m_slideVolumeFade.running && m_timelineTimer)
         m_timelineTimer->stop();
 }
 
@@ -5023,4 +5106,7 @@ void LayersModel::onTimelineTick() {
         advanceLayerPlays();
     if (!m_layerFades.isEmpty())
         advanceLayerFades();
+
+    if (m_slideVolumeFade.running)
+        advanceSlideVolumeFade();
 }

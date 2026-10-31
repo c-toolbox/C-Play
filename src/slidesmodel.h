@@ -172,6 +172,13 @@ public:
 
     int layersMasterVolume() const;
     float volumeScaling() const { return m_volumeScaling; }
+    // slideRef is a slide name or else an index (-1 or "master" for the master), empty for
+    // the selected slide. Returns false when there is no such slide.
+    bool setSlideVolume(const QString &slideRef, int level);
+    bool fadeSlideVolume(const QString &slideRef, bool up);
+    LayersModel *slideFromRef(const QString &slideRef);
+    // The master followed by the names of all slides.
+    Q_INVOKABLE QStringList slideNames();
 
     Q_PROPERTY(LayersModel *selected
         READ selectedSlide

@@ -1694,6 +1694,41 @@ int SlidesModel::layersMasterVolume() const {
     return qRound(m_volumeScaling * 100.f);
 }
 
+LayersModel *SlidesModel::slideFromRef(const QString &slideRef) {
+    LayersModel *target = slideRef.isEmpty() ? selectedSlide() : slide(slideRef.toStdString());
+    bool isNumber = false;
+    const int idx = slideRef.toInt(&isNumber);
+    // A name wins, so a slide named "2" is not mistaken for an index.
+    if (!target && isNumber && idx >= -1 && idx < numberOfSlides())
+        target = slide(idx);
+    return target;
+}
+
+bool SlidesModel::setSlideVolume(const QString &slideRef, int level) {
+    LayersModel *target = slideFromRef(slideRef);
+    if (!target)
+        return false;
+    target->setSlideVolume(level);
+    return true;
+}
+
+bool SlidesModel::fadeSlideVolume(const QString &slideRef, bool up) {
+    LayersModel *target = slideFromRef(slideRef);
+    if (!target)
+        return false;
+    target->fadeSlideVolume(up);
+    return true;
+}
+
+QStringList SlidesModel::slideNames() {
+    QStringList names{QStringLiteral("Master")};
+    for (const auto &s : snapshotSlides()) {
+        if (s)
+            names.append(s->getLayersName());
+    }
+    return names;
+}
+
 void SlidesModel::runUpdateVolumeOnLayers(int volume) {
     m_volumeScaling = static_cast<float>(volume) / 100.f;
     Q_EMIT layersMasterVolumeChanged();

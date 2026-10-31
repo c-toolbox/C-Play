@@ -168,6 +168,8 @@ void CaptureLayer::decodeTypeAlways(const std::vector<std::byte>& data, unsigned
 
 void CaptureLayer::encodeTypeProperties(std::vector<std::byte>& data) {
     sgct::serializeObject(data, m_volume);
+    sgct::serializeObject(data, m_volumeScaling);
+    sgct::serializeObject(data, m_slideVolumeScaling);
     sgct::serializeObject(data, m_volumeMute.load());
     m_subdivision->encodeProperties(data);
 }
@@ -175,6 +177,8 @@ void CaptureLayer::encodeTypeProperties(std::vector<std::byte>& data) {
 void CaptureLayer::decodeTypeProperties(const std::vector<std::byte>& data, unsigned int& pos) {
     bool mute = false;
     sgct::deserializeObject(data, pos, m_volume);
+    sgct::deserializeObject(data, pos, m_volumeScaling);
+    sgct::deserializeObject(data, pos, m_slideVolumeScaling);
     sgct::deserializeObject(data, pos, mute);
     m_volumeMute.store(mute);
     m_subdivision->decodeProperties(data, pos);
@@ -309,7 +313,7 @@ void CaptureLayer::updateCapture() {
     setLoadError(key, m_backend->error());
 
     m_sourceHasAudio.store(src.audio);
-    const float volume = m_volumeMute.load() ? 0.f : static_cast<float>(m_volume) / 100.f * m_volumeScaling * alpha();
+    const float volume = m_volumeMute.load() ? 0.f : static_cast<float>(volumeAtAlpha(alpha())) / 100.f;
     m_backend->updateAudio(isAudioEnabled() && alpha() > 0.f, volume, audioLevelsEnabled(), audioMixingEnabled(),
                            audioSpatialSource());
     const float peak = m_backend->takeAudioPeak();

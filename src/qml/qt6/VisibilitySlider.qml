@@ -38,7 +38,7 @@ Slider {
         color: Kirigami.Theme.alternateBackgroundColor
 
         Rectangle {
-            color: Kirigami.Theme.highlightColor
+            color: "#14807f"
             height: parent.height
             radius: 0
             width: root.visualPosition * parent.width * root.maximumValue / 100

@@ -25,7 +25,7 @@ Item {
     readonly property string stateText: trend > 0 ? qsTr("Fading in")
                                       : trend < 0 ? qsTr("Fading out")
                                       : value > 0 ? qsTr("On") : qsTr("Off")
-    readonly property color stateColor: trend !== 0 ? "#8b8000" : "#006400"
+    readonly property color stateColor: trend !== 0 ? "#8b8000" : "#14807f"
 
     signal fadeInRequested
     signal fadeOutRequested

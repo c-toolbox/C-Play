@@ -990,6 +990,46 @@ void HttpServerThread::setupHttpServer() {
             res.set_content(skipped ? "Slide is skipped" : "Slide is not skipped", "text/plain");
         });
 
+        auto slideVolumeGetHandler = [slideFromRequest](const httplib::Request& req, httplib::Response& res) {
+            std::string error;
+            LayersModel* lm = slideFromRequest(req, error);
+            res.set_content(lm ? std::to_string(lm->slideVolume()) : error, "text/plain");
+        };
+        svr.Get("/slide_volume", slideVolumeGetHandler);
+        registerPost("/slide_volume", [this, slideFromRequest, slideVolumeGetHandler](const httplib::Request& req, httplib::Response& res) {
+            if (!req.has_param("level")) {
+                slideVolumeGetHandler(req, res);
+                return;
+            }
+            std::string error;
+            LayersModel* lm = slideFromRequest(req, error);
+            if (!lm) {
+                res.set_content(error, "text/plain");
+                return;
+            }
+            int level = -1;
+            if (!stringToInt(req.get_param_value("level"), level) || level < 0 || level > 100) {
+                res.set_content("Supply parameter level with value 0-100", "text/plain");
+                return;
+            }
+            lm->setSlideVolume(level);
+            res.set_content(std::to_string(level), "text/plain");
+        });
+        auto slideVolumeFadeHandler = [slideFromRequest](bool up) {
+            return [slideFromRequest, up](const httplib::Request& req, httplib::Response& res) {
+                std::string error;
+                LayersModel* lm = slideFromRequest(req, error);
+                if (!lm) {
+                    res.set_content(error, "text/plain");
+                    return;
+                }
+                lm->fadeSlideVolume(up);
+                res.set_content(up ? "Fading slide volume up" : "Fading slide volume down", "text/plain");
+            };
+        };
+        registerPost("/slide_volume_fade_up", slideVolumeFadeHandler(true));
+        registerPost("/slide_volume_fade_down", slideVolumeFadeHandler(false));
+
         auto slidesHandler = [this](const httplib::Request& req, httplib::Response& res) {
             std::string charsPerItem = "";
             if (req.has_param("charsPerItem")) {

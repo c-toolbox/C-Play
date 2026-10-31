@@ -996,7 +996,8 @@ Kirigami.ApplicationWindow {
                 Layout.columnSpan: 2
 
                 model: ["Play", "Pause", "Stop", "Rewind", "Seek", 
-                        "SetPosition", "SetSpeed", "SetVolume", "SetSyncVolumeVisibilityFading",
+                        "SetPosition", "SetSpeed", "SetVolume", "SetSlideVolume", "FadeSlideVolumeDown", "FadeSlideVolumeUp",
+                        "SetSyncVolumeVisibilityFading",
                         "SetBackgroundVisibility", "SetBackgroundMode", "SetBackgroundColor",
                         "SetForegroundVisibility", "SetNodeWindowsOpacity",
                         "LoadFromAudioTracks", "LoadFromPlaylist", "LoadFromSections", "LoadFromSlides", 
@@ -1009,6 +1010,7 @@ Kirigami.ApplicationWindow {
                 }
                 onActivated: {
                     layerView.layerItem.layerOperation = currentText;
+                    controlSlideVolumeParameter.adoptOperation();
                 }
 
                 Connections {
@@ -1020,8 +1022,23 @@ Kirigami.ApplicationWindow {
             }
 
             Label {
-                text: qsTr("Parameter:")
+                text: !controlSlideVolumeParameter.visible ? qsTr("Parameter:")
+                      : controlSlideVolumeParameter.showLevel ? qsTr("Slide and volume:") : qsTr("Slide:")
                 Layout.alignment: Qt.AlignRight
+            }
+            SlideVolumeParameter {
+                id: controlSlideVolumeParameter
+
+                Layout.fillWidth: true
+                Layout.columnSpan: 2
+                parameter: controlParameterField.text
+                showLevel: controlOperationComboBox.currentText === "SetSlideVolume"
+                visible: ["SetSlideVolume", "FadeSlideVolumeDown", "FadeSlideVolumeUp"].includes(controlOperationComboBox.currentText)
+
+                onEdited: function(parameter) {
+                    controlParameterField.text = parameter;
+                    layerView.layerItem.layerParameter = parameter;
+                }
             }
             TextField {
                 id: controlParameterField
@@ -1030,6 +1047,7 @@ Kirigami.ApplicationWindow {
                 Layout.columnSpan: 2
                 placeholderText: "Parameter value"
                 text: layerView.layerItem.layerParameter
+                visible: !controlSlideVolumeParameter.visible
 
                 onEditingFinished: {
                     layerView.layerItem.layerParameter = text;

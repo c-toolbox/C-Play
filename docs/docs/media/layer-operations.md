@@ -29,7 +29,15 @@ Click the lock again to restore the full 0–100% range. The maximum is saved wi
 
 ### Maximum volume
 
-The **Max volume** slider in **Layer View** sets the loudest level for a layer with audio. Visibility scales the volume, so fading the layer in stops at this level and fading it out takes the audio down to silence. At 50% visibility, a layer with **Max volume** at 80% plays at 40%. A locked maximum visibility limits the volume in the same way. While the layer plays below its maximum, the slider shows **(now …%)**, with the solid bar marking the current level and the lighter bar reaching up to the maximum. If the master volume also controls layer volumes and is below 100%, a line below the slider shows the actual volume after the master volume is applied.
+The **Max volume** slider in **Layer View** sets the loudest level for a layer with audio. Visibility scales the volume, so fading the layer in stops at this level and fading it out takes the audio down to silence. At 50% visibility, a layer with **Max volume** at 80% plays at 40%. A locked maximum visibility limits the volume in the same way. While the layer plays below its maximum, the slider shows **(now …%)**, with the solid bar marking the current level and the lighter bar reaching up to the maximum. If the master volume also controls layer volumes and is below 100%, or the slide volume is below 100%, a line below the slider shows the actual volume after these are applied.
+
+### Slide volume
+
+Every slide, including the master, has a **Slide volume** slider just above its layers list. It scales the volume of all layers in that slide, on top of each layer's own volume and visibility, and together with the master volume when **Master volume control all layers volume** is enabled. With the slide volume at 50% and the master volume at 50%, a layer at full volume and visibility plays at 25%.
+
+The buttons on either side of the slider fade the slide volume over the fade duration. Fading down goes to 0, and fading up returns to the level the last fade down started from, or else to 100. Moving the slider stops a running fade.
+
+The slide volume is saved with the presentation, so saving after a fade down stores 0. It can also be set through the [`/slide_volume` API endpoint](/remote-control/api), or from a [Control layer](/media/layers) with the **SetSlideVolume** operation, so that one slide can change the volume of another. The **FadeSlideVolumeDown** and **FadeSlideVolumeUp** operations, and the `/slide_volume_fade_down` and `/slide_volume_fade_up` endpoints, run the same fades. A referenced layer follows the slide that owns it.
 
 ## Post process effects
 

@@ -1658,6 +1658,11 @@ Kirigami.ApplicationWindow {
                                 visibilitySlider.value;
                                 return layerViewItem.layerCurrentVolume;
                             }
+                            readonly property int slideVolume: {
+                                app.slides.selected.slideVolume;
+                                return layerViewItem.layerSlideVolume;
+                            }
+                            readonly property int masterVolume: app.slides.layersMasterVolume
 
                             from: 0
                             implicitHeight: 25
@@ -1682,13 +1687,13 @@ Kirigami.ApplicationWindow {
                                 color: Kirigami.Theme.alternateBackgroundColor
 
                                 Rectangle {
-                                    color: Qt.alpha(Kirigami.Theme.highlightColor, 0.35)
+                                    color: Qt.alpha("#2563a8", 0.35)
                                     height: parent.height
                                     radius: 0
                                     width: volumeSlider.visualPosition * parent.width
                                 }
                                 Rectangle {
-                                    color: Kirigami.Theme.highlightColor
+                                    color: "#2563a8"
                                     height: parent.height
                                     radius: 0
                                     width: volumeSlider.currentVolume * 0.01 * parent.width
@@ -1724,9 +1729,14 @@ Kirigami.ApplicationWindow {
                                 color: enabled ? "white" : "grey"
                                 font.pointSize: 9
                                 layer.enabled: true
-                                text: qsTr("Actual volume is %1\% due to master volume being %2\%")
-                                      .arg(Math.floor(volumeSlider.currentVolume * app.slides.layersMasterVolume / 100)).arg(app.slides.layersMasterVolume)
-                                visible: app.slides.layersMasterVolume < 100
+                                readonly property int actualVolume: Math.floor(volumeSlider.currentVolume * volumeSlider.slideVolume * volumeSlider.masterVolume / 10000)
+
+                                text: volumeSlider.slideVolume >= 100
+                                      ? qsTr("Actual volume is %1\% due to master volume being %2\%").arg(actualVolume).arg(volumeSlider.masterVolume)
+                                      : volumeSlider.masterVolume >= 100
+                                        ? qsTr("Actual volume is %1\% due to slide volume being %2\%").arg(actualVolume).arg(volumeSlider.slideVolume)
+                                        : qsTr("Actual volume is %1\% due to slide volume being %2\% and master volume being %3\%").arg(actualVolume).arg(volumeSlider.slideVolume).arg(volumeSlider.masterVolume)
+                                visible: volumeSlider.slideVolume < 100 || volumeSlider.masterVolume < 100
 
                                 layer.effect: DropShadow {
                                     color: "#111"

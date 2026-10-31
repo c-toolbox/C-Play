@@ -276,6 +276,18 @@ public:
     bool slideSkipped() const;
     void setSlideSkipped(bool value);
 
+    // Scales the volume of the slide's own layers, 0-100, together with the master volume.
+    Q_PROPERTY(int slideVolume
+        READ slideVolume
+        WRITE setSlideVolume
+        NOTIFY slideVolumeChanged)
+
+    int slideVolume() const;
+    void setSlideVolume(int value);
+    // Fades the slide volume over the fade duration, like the master volume does: down to 0,
+    // and up to the level the last fade down started from, or else to 100.
+    Q_INVOKABLE void fadeSlideVolume(bool up);
+
     Q_PROPERTY(bool layersNeedsSave
         READ getLayersNeedsSave
         WRITE setLayersNeedsSave
@@ -538,6 +550,7 @@ Q_SIGNALS:
     void layersVisibilityChanged();
     void layersEnabledChanged(bool);
     void slideSkippedChanged();
+    void slideVolumeChanged();
     void layerHierarchyChanged(int ownIdx);
     void layersNeedsSaveChanged(bool);
     void layersNameChanged();
@@ -596,8 +609,8 @@ private:
     void removeDefaultFadeEffects();
     // Gives a layer added by the user to a timeline slide the default fade effects.
     void addDefaultFadeForNewLayer(int layerIdx);
-    // Gives a new layer the master volume that the existing layers already follow.
-    void applyMasterVolumeToNewLayer(BaseLayer *layer);
+    // Applies the slide and master volume to a layer of this slide.
+    void applyVolumeScaling(BaseLayer *layer);
     LayerTimeline *timelineAt(int layerIdx);
     const LayerTimeline *timelineAt(int layerIdx) const;
     // Evaluates keyframes and effects of one layer at absolute timeline time.
@@ -665,6 +678,7 @@ private:
     bool m_layersEnabled = true;
     // Read by the render thread.
     std::atomic_bool m_slideSkipped{false};
+    std::atomic_int m_slideVolume{100};
     // Opacity of the master layers before the master was skipped.
     std::vector<std::pair<std::weak_ptr<BaseLayer>, float>> m_skippedAlphas;
     int m_layerToCopyIdx = -1;
@@ -730,6 +744,19 @@ private:
     QVector<LayerFade> m_layerFades;
     BaseLayer *layerFadeTarget(const LayerFade &fade, int &row) const;
     void advanceLayerFades();
+    // The slide volume fading on its own (see fadeSlideVolume).
+    struct SlideVolumeFade {
+        bool running = false;
+        bool up = false;
+        int from = 0;
+        int to = 0;
+        int durationMs = 0;
+        QElapsedTimer elapsed;
+    };
+    SlideVolumeFade m_slideVolumeFade;
+    int m_slideVolumeFadeUpTo = 100;
+    void applySlideVolume(int value);
+    void advanceSlideVolumeFade();
     QVector<ScheduledEffect> m_outroSchedule;
     QVector<int> m_introStepStarts;
     int m_introEffectsSpan = 0;

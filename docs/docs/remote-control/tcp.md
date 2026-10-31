@@ -95,6 +95,8 @@ The C-Play command adapter supports these existing control operations:
 | `SetPosition` | Nonnegative position in seconds. |
 | `SetSpeed` | Positive finite playback factor. |
 | `SetVolume` | Integer 0–100. |
+| `SetSlideVolume` | `slide:level`, where `slide` is a slide name or else a zero-based index (`master` or `-1` for the master slide) and `level` is an integer 0–100. Only `level` targets the selected slide. |
+| `FadeSlideVolumeDown`, `FadeSlideVolumeUp` | A slide name or else a zero-based index (`master` or `-1` for the master slide). Omitted or empty targets the selected slide. |
 | `SetBackgroundVisibility`, `SetForegroundVisibility`, `SetNodeWindowsOpacity` | Finite value 0–1. |
 | `SetBackgroundMode` | `image`, `color`, `0`, or `1`. |
 | `SetBackgroundColor` | `#RRGGBB`, `RRGGBB`, or a color name. |

@@ -43,7 +43,7 @@ Endpoints are divided into two categories:
 `/sections`, `/playing_in_sections`,
 `/section_start_time`, `/section_end_time`, `/section_end_mode`,
 `/playfile_json`, `/playlist_json`,
-`/slide_name`, `/slides`, `/playing_in_slides`, `/slide_skipped`,
+`/slide_name`, `/slides`, `/playing_in_slides`, `/slide_skipped`, `/slide_volume`,
 `/layers`, `/layer_volume`, `/layer_visibility`, `/layer_plane`
 
 ### POST only endpoints
@@ -54,7 +54,8 @@ Endpoints are divided into two categories:
 `/spin_roll_ccw`, `/spin_roll_cw`, `/orientation_reset`, `/surface_transition`,
 `/slide_previous`, `/slide_next`, `/slide_skip_toggle`,
 `/load_from_audiotracks`, `/load_from_playlist`, `/load_from_sections`,
-`/load_from_slides`, `/select_from_slides`, `/layer_fade_up`, `/layer_fade_down`
+`/load_from_slides`, `/select_from_slides`, `/slide_volume_fade_up`, `/slide_volume_fade_down`,
+`/layer_fade_up`, `/layer_fade_down`
 
 The additional GET-only endpoints `/tcp/servers`, `/tcp/commands`, `/event_topics` and `/events`, and POST-only endpoints `/tcp/connect`, `/tcp/disconnect`, `/tcp/trigger` and `/tcp/command`, are documented in [TCP connection and update control](#tcp-connection-and-update-control) and [Change subscriptions](#change-subscriptions) at the bottom of this page. The endpoints used by the presenter and movie views (`/presentation_state`, `/slide_notes`, `/movie_state`, `/movie_cue` and others) are documented in [Presenter view and movie view](/remote-control/web-views#http-endpoints).
 
@@ -206,6 +207,9 @@ This endpoint controls stereo display on the cluster. It does not select the mas
 | `/select_from_slides` | POST | `index=` *(required)* | Select slide (pre-loads layers) | Confirmation or error |
 | `/load_from_slides` | POST | `index=` *(required)* | Load/trigger slide | Confirmation or error |
 | `/slide_skipped` | GET, POST | `slide_idx=` (`-1` = master) or `slide_name=` *(optional, default: selected slide)*, `on=` *(optional, POST)* — `1` or `0` | Get or set whether the slide is skipped. Skipped slides are passed over by next/previous; a skipped master slide is not rendered and its layers get zero opacity | `0`/`1`, or confirmation message |
+| `/slide_volume` | GET, POST | `slide_idx=` (`-1` = master) or `slide_name=` *(optional, default: selected slide)*, `level=` *(optional, POST)* — `0`–`100` | Get or set the slide volume, which scales the volume of the slide's own layers | Volume level (0–100), or error |
+| `/slide_volume_fade_down` | POST | `slide_idx=` (`-1` = master) or `slide_name=` *(optional, default: selected slide)* | Fade the slide volume down to 0 over the fade duration | `"Fading slide volume down"` or error |
+| `/slide_volume_fade_up` | POST | `slide_idx=` (`-1` = master) or `slide_name=` *(optional, default: selected slide)* | Fade the slide volume up over the fade duration, to the level the last fade down started from, or else to 100 | `"Fading slide volume up"` or error |
 | `/slide_skip_toggle` | POST | `slide_idx=` or `slide_name=` *(optional, default: selected slide)* | Toggle whether the slide is skipped | Confirmation or error |
 | `/layers` | GET, POST | `slide_name=` or `slide_idx=` *(required)*, `charsPerItem=` *(optional)* | Get formatted layer list for a slide | Text list |
 

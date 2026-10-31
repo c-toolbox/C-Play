@@ -744,6 +744,20 @@ void PlayerController::DispatchControlOperation(const QString &operation, const 
         SetSpeed(parameter.toDouble());
     } else if (operation == QStringLiteral("SetVolume")) {
         SetVolume(parameter.toInt());
+    } else if (operation == QStringLiteral("SetSlideVolume")) {
+        // Parameter is "slide:level", or only "level" for the selected slide.
+        const qsizetype sep = parameter.lastIndexOf(QLatin1Char(':'));
+        bool isNumber = false;
+        const int level = parameter.mid(sep + 1).trimmed().toInt(&isNumber);
+        if (m_slidesModel && isNumber
+            && !m_slidesModel->setSlideVolume(sep < 0 ? QString() : parameter.left(sep).trimmed(), level)) {
+            qWarning().noquote() << "SetSlideVolume: could not find slide in" << parameter;
+        }
+    } else if (operation == QStringLiteral("FadeSlideVolumeDown") || operation == QStringLiteral("FadeSlideVolumeUp")) {
+        // Parameter is the slide, or empty for the selected slide.
+        if (m_slidesModel && !m_slidesModel->fadeSlideVolume(parameter.trimmed(), operation == QStringLiteral("FadeSlideVolumeUp"))) {
+            qWarning().noquote() << operation << ": could not find slide" << parameter;
+        }
     } else if (operation == QStringLiteral("SetSyncVolumeVisibilityFading")) {
         SetSyncVolumeVisibilityFading(parameter == QStringLiteral("true") || parameter == QStringLiteral("1"));
     } else if (operation == QStringLiteral("SpinPitchUp")) {

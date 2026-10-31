@@ -764,6 +764,44 @@ Rectangle {
                 Layout.preferredWidth: 3
             }
         }
+        RowLayout {
+            Layout.leftMargin: 5
+            Layout.preferredWidth: layersRoot.width - 10
+            spacing: 2
+
+            ToolButton {
+                Layout.preferredHeight: 25
+                Layout.preferredWidth: 25
+                enabled: app.slides.selected.layersEnabled && app.slides.selected.slideVolume > 0
+                focusPolicy: Qt.NoFocus
+                icon.name: "audio-volume-low"
+                ToolTip.text: qsTr("Fade slide volume down to 0")
+                ToolTip.visible: hovered
+
+                onClicked: app.slides.selected.fadeSlideVolume(false)
+            }
+            VolumeSlider {
+                Layout.fillWidth: true
+                enabled: app.slides.selected.layersEnabled
+                overlayLabel: qsTr("Slide volume")
+                value: app.slides.selected.slideVolume
+                ToolTip.text: qsTr("Scales the volume of all layers in this slide, together with the master volume when it controls layers.")
+                ToolTip.visible: hovered
+
+                onMoved: app.slides.selected.slideVolume = Math.round(value)
+            }
+            ToolButton {
+                Layout.preferredHeight: 25
+                Layout.preferredWidth: 25
+                enabled: app.slides.selected.layersEnabled && app.slides.selected.slideVolume < 100
+                focusPolicy: Qt.NoFocus
+                icon.name: "audio-volume-high"
+                ToolTip.text: qsTr("Fade slide volume up to previous highest level")
+                ToolTip.visible: hovered
+
+                onClicked: app.slides.selected.fadeSlideVolume(true)
+            }
+        }
     }
 
     WorkingIndicator {

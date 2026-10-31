@@ -213,12 +213,12 @@ In the layer view for a control layer, two fields are shown instead of the usual
 
 * **Operation** — The command to execute. Available operations include:
   * **Playback**: Play, Pause, Stop, Rewind, Seek, SetPosition, SetSpeed
-  * **Volume & Fading**: SetVolume, FadeVolumeDown, FadeVolumeUp, FadeImageDown, FadeImageUp, SetSyncVolumeVisibilityFading
+  * **Volume & Fading**: SetVolume, SetSlideVolume, FadeSlideVolumeDown, FadeSlideVolumeUp, FadeVolumeDown, FadeVolumeUp, FadeImageDown, FadeImageUp, SetSyncVolumeVisibilityFading
   * **Loading**: LoadFromPlaylist, LoadFromSlides, LoadFromSections, LoadFromAudioTracks
   * **Orientation**: SpinPitchUp, SpinPitchDown, SpinYawLeft, SpinYawRight, SpinRollCW, SpinRollCCW, OrientationAndSpinReset, RunSurfaceTransition
   * **Surface & Visibility**: SetBackgroundVisibility, SetBackgroundMode, SetBackgroundColor, SetForegroundVisibility, SetNodeWindowsOpacity
 
-* **Parameter** — An operation-specific value. For example, a volume level for SetVolume, a signed number of seconds for Seek, a slide name or index for LoadFromSlides, or `true`/`false` for boolean operations. Parameters that reference playlist items, slides, or audio tracks can be specified by name or numeric index.
+* **Parameter** — An operation-specific value. For example, a volume level for SetVolume, a slide and level for SetSlideVolume, or only a slide for FadeSlideVolumeDown and FadeSlideVolumeUp, where you pick the slide from a list of the master and all slide names, so the choice follows the slide when slides are reordered, a signed number of seconds for Seek, a slide name or index for LoadFromSlides, or `true`/`false` for boolean operations. Parameters that reference playlist items, slides, or audio tracks can be specified by name or numeric index.
 
 ### REST
 

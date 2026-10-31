@@ -319,11 +319,19 @@ int LayerQtItem::layerVolume() const {
 }
 
 int LayerQtItem::layerCurrentVolume() const {
-    // Shows the visibility's effect on this layer only, so the master volume is left out.
+    // Shows the visibility's effect on this layer only, so the master and slide volume are left out.
     if (m_layer)
         return static_cast<int>(static_cast<float>(m_layer->volume()) * m_layer->alpha());
     else
         return 0;
+}
+
+int LayerQtItem::layerSlideVolume() const {
+    // From the layer, as a referenced layer follows the slide that owns it.
+    if (m_layer)
+        return qRound(m_layer->slideVolumeScaling() * 100.f);
+    else
+        return 100;
 }
 
 void LayerQtItem::setLayerVolume(int value) {

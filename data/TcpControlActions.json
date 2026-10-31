@@ -306,6 +306,36 @@
       ]
     },
     {
+      "path": "/slide_volume",
+      "name": "Slide Volume",
+      "parameters": [
+        "slide_idx",
+        "slide_name",
+        "level"
+      ],
+      "required": [
+        "level"
+      ]
+    },
+    {
+      "path": "/slide_volume_fade_up",
+      "name": "Slide Volume Fade Up",
+      "parameters": [
+        "slide_idx",
+        "slide_name"
+      ],
+      "required": []
+    },
+    {
+      "path": "/slide_volume_fade_down",
+      "name": "Slide Volume Fade Down",
+      "parameters": [
+        "slide_idx",
+        "slide_name"
+      ],
+      "required": []
+    },
+    {
       "path": "/layer_volume",
       "name": "Layer Volume",
       "parameters": [

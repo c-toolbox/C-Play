@@ -111,6 +111,7 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(int layerAudioId READ layerAudioId WRITE setLayerAudioId NOTIFY layerValueChanged)
     Q_PROPERTY(int layerVolume READ layerVolume WRITE setLayerVolume NOTIFY layerValueChanged)
     Q_PROPERTY(int layerCurrentVolume READ layerCurrentVolume NOTIFY layerValueChanged)
+    Q_PROPERTY(int layerSlideVolume READ layerSlideVolume NOTIFY layerValueChanged)
     Q_PROPERTY(bool layerPause READ layerPause WRITE setLayerPause NOTIFY layerPositionChanged)
     Q_PROPERTY(double layerPosition READ layerPosition WRITE setLayerPosition NOTIFY layerPositionChanged)
     Q_PROPERTY(double layerDuration READ layerDuration NOTIFY layerPositionChanged)
@@ -276,6 +277,7 @@ public:
 
     int layerVolume() const;
     int layerCurrentVolume() const;
+    int layerSlideVolume() const;
     void setLayerVolume(int value);
 
     bool layerPause() const;

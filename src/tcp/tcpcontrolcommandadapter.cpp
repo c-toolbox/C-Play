@@ -71,6 +71,14 @@ void TcpControlCommandAdapter::parseMessage(const QByteArray &payload) {
         bool numeric = false;
         const int value = parameter.toInt(&numeric);
         valid = numeric && (operation == QStringLiteral("Seek") || (value >= 0 && value <= 100));
+    } else if (operation == QStringLiteral("SetSlideVolume")) {
+        // "slide:level", or only "level" for the selected slide.
+        bool numeric = false;
+        const int value = parameter.mid(parameter.lastIndexOf(QLatin1Char(':')) + 1).trimmed().toInt(&numeric);
+        valid = numeric && value >= 0 && value <= 100;
+    } else if (operation == QStringLiteral("FadeSlideVolumeDown") || operation == QStringLiteral("FadeSlideVolumeUp")) {
+        // The slide, or empty for the selected slide.
+        valid = true;
     } else if (operation == QStringLiteral("SetBackgroundMode")) {
         valid = parameter == QStringLiteral("image") || parameter == QStringLiteral("color")
             || parameter == QStringLiteral("0") || parameter == QStringLiteral("1");

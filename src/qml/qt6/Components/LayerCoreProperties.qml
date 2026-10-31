@@ -1804,16 +1804,18 @@ GridLayout {
         model: ["Play", "Pause", "Stop", "Rewind", "Seek", "SetPosition", 
                 "FadeVolumeDown", "FadeVolumeUp", "FadeImageDown", "FadeImageUp",
                 "LoadFromAudioTracks", "LoadFromPlaylist", "LoadFromSections", "LoadFromSlides", 
-                "SetSpeed", "SetVolume", "SetSyncVolumeVisibilityFading",
+                "SetSpeed", "SetVolume", "SetSlideVolume", "FadeSlideVolumeDown", "FadeSlideVolumeUp",
+                "SetSyncVolumeVisibilityFading",
                 "SetBackgroundVisibility", "SetBackgroundMode", "SetBackgroundColor",
                 "SetForegroundVisibility", "SetNodeWindowsOpacity",
                 "SpinPitchUp", "SpinPitchDown", "SpinYawLeft", "SpinYawRight",
                 "SpinRollCW", "SpinRollCCW", "OrientationAndSpinReset", "RunSurfaceTransition"]
-        
+
         onActivated: {
             if (layerTitle.text === "" || layerTitle.text.startsWith("Ctrl:")) {
                 layerTitle.text = "Ctrl:" + controlOperationComboBox.currentText;
             }
+            controlSlideVolumeParameter.adoptOperation();
         }
     }
     Item {
@@ -1841,6 +1843,27 @@ GridLayout {
     }
     Item {
         visible: root.showSpacers && typeComboBox.currentText === "Control" && controlNeedsParam()
+        Layout.fillWidth: true
+    }
+
+    Label {
+        Layout.alignment: Qt.AlignRight
+        text: controlSlideVolumeParameter.showLevel ? qsTr("Slide and volume:") : qsTr("Slide:")
+        visible: controlSlideVolumeParameter.visible
+    }
+    SlideVolumeParameter {
+        id: controlSlideVolumeParameter
+
+        Layout.fillWidth: true
+        parameter: controlParameterField.text
+        showLevel: controlOperationComboBox.currentText === "SetSlideVolume"
+        visible: typeComboBox.currentText === "Control"
+                 && ["SetSlideVolume", "FadeSlideVolumeDown", "FadeSlideVolumeUp"].includes(controlOperationComboBox.currentText)
+
+        onEdited: function(parameter) { controlParameterField.text = parameter; }
+    }
+    Item {
+        visible: root.showSpacers && controlSlideVolumeParameter.visible
         Layout.fillWidth: true
     }
 

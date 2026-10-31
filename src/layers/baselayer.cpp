@@ -689,6 +689,14 @@ void BaseLayer::setVolumeScaling(float vScale) {
     m_volumeScaling = vScale;
 }
 
+float BaseLayer::slideVolumeScaling() const {
+    return m_slideVolumeScaling;
+}
+
+void BaseLayer::setSlideVolumeScaling(float vScale) {
+    m_slideVolumeScaling = vScale;
+}
+
 void BaseLayer::setVolumeMute(bool) {
     // Overwrite in derived class
 }
@@ -1212,7 +1220,7 @@ int BaseLayer::volume() const {
 }
 
 int BaseLayer::volumeAtAlpha(float a) const {
-    float volLevelF = static_cast<float>(volume()) * a;
+    float volLevelF = static_cast<float>(volume()) * a * m_slideVolumeScaling;
     if (m_volumeScaling >= 0.f && m_volumeScaling < 1.f) {
         volLevelF *= m_volumeScaling;
     }
