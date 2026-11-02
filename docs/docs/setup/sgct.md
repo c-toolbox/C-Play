@@ -14,6 +14,54 @@ If you are an installer or user of C-Play, you primarily need to be familiar wit
 
 - [SGCT Configuration Files](https://sgct.readthedocs.io/en/latest/users/configuration/index.html)
 
+## Example configurations in C-Play
+
+C-Play ships with example cluster configurations, located in the [help/sgct](https://github.com/c-toolbox/C-Play/tree/master/help/sgct) folder of the repository. When C-Play is installed, they are copied to the same folder as *C-Play.exe*. Start from the example closest to your setup rather than from an empty file, as the examples already contain the settings C-Play needs, including the `datatransferport` of each node (see [Communication between master and nodes](#communication-between-master-and-nodes)).
+
+| Configuration | Node window |
+|:---|:---|
+| `master_and_node_simple.json` | A 16:9 projection plane. |
+| `master_and_node_wide.json` | A wide projection plane. |
+| `master_and_node_fisheye.json` | A fisheye (fulldome) projection. |
+| `master_and_auto_2D3D_node.json` | Separate viewports for 3D and 2D content, see [Auto 2D vs 3D switch](#auto-2d-vs-3d-switch). |
+
+In every example, node 0 is the master, with its window at `127.0.0.1`, and node 1 is a node at `127.0.0.2`. Both run on the same computer, so you can try a cluster setup without a second computer. Each example has a matching batch file, such as `C-Play-master-and-node-simple.bat`, that starts both:
+
+```
+start C-Play.exe --config master_and_node_simple.json --local 0
+start C-Play.exe --config master_and_node_simple.json --local 1 --client
+```
+
+In a real installation, set `masteraddress` and the `address` of every node to the IP addresses of the computers. Each computer then starts C-Play with only `--config <file>`, and SGCT finds out which node it is from its IP address. All computers must use the same configuration file.
+
+## Communication between master and nodes
+
+Every node in the configuration has two ports, and the master and the nodes need both of them to work together:
+
+```json
+{
+  "address": "127.0.0.2",
+  "port": 20402,
+  "datatransferport": 21402,
+  "windows": [ ... ]
+}
+```
+
+* **`port`** — The sync connection. The master sends the synchronized state to the node every frame: playback position, layers, visibility and so on. This is what keeps the nodes showing the same content as the master.
+* **`datatransferport`** — The data transfer connection, which goes the other way. The nodes report back to the master on what is going on in each of them, so the pilot at the master sees the state of the complete system, not only of the master:
+  * **Loading on the nodes** — When a file is loaded, each node reports when it has the file open, or that it could not open it. The load notice in the master view shows the progress (*"Loading on nodes: 1 of 2 ready"*, *"Loaded on all 2 nodes"* or *"Failed to load on 1 of 2 nodes"*), and the master holds playback until all nodes are ready, so that playback starts on all of them at once. See [Starting playback on all nodes](/remote-control/api#starting-playback-on-all-nodes).
+  * **Node load failures** — Files that a node could not open or decode are listed in **Settings → Logging...** on the master.
+  * **Node telemetry** — When enabled in **Settings → Logging...**, every node reports its FPS, dropped frames, sync offset, GPU load, decoder state and latency once per second.
+  * **Capture inputs** — The nodes report the capture inputs they have, so a capture layer can be assigned to an input on a specific node.
+
+Without the data transfer connection, the nodes still show the synchronized content, but the master knows nothing about them: playback is not held while nodes load, and failures and problems on the nodes are not shown to the pilot.
+
+When a node has no `datatransferport`, C-Play uses its `port` + 1000. Still, set it explicitly for every node, as in the examples, so that the ports are documented in the configuration and can be opened in the firewall. Note that:
+
+* Every `port` and `datatransferport` must be unique within the configuration, as the master listens on all of them. In particular, the `datatransferport` of one node must not be the `port` of another.
+* The nodes connect to the master, so the firewall on the master has to allow incoming TCP connections on both the `port` and the `datatransferport` of every node.
+* A node with `"datatransferport": 0` has no data transfer connection.
+
 ## Auto 2D vs 3D switch
 
 This is based on the assumption that you do not mix 3D viewports with 2D viewports, meaning a window could cover a 3D projector or screen that would show left and right eye, or a 2D projector or screen, but a window would not cover both at the same time.
@@ -28,7 +76,7 @@ This makes it possible to apply different calibrations for 3D and 2D content, wh
 
 ### JSON: Version 2.2 and newer
 
-The following is a window's `viewports` fragment; include it in a complete SGCT cluster configuration.
+The following is a window's `viewports` fragment; include it in a complete SGCT cluster configuration. The example configuration `master_and_auto_2D3D_node.json` contains a complete configuration with these viewports.
 
 ```json
 {

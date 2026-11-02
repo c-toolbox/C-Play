@@ -74,7 +74,7 @@ The camera's field of view is set by *"3D View FOV"* in the [Window & UI setting
 
 #### Fisheye 180° projection (fulldome)
 
-Select **"Show 3D view with fisheye camera"** from the view-mode menu in the header taskbar to replace the perspective camera with a virtual **180° equidistant fisheye lens** centered on the zenith (straight up). To start C-Play directly in this mode, enable *"Render 3D view as 180-degree fisheye (fulldome) at startup"* in the [Window & UI settings](/settings/window_and_ui). The whole scene is then projected onto a flat circular image — exactly what an omnidirectional 180° fulldome camera would capture from inside your dome or sphere.
+Select **"Show 3D view with fisheye camera"** from the view-mode menu in the header taskbar to replace the perspective camera with a virtual **180° equidistant fisheye lens** centered on the zenith (straight up). To start C-Play directly in this mode, select *"3D view with fisheye camera"* as *"Master view at startup"* in the [Window & UI settings](/settings/window_and_ui). The whole scene is then projected onto a flat circular image — exactly what an omnidirectional 180° fulldome camera would capture from inside your dome or sphere.
 
 * Dome-mapped, sphere-mapped (EQR and EAC), and flat/plane layers are all rendered through the lens; plain 2D layers stay flat as usual.
 * The image is *equidistant*: distance from the centre equals angle from the zenith. For full-hemisphere content (180° FOV) the disk matches exactly what normal mode shows on the dome, and areas below the horizon are rendered black. Content with a narrower FOV sits in the inner region of the circle.
@@ -85,7 +85,7 @@ Switching between the modes in the view-mode menu takes effect immediately; no r
 
 #### Sphere view
 
-Select **"Show 3D view mapped on a sphere"** from the view-mode menu to see all content mapped on the outside of a sphere, like a globe. Instead of turning the camera inside the scene, you turn the sphere itself. To start C-Play directly in this mode, enable *"Render 3D view mapped on a sphere at startup"* in the [Window & UI settings](/settings/window_and_ui).
+Select **"Show 3D view mapped on a sphere"** from the view-mode menu to see all content mapped on the outside of a sphere, like a globe. Instead of turning the camera inside the scene, you turn the sphere itself. To start C-Play directly in this mode, select *"3D view mapped on a sphere"* as *"Master view at startup"* in the [Window & UI settings](/settings/window_and_ui).
 
 * Every layer is placed on the sphere by its direction from the centre: dome content covers the upper half of the sphere, sphere-mapped content (EQR and EAC) covers all of it, and flat/plane layers appear where they are aimed. Plain 2D layers stay flat as usual.
 * The content is shown the right way round: text and left/right read the same as from inside the dome, with the dome front facing you.

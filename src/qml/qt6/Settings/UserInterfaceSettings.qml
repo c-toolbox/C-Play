@@ -425,16 +425,32 @@ SettingsBasePage {
                 level: 4
             }
 
-            Item {
-                height: 1
-                width: 1
+            Label {
+                Layout.alignment: Qt.AlignRight
+                text: qsTr("Master view at startup:")
             }
-            CheckBox {
-                checked: UserInterfaceSettings.show3DviewAtStartup
-                text: qsTr("Show 3D view at startup (instead of simple flat view)")
+            ComboBox {
+                id: masterViewAtStartupComboBox
 
-                onCheckedChanged: {
-                    UserInterfaceSettings.show3DviewAtStartup = checked;
+                // In the order of window.mainViewMode.
+                model: [
+                    qsTr("Only the main video"),
+                    qsTr("3D view with perspective camera"),
+                    qsTr("3D view with fisheye camera"),
+                    qsTr("3D view mapped on a sphere")
+                ]
+
+                // The selection is kept in the existing settings, so that the configuration files
+                // of earlier versions keep working. Read in the same order as in main.qml.
+                Component.onCompleted: {
+                    currentIndex = !UserInterfaceSettings.show3DviewAtStartup ? 0 :
+                                   UserInterfaceSettings.renderAsFisheyeIn3DView ? 2 :
+                                   UserInterfaceSettings.renderAsSphereIn3DView ? 3 : 1;
+                }
+                onActivated: {
+                    UserInterfaceSettings.show3DviewAtStartup = currentIndex > 0;
+                    UserInterfaceSettings.renderAsFisheyeIn3DView = currentIndex === 2;
+                    UserInterfaceSettings.renderAsSphereIn3DView = currentIndex === 3;
                     UserInterfaceSettings.save();
                 }
             }
@@ -466,48 +482,6 @@ SettingsBasePage {
                     text: {
                         qsTr("degrees");
                     }
-                }
-            }
-            Item {
-                Layout.fillWidth: true
-            }
-            
-            Item {
-                height: 1
-                width: 1
-            }
-            CheckBox {
-                id: renderAsFisheyeCheckBox
-                checked: UserInterfaceSettings.renderAsFisheyeIn3DView
-                text: qsTr("Render 3D view as 180-degree fisheye (fulldome) at startup")
-
-                onCheckedChanged: {
-                    UserInterfaceSettings.renderAsFisheyeIn3DView = checked;
-                    // Only one camera mode can be active at startup.
-                    if (checked)
-                        renderAsSphereCheckBox.checked = false;
-                    UserInterfaceSettings.save();
-                }
-            }
-            Item {
-                Layout.fillWidth: true
-            }
-
-            Item {
-                height: 1
-                width: 1
-            }
-            CheckBox {
-                id: renderAsSphereCheckBox
-                checked: UserInterfaceSettings.renderAsSphereIn3DView
-                text: qsTr("Render 3D view mapped on a sphere at startup")
-
-                onCheckedChanged: {
-                    UserInterfaceSettings.renderAsSphereIn3DView = checked;
-                    // Only one camera mode can be active at startup.
-                    if (checked)
-                        renderAsFisheyeCheckBox.checked = false;
-                    UserInterfaceSettings.save();
                 }
             }
             Item {

@@ -11,7 +11,7 @@ The playback settings within C-Play control fading, visibility, seeking, and tim
 
 ### Visibility and fading
 
-* **Media visibility at startup** — Initial media visibility level (0–100%, default 100).
+* **Media visibility at startup** — Initial media visibility level (0–100%, default 0).
 * **Fade duration** — Time in milliseconds for fade up/down transitions (0–20000, default 2000).
 * **Sync volume and visibility fading** — When enabled, volume and visibility fade together (default off).
 * **Rewind on EOF when paused** — Rewind to start when end-of-file is reached while paused (default off).

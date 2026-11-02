@@ -21,7 +21,7 @@
     </entry>
     <entry name="Show3DviewAtStartup" type="bool">
       <label>Show 3D view at startup</label>
-      <default>false</default>
+      <default>true</default>
     </entry>
     <entry name="Fov3Dview" type="Int">
       <label>Field of view for 3D view</label>
