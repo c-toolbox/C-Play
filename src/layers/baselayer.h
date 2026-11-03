@@ -373,7 +373,7 @@ public:
     int volumeAtAlpha(float a) const;
     virtual unsigned int textureId() const;
     // Call after textureId() when sampling from another window's OpenGL context: makes that
-    // context's GPU commands wait until the texture is complete. Default is a no-op.
+    // context's GPU commands wait until the texture is complete, as published by publishTextureFence().
     virtual void waitForTexture();
     virtual unsigned int textureInternalFormat() const;
     virtual int width() const;
@@ -583,6 +583,12 @@ public:
     static void setPlaceholderBackground(bool enabled, const std::string& hex);
 
 protected:
+    // Render thread, after writing the texture and before textureId() exposes it: lets
+    // waitForTexture() in another window's context wait for the write. Master only.
+    void publishTextureFence();
+    // Needs a current OpenGL context. Without one, the destructor defers it to the next publish.
+    void releaseTextureFence();
+
     std::optional<glm::vec2> computedPlaneSizeForTexture(int width, int height, int stereo) const;
     // Resolved from the local preset; never serialized to the nodes.
     void setMasterPlaceholder(bool enabled);
@@ -651,6 +657,8 @@ protected:
     bool m_isLocked;
     bool m_isEnabled;
     bool m_isMaster;
+    std::mutex m_textureFenceMutex;
+    struct __GLsync *m_textureFence = nullptr; // Signals when the latest texture write is complete
     bool m_existOnMasterOnly;
     bool m_shouldUpdate;
     bool m_shouldUpdateFrame;

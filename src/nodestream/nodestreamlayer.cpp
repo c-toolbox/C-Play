@@ -204,6 +204,7 @@ bool NodeStreamLayer::upload(const NodeStreamReceiver::Frame &frame) {
     glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
     glBindTexture(GL_TEXTURE_2D, 0);
 
+    publishTextureFence();
     renderData.texId = m_texture;
     renderData.width = m_texWidth;
     renderData.height = m_texHeight;

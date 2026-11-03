@@ -243,6 +243,7 @@ void OmtLayer::updateFrame() {
     glBindTexture(GL_TEXTURE_2D, renderData.texId);
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height,
         GL_BGRA, GL_UNSIGNED_BYTE, frame->Data);
+    publishTextureFence();
 
     m_subdivision->updateSubLayers(renderData.texId, renderData.width, renderData.height);
 }

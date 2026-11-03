@@ -88,13 +88,7 @@ void VideoLayer::cleanup() {
     // End Mpv running on separate thread
     MpvLayer::cleanup();
 
-    {
-        std::lock_guard<std::mutex> lock(m_displayFenceMutex);
-        if (m_displayFence) {
-            glDeleteSync(m_displayFence);
-            m_displayFence = nullptr;
-        }
-    }
+    releaseTextureFence();
 
     if (m_data.fboCreated) {
         m_data.fboCreated = false;
@@ -164,7 +158,7 @@ void VideoLayer::updateFrame() {
         // Swap ping-pong buffers: the just-rendered buffer becomes the display
         // buffer and the previously displayed buffer becomes the next render target.
         if (pingPong) {
-            publishDisplayFence();
+            publishTextureFence();
             if (m_renderingToPingPong) {
                 renderData.texId = m_pingPongTexId;
             } else {
@@ -183,23 +177,6 @@ void VideoLayer::updateFrame() {
         // The skipped frame is gone from mpv, and a paused layer gets no new one.
         m_redrawNeeded = true;
     }
-}
-
-void VideoLayer::waitForTexture() {
-    std::lock_guard<std::mutex> lock(m_displayFenceMutex);
-    if (m_displayFence)
-        glWaitSync(m_displayFence, 0, GL_TIMEOUT_IGNORED);
-}
-
-void VideoLayer::publishDisplayFence() {
-    // The flush makes the fence visible to the other windows' contexts.
-    GLsync fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
-    glFlush();
-
-    std::lock_guard<std::mutex> lock(m_displayFenceMutex);
-    if (m_displayFence)
-        glDeleteSync(m_displayFence);
-    m_displayFence = fence;
 }
 
 void VideoLayer::applyPendingVideoSize() {

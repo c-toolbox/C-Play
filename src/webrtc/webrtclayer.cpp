@@ -1192,8 +1192,10 @@ void WebRTCLayer::updateFrame() {
                                        rgba ? GL_RGBA : GL_RED)) {
         if (rgba) {
             uploadRgba(slot);
+            publishTextureFence();
             m_subdivision->updateSubLayers(renderData.texId, renderData.width, renderData.height);
         } else if (uploadYuv(slot)) {
+            publishTextureFence();
             m_subdivision->updateSubLayers(renderData.texId, renderData.width, renderData.height);
         } else {
             // No usable GPU conversion: let the decoder convert on the CPU from now on.

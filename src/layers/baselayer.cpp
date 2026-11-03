@@ -93,6 +93,11 @@ namespace {
 std::mutex s_placeholderMutex;
 bool s_placeholderBackground = true;
 std::string s_placeholderBackgroundHex = "#000000";
+
+// Texture fences of destroyed layers, deleted by the next publishTextureFence()
+std::mutex s_orphanedFenceMutex;
+std::vector<GLsync> s_orphanedFences;
+std::atomic_bool s_hasOrphanedFences{false};
 }
 
 void BaseLayer::setPlaceholderBackground(bool enabled, const std::string& hex) {
@@ -390,6 +395,12 @@ BaseLayer::BaseLayer() {
 
 BaseLayer::~BaseLayer() {
     planeData.mesh.reset();
+    if (m_textureFence) {
+        // No guarantee of a current OpenGL context here
+        std::lock_guard<std::mutex> lock(s_orphanedFenceMutex);
+        s_orphanedFences.push_back(m_textureFence);
+        s_hasOrphanedFences = true;
+    }
 #ifdef NDI_SUPPORT
     m_ndiSender.reset();
 #endif
@@ -1339,8 +1350,10 @@ bool BaseLayer::updateNoSignalImage(bool noSignal, const std::string& file) {
         m_noSignalImageFile.clear();
         return false;
     }
-    if (!m_noSignalImage)
+    if (!m_noSignalImage) {
         m_noSignalImage = std::make_unique<ImageLayer>("no-signal");
+        m_noSignalImage->setIsMaster(isMaster());
+    }
     // Only force a (re)load when the file changes, so a broken file is not retried every frame.
     const bool fileChanged = imageFile != m_noSignalImageFile;
     m_noSignalImageFile = imageFile;
@@ -1395,7 +1408,51 @@ unsigned int BaseLayer::textureId() const {
 }
 
 void BaseLayer::waitForTexture() {
-    // Overwrite in derived class
+    // Same source as textureId()
+#ifdef TEXT_LAYER
+    if (masterPlaceholderEnabled()) {
+        if (m_masterPlaceholder)
+            m_masterPlaceholder->waitForTexture();
+        return;
+    }
+#endif
+    if (noSignalImageEnabled()) {
+        m_noSignalImage->waitForTexture();
+        return;
+    }
+    std::lock_guard<std::mutex> lock(m_textureFenceMutex);
+    if (m_textureFence)
+        glWaitSync(m_textureFence, 0, GL_TIMEOUT_IGNORED);
+}
+
+void BaseLayer::publishTextureFence() {
+    // Only the master shows a layer in more than one window.
+    if (!m_isMaster)
+        return;
+
+    if (s_hasOrphanedFences.exchange(false)) {
+        std::lock_guard<std::mutex> lock(s_orphanedFenceMutex);
+        for (GLsync orphan : s_orphanedFences)
+            glDeleteSync(orphan);
+        s_orphanedFences.clear();
+    }
+
+    // The flush makes the fence visible to the other windows' contexts.
+    GLsync fence = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+    glFlush();
+
+    std::lock_guard<std::mutex> lock(m_textureFenceMutex);
+    if (m_textureFence)
+        glDeleteSync(m_textureFence);
+    m_textureFence = fence;
+}
+
+void BaseLayer::releaseTextureFence() {
+    std::lock_guard<std::mutex> lock(m_textureFenceMutex);
+    if (m_textureFence) {
+        glDeleteSync(m_textureFence);
+        m_textureFence = nullptr;
+    }
 }
 
 unsigned int BaseLayer::textureInternalFormat() const {

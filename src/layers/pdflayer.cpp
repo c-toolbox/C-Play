@@ -248,6 +248,7 @@ void PdfLayer::handleAsyncPageRender() {
             else {
                 loadPageAsTexture(renderData.texId, m_pdfData.img.width(), m_pdfData.img.height(), m_pdfData.img.format(), m_pdfData.img.const_data());
             }
+            publishTextureFence();
             sgct::Log::Info(std::format("Page {} in {} loaded with width {} and height {}.", m_pdfData.page, m_pdfData.filepath, renderData.width, renderData.height));
             m_pdfData.textureReady = true;
             m_pdfData.uploadDone = true;

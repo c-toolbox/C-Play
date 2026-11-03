@@ -102,6 +102,7 @@ void MdkLayer::updateFrame() {
 
     if (m_data.updateRendering && m_data.fboCreated) {
         m_player->renderVideo();
+        publishTextureFence();
     }
 }
 

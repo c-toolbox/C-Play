@@ -575,6 +575,7 @@ void DirectShowLayer::uploadFrame(const std::vector<unsigned char>& pixels, int 
         glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height,
                         GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
     }
+    publishTextureFence();
 
     m_subdivision->updateSubLayers(renderData.texId, renderData.width, renderData.height);
 #endif

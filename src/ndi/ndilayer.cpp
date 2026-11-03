@@ -888,6 +888,7 @@ bool NdiLayer::GetPixelData(GLuint TextureID, unsigned int width, unsigned int h
     NDIreceiver.FreeVideoData();
 
     if (success) {
+        publishTextureFence();
         m_hasCapturedImage = true;
         m_isReady = true;
 

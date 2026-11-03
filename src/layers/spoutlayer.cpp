@@ -180,6 +180,7 @@ void SpoutLayer::updateFrame() {
 		// Receive texture. A QR control frame is shown as the last clean frame instead,
 		// so the receive texture is kept apart from the one shown.
 		if (m_receiver->ReceiveTexture(m_receiveTexId, GL_TEXTURE_2D, true)) {
+			publishTextureFence();
 			renderData.texId = m_subdivision->filterControlFrame(m_receiveTexId, renderData.width, renderData.height);
 			m_subdivision->updateSubLayers(renderData.texId, renderData.width, renderData.height);
 		}

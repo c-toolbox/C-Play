@@ -599,6 +599,7 @@ void ImageLayer::handleAsyncImageUpload() {
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
             glBindTexture(GL_TEXTURE_2D, 0);
+            publishTextureFence();
             renderData.texId = texId;
             renderData.width = m_ctx->sailWidth;
             renderData.height = m_ctx->sailHeight;
@@ -608,7 +609,9 @@ void ImageLayer::handleAsyncImageUpload() {
 #endif
         {
             int imgWidth = m_ctx->img.size().x, imgHeight = m_ctx->img.size().y;
-            renderData.texId = sgct::TextureManager::instance().loadTexture(std::move(m_ctx->img));
+            const unsigned int texId = sgct::TextureManager::instance().loadTexture(std::move(m_ctx->img));
+            publishTextureFence();
+            renderData.texId = texId;
             renderData.width = imgWidth; renderData.height = imgHeight;
             m_ctx->uploadDone = true;
         }
@@ -701,6 +704,8 @@ void ImageLayer::uploadFrameToGPU(const FrameData& frame) {
         frame.pixels.data());
     glBindTexture(GL_TEXTURE_2D, 0);
 
+    // The LayerView samples from its own context and may otherwise get the frame before the upload.
+    publishTextureFence();
     renderData.texId = texId;
     renderData.width = frame.width;
     renderData.height = frame.height;

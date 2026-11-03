@@ -310,6 +310,7 @@ void CaptureLayer::updateCapture() {
     }
 
     m_backend->update();
+    publishTextureFence();
     setLoadError(key, m_backend->error());
 
     m_sourceHasAudio.store(src.audio);

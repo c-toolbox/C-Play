@@ -55,6 +55,7 @@ bool TextureLayer::copyFromTexture(GLuint srcTexId, int width, int height, GLenu
         renderData.texId, GL_TEXTURE_2D, 0, 0, 0, 0,
         width, height, 1
     );
+    publishTextureFence();
 
     m_hasTexture = true;
     if (reallocated) {
@@ -83,6 +84,7 @@ bool TextureLayer::upload(const unsigned char* pixelData, int width, int height,
     GLenum type = (internalFormat == GL_RGBA16F) ? GL_FLOAT : GL_UNSIGNED_BYTE;
     glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GLformat, type, pixelData);
     glBindTexture(GL_TEXTURE_2D, 0);
+    publishTextureFence();
 
     m_hasTexture = true;
     return true;
