@@ -15,7 +15,11 @@ When mapped on a sphere, alongside *Yaw*, *Pitch* and *Roll* is enabled as well 
 
 You clearly see in the icon coloring, both in the header taskbar, and in the drop-down UI, that a *spin operation* is enabled.
 
-![Spin Dome Off](/assets/ui/header_taskbar/spin_dome.png) &nbsp;&nbsp;&nbsp; ![Spin Sphere Off](/assets/ui/header_taskbar/spin_sphere.png) &nbsp;&nbsp;&nbsp; ![Spin Sphere On](/assets/ui/header_taskbar/spin_sphere_on.png)
+<div style={{display: 'flex', gap: '1rem', alignItems: 'flex-start'}}>
+  <figure style={{flex: '0 1 245px', margin: 0, textAlign: 'center'}}><img src={require('@site/static/assets/ui/header_taskbar/spin_dome.png').default} alt="Spin Dome Off" style={{width: '100%'}} /><figcaption>Dome, spin off</figcaption></figure>
+  <figure style={{flex: '0 1 245px', margin: 0, textAlign: 'center'}}><img src={require('@site/static/assets/ui/header_taskbar/spin_sphere.png').default} alt="Spin Sphere Off" style={{width: '100%'}} /><figcaption>Sphere, spin off</figcaption></figure>
+  <figure style={{flex: '0 1 245px', margin: 0, textAlign: 'center'}}><img src={require('@site/static/assets/ui/header_taskbar/spin_sphere_on.png').default} alt="Spin Sphere On" style={{width: '100%'}} /><figcaption>Sphere, spin on</figcaption></figure>
+</div>
 
 The four additional controls and triggers are:
 

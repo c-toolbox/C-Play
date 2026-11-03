@@ -11,7 +11,11 @@ To play a presentation, you can use the left and right arrow keys on the keyboar
 
 As seen in the middle image, when pressing the *"Pre-Load"* button ![](/assets/icons/task-complete-lime.svg), it turns green and all slides shift from *Red* to *Orange*, which means the slides and layers are loaded, but not yet visible. When a slide is triggered and the layers become visible, they turn *Green*. If a slide contains both visible and non-visible layers, two colors might show in the slide, as indicated in the image below to the right.
 
-![Master Layer](/assets/ui/slides_layers_master.png) &nbsp;&nbsp;&nbsp; ![PreLoad Layers](/assets/ui/slides_layers_preload.png) &nbsp;&nbsp;&nbsp; ![Triggering Slides](/assets/ui/slides_layers.png)
+<div style={{display: 'flex', gap: '1rem', alignItems: 'flex-start'}}>
+  <figure style={{flex: '1 1 0', margin: 0, textAlign: 'center'}}><img src={require('@site/static/assets/ui/slides_layers_master.png').default} alt="Master Layer" style={{width: '100%'}} /><figcaption>At startup</figcaption></figure>
+  <figure style={{flex: '1 1 0', margin: 0, textAlign: 'center'}}><img src={require('@site/static/assets/ui/slides_layers_preload.png').default} alt="PreLoad Layers" style={{width: '100%'}} /><figcaption>After Pre-Load</figcaption></figure>
+  <figure style={{flex: '1 1 0', margin: 0, textAlign: 'center'}}><img src={require('@site/static/assets/ui/slides_layers.png').default} alt="Triggering Slides" style={{width: '100%'}} /><figcaption>Slide triggered</figcaption></figure>
+</div>
 
 In the *"Visibility"* ![](/assets/icons/table.svg) window, you can set layers to be visible during multiple slides, which may come in handy if you want background media to stay visible during a set of slides while fading in layers one by one.
 
