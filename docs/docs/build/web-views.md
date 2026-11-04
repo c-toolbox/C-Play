@@ -34,6 +34,8 @@ To work on a web app, run `pnpm dev` in its folder: the Vite dev server proxies 
 
 Install Qt WebView through Craft (`libs/qt6/qtwebview`, see the [Craft Guide](/build/craft)). On Windows it runs on Qt WebEngine, so with `CPLAY_INSTALL_DEPENDENCIES` the INSTALL target also copies `QtWebEngineProcess.exe`, the WebEngine resources (to `bin/resources`) and `qtwebengine_locales` (to `bin/translations`). Without these files the C-Play window stays black.
 
+The Windows deployment also installs `bin/qt.conf` so Qt finds the packaged plugins, QML modules, helper process, resources and locales after the folder is moved. WebView/WebEngine DLLs loaded by plugins are copied explicitly: scanning `C-Play.exe` alone does not find every dependency. In particular, newer Qt builds need `Qt6WebViewQuick.dll` and `Qt6WebEngineQuickDelegatesQml.dll` alongside the other Qt DLLs. Keep `CPLAY_INSTALL_DEPENDENCIES` enabled when refreshing a distribution, and test with Craft and other development directories removed from `PATH`; otherwise missing DLLs can be supplied by the development environment.
+
 ## Movie view pictures
 
 The pictures in the movie view need a build with `BUILD_CPLAY_WITH_WEBRTC`, and at runtime `ffmpeg.exe` with libx264 next to `C-Play.exe` (or on the `PATH`). The deploy step copies the `ffmpeg.exe` found beside the mpv library. UDP ports 8891–8990 of the master must be open for the devices that show pictures.

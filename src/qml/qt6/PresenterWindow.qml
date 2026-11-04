@@ -20,6 +20,9 @@ Window {
 
     // The path the view is served at: "presenter" or "movie".
     property string view: "presenter"
+    // The screen the window was opened on with openOn, -1 when it is closed.
+    readonly property int screenIndex: visible ? openedScreenIndex : -1
+    property int openedScreenIndex: -1
 
     title: view === "movie" ? qsTr("C-Play Movie View") : qsTr("C-Play Presenter View")
     color: "black"
@@ -28,7 +31,8 @@ Window {
 
     function openOn(screenIndex) {
         const screens = Qt.application.screens;
-        const target = screens[Math.max(0, Math.min(screenIndex, screens.length - 1))];
+        root.openedScreenIndex = Math.max(0, Math.min(screenIndex, screens.length - 1));
+        const target = screens[root.openedScreenIndex];
         // Leave fullscreen first, so the window can move to the other screen.
         root.visibility = Window.Windowed;
         root.screen = target;

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import NotesEditor from './components/NotesEditor.svelte';
   import RecentFiles, { type RecentGroup } from './components/RecentFiles.svelte';
   import SlidePreview from './components/SlidePreview.svelte';
@@ -39,6 +39,11 @@
   // A slide removed in C-Play.
   $effect(() => {
     if (browsing !== null && browsing >= slides.length) browsing = null;
+  });
+  // The timer restarts at zero, paused, when C-Play is restarted.
+  $effect(() => {
+    const session = s?.session;
+    if (session) untrack(() => clock.syncSession(session));
   });
 
   onMount(() => {

@@ -22,12 +22,18 @@
 #include <QQuickWindow>
 #include <QScreen>
 #include <QStandardPaths>
+#include <QTimer>
 #include <QUrl>
+#include <QUuid>
+
+#include <utility>
 
 namespace {
 // Wide enough for a sharp preview on a presenter screen, small enough to keep the thumbnail files light.
 constexpr int kThumbnailMaxWidth = 640;
 constexpr int kThumbnailJpegQuality = 85;
+// How long a browser app window gets to close before its process is killed.
+constexpr int kBrowserCloseTimeoutMs = 3000;
 
 QString findAppModeBrowser() {
     QStringList candidates;
@@ -54,7 +60,20 @@ QString findAppModeBrowser() {
 }
 
 PresenterController::PresenterController(QObject *parent)
-    : QObject(parent) {
+    : QObject(parent)
+    , m_session(QUuid::createUuid().toString(QUuid::WithoutBraces)) {
+}
+
+PresenterController::~PresenterController() {
+    // Taken out first, as a process that finishes removes itself from m_browserViews.
+    const auto browserViews = std::exchange(m_browserViews, {});
+    for (const auto &browserView : browserViews) {
+        if (browserView.process && browserView.process->state() != QProcess::NotRunning) {
+            browserView.process->terminate();
+            // Killed by the QProcess destructor when it does not close in time.
+            browserView.process->waitForFinished(1000);
+        }
+    }
 }
 
 void PresenterController::setSlidesModel(SlidesModel *slides) {
@@ -145,7 +164,8 @@ QJsonObject PresenterController::state() const {
             {QStringLiteral("thumbnail"), slide->thumbnail().isEmpty() ? 0 : slide->thumbnailRevision()}});
     }
 
-    return {{QStringLiteral("name"), m_slides->getSlidesName()},
+    return {{QStringLiteral("session"), m_session},
+        {QStringLiteral("name"), m_slides->getSlidesName()},
         {QStringLiteral("canSave"), !m_slides->getSlidesPath().isEmpty()},
         {QStringLiteral("needsSave"), m_slides->getSlidesNeedsSave()},
         {QStringLiteral("selected"), selected},
@@ -223,6 +243,13 @@ bool PresenterController::openRecentPresentation(const QString &path) {
     return true;
 }
 
+QVariantMap PresenterController::browserViews() const {
+    QVariantMap views;
+    for (auto it = m_browserViews.cbegin(); it != m_browserViews.cend(); ++it)
+        views.insert(it.key(), it->screenIdx);
+    return views;
+}
+
 void PresenterController::openInBrowser(int screenIdx, const QString &view) {
     const QUrl url(localUrlOf(view));
     const QString browser = findAppModeBrowser();
@@ -239,11 +266,62 @@ void PresenterController::openInBrowser(int screenIdx, const QString &view) {
     const QString profile = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation)
         + QStringLiteral("/%1-browser").arg(view);
     QDir().mkpath(profile);
-    QProcess::startDetached(browser, {
+
+    // Not detached, so the window can be closed from C-Play and the menu shows it as open until
+    // it is closed.
+    auto *process = new QProcess(this);
+    process->setProgram(browser);
+    process->setArguments({
         QStringLiteral("--app=%1").arg(url.toString()),
         QStringLiteral("--user-data-dir=%1").arg(QDir::toNativeSeparators(profile)),
         QStringLiteral("--window-position=%1,%2").arg(geometry.x()).arg(geometry.y()),
         QStringLiteral("--start-fullscreen"),
         QStringLiteral("--no-first-run"),
         QStringLiteral("--no-default-browser-check")});
+    process->setStandardOutputFile(QProcess::nullDevice());
+    process->setStandardErrorFile(QProcess::nullDevice());
+    const auto forget = [this, view, process]() {
+        const auto it = m_browserViews.find(view);
+        if (it != m_browserViews.end() && it->process == process) {
+            m_browserViews.erase(it);
+            Q_EMIT browserViewsChanged();
+        }
+        process->deleteLater();
+    };
+    connect(process, &QProcess::finished, this, forget);
+    connect(process, &QProcess::errorOccurred, this, [forget](QProcess::ProcessError error) {
+        if (error == QProcess::FailedToStart)
+            forget();
+    });
+
+    // The window already open with this profile has to close first, or the browser would hand
+    // the new window over to it.
+    QPointer<QProcess> previous = m_browserViews.value(view).process;
+    closeInBrowser(view);
+    m_browserViews.insert(view, {process, screenIdx});
+    Q_EMIT browserViewsChanged();
+    if (previous && previous->state() != QProcess::NotRunning)
+        connect(previous, &QProcess::finished, process, [process]() { process->start(); });
+    else
+        process->start();
+}
+
+void PresenterController::closeInBrowser(const QString &view) {
+    const auto it = m_browserViews.find(view);
+    if (it == m_browserViews.end())
+        return;
+    QPointer<QProcess> process = it->process;
+    m_browserViews.erase(it);
+    Q_EMIT browserViewsChanged();
+    if (!process)
+        return;
+    if (process->state() == QProcess::NotRunning) {
+        process->deleteLater();
+        return;
+    }
+    process->terminate();
+    QTimer::singleShot(kBrowserCloseTimeoutMs, process, [process]() {
+        if (process && process->state() != QProcess::NotRunning)
+            process->kill();
+    });
 }

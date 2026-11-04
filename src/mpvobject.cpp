@@ -2593,16 +2593,22 @@ void MpvObject::removeView(MpvView* view) {
     }
 }
 
-// The view that renders mpv and blits into the other views. It has to be a visible one, as a
-// hidden item never renders. mpv_views is ordered by pointer, so its order means nothing here.
+// The view that renders mpv and blits into the other views. Its window has to be shown, as a
+// hidden window never renders. The item itself may be hidden: the 3D view hides the main video
+// but still shows mpv's texture. mpv_views is ordered by pointer, so its order means nothing here.
 MpvView* MpvObject::primaryView() const {
     std::lock_guard<std::recursive_mutex> lock(m_renderMutex);
-    if (m_contextView && m_contextView->isVisible())
+    const auto windowShown = [](const MpvView* view) {
+        return view->window() && view->window()->isExposed();
+    };
+    if (m_contextView && windowShown(m_contextView))
         return m_contextView;
     for (MpvView* view : mpv_views) {
-        if (view->isVisible())
+        if (windowShown(view))
             return view;
     }
+    if (m_contextView)
+        return m_contextView;
     return mpv_views.empty() ? nullptr : mpv_views.front();
 }
 

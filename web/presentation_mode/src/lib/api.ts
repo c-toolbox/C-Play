@@ -11,6 +11,8 @@ export interface SlideInfo {
 }
 
 export interface PresentationState {
+  /** Changes each time C-Play starts. */
+  session: string;
   name: string;
   /** The presentation has a file to save to. */
   canSave: boolean;

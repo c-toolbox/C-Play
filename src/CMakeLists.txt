@@ -834,6 +834,21 @@ if(CPLAY_INSTALL_DEPENDENCIES)
     # Windows: it needs its helper process, resources and locales next to C-Play. Not installed
     # without Qt WebView (also off when the web views are off or Qt WebView is not found).
     if(BUILD_CPLAY_WITH_WEBVIEW)
+        if(WIN32)
+            # These libraries are loaded through QML/backend plugins, so scanning
+            # C-Play.exe alone misses them. Some only exist in newer Qt versions.
+            foreach(_webview_library Qt6WebView Qt6WebViewQuick Qt6WebEngineCore Qt6WebEngineQuick
+                    Qt6WebEngineQuickDelegatesQml Qt6WebChannel Qt6WebChannelQuick Qt6Positioning)
+                if(EXISTS "${_qt_bin_dir}/${_webview_library}.dll")
+                    install(FILES "${_qt_bin_dir}/${_webview_library}.dll" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
+                        CONFIGURATIONS Release RelWithDebInfo MinSizeRel)
+                endif()
+                if(EXISTS "${_qt_bin_dir}/${_webview_library}d.dll")
+                    install(FILES "${_qt_bin_dir}/${_webview_library}d.dll" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
+                        CONFIGURATIONS Debug)
+                endif()
+            endforeach()
+        endif()
         if(EXISTS "${_qt_bin_dir}/QtWebEngineProcess.exe")
             install(FILES "${_qt_bin_dir}/QtWebEngineProcess.exe" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin"
                 CONFIGURATIONS Release RelWithDebInfo MinSizeRel)

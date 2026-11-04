@@ -8,12 +8,15 @@
 #ifndef PRESENTERCONTROLLER_H
 #define PRESENTERCONTROLLER_H
 
+#include <QHash>
 #include <QImage>
 #include <QJsonObject>
 #include <QObject>
 #include <QPointer>
+#include <QVariantMap>
 
 class LayersModel;
+class QProcess;
 class LayersRendererQtItem;
 class SlidesModel;
 
@@ -30,9 +33,13 @@ class PresenterController : public QObject {
     Q_PROPERTY(QString localUrl READ localUrl NOTIFY serverChanged)
     // True when built with Qt WebView, so the presenter view can open in a C-Play window.
     Q_PROPERTY(bool webViewAvailable READ webViewAvailable CONSTANT)
+    // The web views open in a browser app window (openInBrowser): {view: screen index}.
+    Q_PROPERTY(QVariantMap browserViews READ browserViews NOTIFY browserViewsChanged)
 
 public:
     explicit PresenterController(QObject *parent = nullptr);
+    // Closes the browser app windows, as the web views need the HTTP server of this C-Play.
+    ~PresenterController() override;
 
     void setSlidesModel(SlidesModel *slides);
     void setServer(bool running, int port);
@@ -42,6 +49,7 @@ public:
     bool serverRunning() const;
     QString localUrl() const;
     bool webViewAvailable() const;
+    QVariantMap browserViews() const;
     // Address on this computer of the web view served at /<view>/: "presenter" or "movie".
     Q_INVOKABLE QString localUrlOf(const QString &view) const;
     // Addresses of the web view for other devices on the network.
@@ -62,11 +70,15 @@ public:
     bool openRecentPresentation(const QString &path);
     // Opens the web view fullscreen on the screen in a browser app window (no tabs or address bar),
     // or in the default browser when no Chromium based browser is found.
+    // A view open in a browser app window is closed first, so each view has one window.
     Q_INVOKABLE void openInBrowser(int screenIdx, const QString &view = QStringLiteral("presenter"));
+    // Closes the browser app window of the web view opened with openInBrowser.
+    Q_INVOKABLE void closeInBrowser(const QString &view = QStringLiteral("presenter"));
 
 Q_SIGNALS:
     void layersRendererChanged();
     void serverChanged();
+    void browserViewsChanged();
 
 private:
     // The slide at idx, nullptr when idx is not a slide (the master is not one).
@@ -77,6 +89,14 @@ private:
     QPointer<LayersRendererQtItem> m_layersRenderer;
     // The slide the requested snapshot becomes the thumbnail of.
     QPointer<LayersModel> m_thumbnailSlide;
+    struct BrowserView {
+        QPointer<QProcess> process;
+        int screenIdx = -1;
+    };
+    // The browser app windows opened with openInBrowser, by view.
+    QHash<QString, BrowserView> m_browserViews;
+    // Changes each time C-Play starts, so the presenter view restarts its timer.
+    const QString m_session;
     bool m_serverRunning = false;
     int m_port = 7007;
 };

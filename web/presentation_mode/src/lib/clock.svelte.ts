@@ -5,7 +5,11 @@ interface TimerData {
   elapsed: number;
   /** Date.now() when started, null when paused. */
   startedAt: number | null;
+  /** The C-Play run (PresentationState.session) the timer was counted in. */
+  session?: string;
 }
+
+const fresh = (): TimerData => ({ elapsed: 0, startedAt: null });
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -16,10 +20,14 @@ export function formatDuration(ms: number) {
   return `${h > 0 ? `${h}:` : ''}${pad(m)}:${pad(seconds % 60)}`;
 }
 
-/** Wall clock and the presentation timer, which survives reloads of the page. */
+/**
+ * Wall clock and the presentation timer, which survives reloads of the page but starts at zero,
+ * paused, each time C-Play starts.
+ */
 export class Clock {
   now = $state(Date.now());
-  #timer = $state<TimerData>(load('timer', { elapsed: 0, startedAt: null }));
+  #timer = $state<TimerData>(fresh());
+  #session: string | null = null;
 
   running = $derived(this.#timer.startedAt !== null);
   elapsed = $derived(this.#timer.elapsed + (this.#timer.startedAt === null ? 0 : this.now - this.#timer.startedAt));
@@ -27,6 +35,16 @@ export class Clock {
 
   constructor() {
     setInterval(() => (this.now = Date.now()), 250);
+  }
+
+  /** Takes up the timer stored in this C-Play run, or restarts it when C-Play was restarted. */
+  syncSession(session: string) {
+    if (session === this.#session) return;
+    const stored = load<TimerData>('timer', fresh());
+    // Before the first state the timer is fresh, unless started or reset on this page already.
+    const timer = stored.session === session ? stored : this.#session === null ? this.#timer : fresh();
+    this.#session = session;
+    this.#set(timer);
   }
 
   toggle() {
@@ -44,7 +62,7 @@ export class Clock {
   }
 
   #set(data: TimerData) {
-    this.#timer = data;
-    store('timer', data);
+    this.#timer = { ...data, session: this.#session ?? undefined };
+    if (this.#session !== null) store('timer', this.#timer);
   }
 }

@@ -77,7 +77,7 @@ Menu {
         onObjectAdded: function(index, object) {
             const entry = webViews.model[index];
             object.view = entry.view;
-            object.title = entry.title;
+            object.title = Qt.binding(() => object.isOpen ? qsTr("%1 - open").arg(entry.title) : entry.title);
             object.windowLoader = entry.windowLoader;
             root.addMenu(object);
         }

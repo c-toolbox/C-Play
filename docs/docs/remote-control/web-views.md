@@ -32,7 +32,8 @@ The **Views** menu in the menu bar has one submenu per web view: *Presenter view
 ![Views menu: Presenter view submenu](/assets/ui/views_presenter.png)
 
 
-* **Open on &lt;screen&gt; (&lt;width&gt;x&lt;height&gt;)** — one entry per connected screen. Opens the view fullscreen on that screen. In builds with Qt WebView (`BUILD_CPLAY_WITH_WEBVIEW`) it opens in a C-Play window; otherwise in a browser app window without tabs or address bar (Edge or Chrome), or the default browser when no Chromium-based browser is found.
+* **Open on &lt;screen&gt; (&lt;width&gt;x&lt;height&gt;)** — one entry per connected screen. Opens the view fullscreen on that screen. In builds with Qt WebView (`BUILD_CPLAY_WITH_WEBVIEW`) it opens in a C-Play window; otherwise in a browser app window without tabs or address bar (Edge or Chrome), or the default browser when no Chromium-based browser is found. The screen the view is open on is checked, and the view menu title ends with **- open**. Opening it on another screen moves it there.
+* **Close** — closes the view opened on a screen (the C-Play window or the browser app window).
 * **Open in default browser** — opens the view in a normal browser tab on the master.
 * **Copy address for other devices** — lists the network addresses of the view on the master; select one to copy it to the clipboard and open it on a tablet or phone.
 
@@ -44,7 +45,7 @@ The presenter view shows the current and the next slide as thumbnails, the notes
 
 ![Presenter view](/assets/ui/presenter_view.png)
 
-* **Header** — the presentation name (with an *Unsaved* mark when C-Play has unsaved changes), the clock, the presentation timer with start/pause and reset, the connection state (*Live*), **Recent ▾** (see [Opening a recent presentation](#opening-a-recent-presentation)), **Save**, a light/dark theme toggle and fullscreen.
+* **Header** — the presentation name (with an *Unsaved* mark when C-Play has unsaved changes), the clock, the presentation timer with start/pause and reset (it starts at zero, paused, each time C-Play starts, keeps counting when the page is reloaded, and starts by itself with the first **Next**), the connection state (*Live*), **Recent ▾** (see [Opening a recent presentation](#opening-a-recent-presentation)), **Save**, a light/dark theme toggle and fullscreen.
 * **Current** — the slide shown in C-Play now, with **Update thumbnail** to replace its thumbnail. Before the first slide is triggered it says *Not started, Next shows the first slide*.
 * **Next** — the slide that **Next →** triggers. **Skip slide** marks it as skipped, and Next then shows the slide after it.
 * **Notes** — the notes of the current slide (or of the next slide before the presentation has started). **A−** / **A+** change the text size; *Saved to slide* shows that an edit has reached C-Play.
