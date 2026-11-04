@@ -278,6 +278,31 @@ QString MovieController::cueListPath(const QString &name) const {
     return QDir(folder).absoluteFilePath(fileName + QStringLiteral(".cplaycue"));
 }
 
+QJsonObject MovieController::recentFiles() const {
+    if (!m_mpv)
+        return {};
+    const auto list = [](const QStringList &paths) {
+        QJsonArray files;
+        for (const QString &path : paths) {
+            // Media files can be URLs, which have no file name to show.
+            const QString name = QFileInfo(QString(path).replace(QStringLiteral("file:///"), QString())).fileName();
+            files.append(QJsonObject{{QStringLiteral("path"), path}, {QStringLiteral("name"), name.isEmpty() ? path : name}});
+        }
+        return files;
+    };
+    return {{QStringLiteral("playlists"), list(m_mpv->recentPlaylists())},
+        {QStringLiteral("media"), list(m_mpv->recentMediaFiles())}};
+}
+
+bool MovieController::openRecentFile(const QString &path) {
+    // Only the listed files, so the view cannot open just any path on this computer.
+    if (!m_mpv || path.isEmpty() || !(m_mpv->recentPlaylists().contains(path) || m_mpv->recentMediaFiles().contains(path)))
+        return false;
+    disconnect(m_pendingCue);
+    m_mpv->loadFile(path);
+    return true;
+}
+
 QJsonObject MovieController::cueLists() const {
     const QString folder = cueListFolder();
     QJsonArray files;

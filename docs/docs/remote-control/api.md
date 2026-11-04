@@ -57,7 +57,7 @@ Endpoints are divided into two categories:
 `/load_from_slides`, `/select_from_slides`, `/slide_volume_fade_up`, `/slide_volume_fade_down`,
 `/layer_fade_up`, `/layer_fade_down`
 
-The additional GET-only endpoints `/tcp/servers`, `/tcp/commands`, `/event_topics` and `/events`, and POST-only endpoints `/tcp/connect`, `/tcp/disconnect`, `/tcp/trigger` and `/tcp/command`, are documented in [TCP connection and update control](#tcp-connection-and-update-control) and [Change subscriptions](#change-subscriptions) at the bottom of this page. The endpoints used by the presenter and movie views (`/presentation_state`, `/slide_notes`, `/movie_state`, `/movie_cue` and others) are documented in [Presenter view and movie view](/remote-control/web-views#http-endpoints).
+The additional GET-only endpoints `/tcp/servers`, `/tcp/commands`, `/event_topics` and `/events`, and POST-only endpoints `/tcp/connect`, `/tcp/disconnect`, `/tcp/trigger` and `/tcp/command`, are documented in [TCP connection and update control](#tcp-connection-and-update-control) and [Change subscriptions](#change-subscriptions) at the bottom of this page. The endpoints used by the presenter and movie views (`/presentation_state`, `/slide_notes`, `/presentation_recent`, `/presentation_open_recent`, `/movie_state`, `/movie_cue`, `/movie_recent`, `/movie_open_recent` and others) are documented in [Presenter view and movie view](/remote-control/web-views#http-endpoints).
 
 ---
 

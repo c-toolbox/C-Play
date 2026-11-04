@@ -693,6 +693,11 @@ Rectangle {
                     actions.slideNextAction.trigger();
                 }
 
+                function onOpenPresentationRequested(path) {
+                    presentationToLoad = path;
+                    openCPlayPresentation();
+                }
+
                 target: app.slides
             }
         }

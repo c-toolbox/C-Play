@@ -113,6 +113,8 @@ pnpm check        # svelte-check / TypeScript
 | GET | `/movie_cuelists` | `{folder, playlist, files: [{name, modified}]}`, the `*.cplaycue` in the cue list folder |
 | GET | `/movie_cuelist?name=` | A cue list, `{type: "cplaycue", version, playlist, cues}` |
 | POST | `/movie_cuelist?name=` | Body: the cue list as JSON; saves `name.cplaycue` |
+| GET | `/movie_recent` | `{playlists: [{path, name}], media: [{path, name}]}`, the recently loaded playlists and media files (Recent ▾), newest first |
+| POST | `/movie_open_recent?path=` | Loads one of those files in C-Play (400 for a path that is not in them) |
 
 Keyboard: Space = play/pause, ← → (Page Up/Down without cues in the cue list) = previous/next section (on air when live, of the
 cue when preparing), Page Down / G = GO (fire the standby cue), Page Up = standby back, ↑ ↓ = previous/next item of the cue, L = switch Live/Prepare (going live takes

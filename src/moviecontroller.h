@@ -61,6 +61,12 @@ public:
     // Saves cueList as name.cplaycue. Returns the error, empty when saved; status as above.
     QString saveCueList(const QString &name, const QJsonObject &cueList, int *status) const;
 
+    // The recently loaded playlists and media files: {playlists: [{path, name}], media: [...]},
+    // the newest first.
+    QJsonObject recentFiles() const;
+    // Loads path in C-Play if it is one of the recent playlists or media files, else false.
+    bool openRecentFile(const QString &path);
+
 private:
     QString cueListFolder() const;
     // Empty for a name that is not a plain file name.

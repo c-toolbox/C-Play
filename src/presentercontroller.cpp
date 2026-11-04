@@ -140,6 +140,8 @@ QJsonObject PresenterController::state() const {
         slides.append(QJsonObject{{QStringLiteral("index"), i},
             {QStringLiteral("name"), slide->getLayersName()},
             {QStringLiteral("notes"), slide->notes()},
+            // Passed over by next/previous.
+            {QStringLiteral("skipped"), slide->slideSkipped()},
             {QStringLiteral("thumbnail"), slide->thumbnail().isEmpty() ? 0 : slide->thumbnailRevision()}});
     }
 
@@ -202,6 +204,23 @@ bool PresenterController::save() {
         return false;
     m_slides->saveAsJSONFile(m_slides->getSlidesPath());
     return !m_slides->getSlidesNeedsSave();
+}
+
+QJsonObject PresenterController::recentPresentations() const {
+    QJsonArray files;
+    if (m_slides) {
+        for (const QString &path : m_slides->recentPresentations())
+            files.append(QJsonObject{{QStringLiteral("path"), path}, {QStringLiteral("name"), QFileInfo(path).completeBaseName()}});
+    }
+    return {{QStringLiteral("files"), files}};
+}
+
+bool PresenterController::openRecentPresentation(const QString &path) {
+    // Only the listed files, so the view cannot open just any path on this computer.
+    if (!m_slides || path.isEmpty() || !m_slides->recentPresentations().contains(path))
+        return false;
+    Q_EMIT m_slides->openPresentationRequested(path);
+    return true;
 }
 
 void PresenterController::openInBrowser(int screenIdx, const QString &view) {

@@ -1,9 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import NotesEditor from './components/NotesEditor.svelte';
+  import RecentFiles, { type RecentGroup } from './components/RecentFiles.svelte';
   import SlidePreview from './components/SlidePreview.svelte';
   import SlideStrip from './components/SlideStrip.svelte';
-  import { ApiError, api } from './lib/api';
+  import { ApiError, api, type RecentFile } from './lib/api';
   import { Clock, formatDuration } from './lib/clock.svelte';
   import { LivePresentation } from './lib/live.svelte';
   import { load, store } from './lib/storage';
@@ -92,6 +93,17 @@
     if (slide) slide.notes = notes;
   }
 
+  // Skipped slides are passed over by next and previous in C-Play.
+  function setSkipped(index: number, skipped: boolean) {
+    const name = slides[index]?.name ?? `slide ${index + 1}`;
+    void run(async () => {
+      await api.setSkipped(index, skipped);
+      // Show it right away instead of at the next event.
+      const slide = live.state?.slides[index];
+      if (slide) slide.skipped = skipped;
+    }, skipped ? `Could not skip ${name}` : `Could not include ${name}`);
+  }
+
   async function updateThumbnail() {
     capturing = true;
     const ok = await run(
@@ -104,6 +116,15 @@
 
   async function save() {
     if (await run(api.save, 'Could not save the presentation')) notify('Presentation saved');
+  }
+
+  const loadRecent = async (): Promise<RecentGroup[]> => [{ label: 'Presentations', files: await api.recent() }];
+
+  async function openRecent(file: RecentFile) {
+    const unsaved = s?.needsSave ? ' The open presentation has unsaved changes.' : '';
+    if (!confirm(`Open ${file.name} in C-Play?${unsaved}`)) return;
+    browsing = null;
+    if (await run(() => api.openRecent(file.path), `Could not open ${file.name}`)) notify(`Opening ${file.name}`);
   }
 
   // Qt WebView in C-Play has no window.close() signal, it watches the title instead.
@@ -165,6 +186,7 @@
       <span class="connection" class:online={live.connected} title={live.connected ? 'Connected to C-Play' : 'Not connected to C-Play'}>
         {live.connected ? 'Live' : 'Offline'}
       </span>
+      <RecentFiles load={loadRecent} onopen={openRecent} {notify} disabled={!live.connected} title="Open a recently loaded presentation in C-Play" />
       <button type="button" onclick={save} disabled={!s?.canSave || !live.connected} title={s?.canSave ? 'Save the presentation file in C-Play' : 'Save the presentation in C-Play first'}>
         Save
       </button>
@@ -184,7 +206,7 @@
   {:else}
     <main class="stage">
       <div class="main-col">
-        <SlidePreview label="Current" slide={current} count={slides.length} empty={slides.length ? 'Not started, Next shows the first slide' : 'No slides in the presentation'} accent>
+        <SlidePreview label="Current" slide={current} count={slides.length} empty={slides.length ? 'Not started, Next shows the first slide' : 'No slides in the presentation'} badge={current?.skipped ? 'Skipped' : undefined} accent>
           {#snippet actions()}
             {#if current}
               <button type="button" onclick={updateThumbnail} disabled={capturing || !s.canCapture} title="Use what C-Play shows now as this slide's thumbnail">
@@ -211,13 +233,26 @@
             count={slides.length}
             empty="End of presentation"
             badge={s.pendingStep ? 'Animation step first' : undefined}
-          />
+          >
+            {#snippet actions()}
+              <!-- Next only passes over skipped slides from the shown one, not to a slide selected in C-Play. -->
+              {#if next && s.selected === s.triggered}
+                <button type="button" onclick={() => setSkipped(next.index, true)} disabled={!live.connected} title="Skip this slide, Next then goes to the slide after it">
+                  Skip slide
+                </button>
+              {/if}
+            {/snippet}
+          </SlidePreview>
         </div>
         <NotesEditor slide={notesSlide} role={notesRole} onsave={saveNotes}>
           {#snippet heading()}
             {#if notesSlide && notesRole === 'browsing'}
               <span class="browsing-name">{notesSlide.index + 1}. {notesSlide.name}</span>
+              {#if notesSlide.skipped}<span class="skipped-mark">Skipped</span>{/if}
               <button type="button" onclick={() => goTo(notesSlide.index)}>Go to slide</button>
+              <button type="button" onclick={() => setSkipped(notesSlide.index, !notesSlide.skipped)} disabled={!live.connected} aria-pressed={notesSlide.skipped}>
+                {notesSlide.skipped ? 'Include slide' : 'Skip slide'}
+              </button>
               <button type="button" class="ghost" onclick={() => (browsing = null)}>Back to current</button>
             {/if}
           {/snippet}
@@ -226,7 +261,7 @@
     </main>
 
     <footer class="bottom">
-      <SlideStrip {slides} current={s.triggered} next={s.next} viewing={browsing} onview={(index) => (browsing = index === current?.index ? null : index)} />
+      <SlideStrip {slides} current={s.triggered} next={s.next} viewing={browsing} onview={(index) => (browsing = index === current?.index ? null : index)} onskip={setSkipped} />
     </footer>
   {/if}
 
@@ -369,6 +404,13 @@
   }
   .browsing-name {
     font-weight: 600;
+  }
+  .skipped-mark {
+    font-size: 0.75rem;
+    padding: 0.15rem 0.5rem;
+    border-radius: 999px;
+    background: var(--warn-bg);
+    color: var(--warn);
   }
 
   .bottom {

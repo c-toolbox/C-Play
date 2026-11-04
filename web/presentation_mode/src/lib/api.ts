@@ -4,6 +4,8 @@ export interface SlideInfo {
   index: number;
   name: string;
   notes: string;
+  /** Passed over by next and previous. */
+  skipped: boolean;
   /** Thumbnail revision, 0 when the slide has no thumbnail. */
   thumbnail: number;
 }
@@ -24,6 +26,12 @@ export interface PresentationState {
   /** C-Play can capture the output as thumbnail now. */
   canCapture: boolean;
   slides: SlideInfo[];
+}
+
+/** A file C-Play loaded recently. */
+export interface RecentFile {
+  path: string;
+  name: string;
 }
 
 export interface EventsResponse {
@@ -70,9 +78,15 @@ export const api = {
   previous: () => post('/slide_previous'),
   goTo: (index: number) => post('/load_from_slides', { index }),
   setNotes: (index: number, notes: string) => post('/slide_notes', { index }, notes),
+  /** Marks the slide to be passed over by next and previous, or to be shown again. */
+  setSkipped: (index: number, skipped: boolean) => post('/slide_skipped', { slide_idx: index, on: skipped ? 1 : 0 }),
   /** Captures what the C-Play output shows now as the thumbnail of the shown slide. */
   updateThumbnail: () => post('/slide_thumbnail_update'),
   save: () => post('/presentation_save'),
+  /** The recently loaded presentations, the newest first. */
+  recent: async () => ((await (await request('GET', '/presentation_recent')).json()) as { files?: RecentFile[] }).files ?? [],
+  /** Opens one of the recent presentations in C-Play. */
+  openRecent: (path: string) => post('/presentation_open_recent', { path }),
 };
 
 export function thumbnailUrl(slide: SlideInfo | undefined): string | null {

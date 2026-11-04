@@ -4,9 +4,10 @@
   import CueListPanel from './components/CueListPanel.svelte';
   import Picture from './components/Picture.svelte';
   import Playlist from './components/Playlist.svelte';
+  import RecentFiles, { type RecentGroup } from './components/RecentFiles.svelte';
   import SectionList from './components/SectionList.svelte';
   import Timeline from './components/Timeline.svelte';
-  import { ApiError, api, audioName, sectionAt, sectionEndModes, type AudioTrack, type CueRequest, type MediaInfo, type SectionInfo } from './lib/api';
+  import { ApiError, api, audioName, sectionAt, sectionEndModes, type AudioTrack, type CueRequest, type MediaInfo, type RecentFile, type SectionInfo } from './lib/api';
   import { PreparedCue, type TakeMode } from './lib/cue.svelte';
   import { CueList, cueItem, cueRequest, type CueEntry } from './lib/cuelist.svelte';
   import { LiveMovie } from './lib/live.svelte';
@@ -493,6 +494,20 @@
   }
 
   // Qt WebView in C-Play has no window.close() signal, it watches the title instead.
+  async function loadRecent(): Promise<RecentGroup[]> {
+    const recent = await api.recent();
+    return [
+      { label: 'Playlists', files: recent.playlists ?? [] },
+      { label: 'Media files', files: recent.media ?? [] },
+    ];
+  }
+
+  // Replaces what C-Play plays, so it asks first.
+  async function openRecent(file: RecentFile) {
+    if (!confirm(`Load ${file.name} in C-Play? It replaces what is loaded now.`)) return;
+    if (await run(() => api.openRecent(file.path), `Could not load ${file.name}`)) notify(`Loading ${file.name}`);
+  }
+
   function closeInCPlay() {
     document.title = 'cplay:close';
     setTimeout(() => (document.title = 'C-Play Movie'), 500);
@@ -646,6 +661,7 @@
       <span class="connection" class:online={live.connected} title={live.connected ? 'Connected to C-Play' : 'Not connected to C-Play'}>
         {live.connected ? 'Connected' : 'Offline'}
       </span>
+      <RecentFiles load={loadRecent} onopen={openRecent} {notify} disabled={!live.connected || !!transitionStep} title="Load a recently loaded playlist or media file in C-Play" />
       {#if picturesAvailable}
         <button
           type="button"

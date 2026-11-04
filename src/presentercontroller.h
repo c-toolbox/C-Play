@@ -56,6 +56,10 @@ public:
     Q_INVOKABLE bool captureThumbnail(int slideIdx);
     // Saves the presentation to the file it was loaded from or last saved to.
     bool save();
+    // The recently loaded presentations: {files: [{path, name}]}, the newest first.
+    QJsonObject recentPresentations() const;
+    // Opens path in C-Play if it is one of the recent presentations, else false.
+    bool openRecentPresentation(const QString &path);
     // Opens the web view fullscreen on the screen in a browser app window (no tabs or address bar),
     // or in the default browser when no Chromium based browser is found.
     Q_INVOKABLE void openInBrowser(int screenIdx, const QString &view = QStringLiteral("presenter"));

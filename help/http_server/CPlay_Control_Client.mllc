@@ -44,7 +44,7 @@ Checksum ASCII coded=0
 Checksum high byte first=1
 
 [COMMANDS]
-Count=43
+Count=48
 Command0.Name=Quit
 Command0.Frame=POST /quit!0D!0A
 Command1.Name=Play
@@ -77,60 +77,70 @@ Command14.Name=Sync Image Volume Fade
 Command14.Frame=POST /sync_image_volume_fade?value=[value,string,literal,0]!0D!0A
 Command15.Name=Background Image
 Command15.Frame=POST /background_image?on=[on,string,literal,0]!0D!0A
-Command16.Name=Foreground Image
-Command16.Frame=POST /foreground_image?on=[on,string,literal,0]!0D!0A
-Command17.Name=View Mode
-Command17.Frame=POST /view_mode?mode=[mode,string,literal,0]!0D!0A
-Command18.Name=Load From Audiotracks
-Command18.Frame=POST /load_from_audiotracks?index=[index,string,literal,0]!0D!0A
-Command19.Name=Load From Playlist
-Command19.Frame=POST /load_from_playlist?index=[index,string,literal,0]!0D!0A
-Command20.Name=Load From Sections
-Command20.Frame=POST /load_from_sections?index=[index,string,literal,0]!0D!0A
-Command21.Name=Spin Pitch Up
-Command21.Frame=POST /spin_pitch_up?on=[on,string,literal,0]!0D!0A
-Command22.Name=Spin Pitch Down
-Command22.Frame=POST /spin_pitch_down?on=[on,string,literal,0]!0D!0A
-Command23.Name=Spin Yaw Left
-Command23.Frame=POST /spin_yaw_left?on=[on,string,literal,0]!0D!0A
-Command24.Name=Spin Yaw Right
-Command24.Frame=POST /spin_yaw_right?on=[on,string,literal,0]!0D!0A
-Command25.Name=Spin Roll Ccw
-Command25.Frame=POST /spin_roll_ccw?on=[on,string,literal,0]!0D!0A
-Command26.Name=Spin Roll Cw
-Command26.Frame=POST /spin_roll_cw?on=[on,string,literal,0]!0D!0A
-Command27.Name=Orientation Reset
-Command27.Frame=POST /orientation_reset!0D!0A
-Command28.Name=Surface Transition
-Command28.Frame=POST /surface_transition!0D!0A
-Command29.Name=Slide Previous
-Command29.Frame=POST /slide_previous!0D!0A
-Command30.Name=Slide Next
-Command30.Frame=POST /slide_next!0D!0A
-Command31.Name=Slides Reset To Start
-Command31.Frame=POST /slides_reset_to_start!0D!0A
-Command32.Name=Select From Slides
-Command32.Frame=POST /select_from_slides?index=[index,string,literal,0]!0D!0A
-Command33.Name=Load From Slides
-Command33.Frame=POST /load_from_slides?index=[index,string,literal,0]!0D!0A
-Command34.Name=Layer Volume
-Command34.Frame=POST /layer_volume?slide_idx=[slide_idx,string,literal,0]!26layer_idx=[layer_idx,string,literal,0]!26level=[level,string,literal,0]!0D!0A
-Command35.Name=Layer Visibility
-Command35.Frame=POST /layer_visibility?slide_idx=[slide_idx,string,literal,0]!26layer_idx=[layer_idx,string,literal,0]!26value=[value,string,literal,0]!0D!0A
-Command36.Name=Layer Fade Up
-Command36.Frame=POST /layer_fade_up?slide_idx=[slide_idx,string,literal,0]!26layer_idx=[layer_idx,string,literal,0]!0D!0A
-Command37.Name=Layer Fade Down
-Command37.Frame=POST /layer_fade_down?slide_idx=[slide_idx,string,literal,0]!26layer_idx=[layer_idx,string,literal,0]!0D!0A
-Command38.Name=Layer Plane
-Command38.Frame=POST /layer_plane?slide_idx=[slide_idx,string,literal,0]!26layer_idx=[layer_idx,string,literal,0]!26azimuth=[azimuth,string,literal,0]!26elevation=[elevation,string,literal,0]!26roll=[roll,string,literal,0]!26distance=[distance,string,literal,0]!26horizontal=[horizontal,string,literal,0]!26vertical=[vertical,string,literal,0]!26circular=[circular,string,literal,0]!26centreDegrees=[centreDegrees,string,literal,0]!26widthDegrees=[widthDegrees,string,literal,0]!0D!0A
-Command39.Name=Tcp Connect
-Command39.Frame=POST /tcp/connect?server_id=[server_id,string,literal,0]!0D!0A
-Command40.Name=Tcp Disconnect
-Command40.Frame=POST /tcp/disconnect?server_id=[server_id,string,literal,0]!0D!0A
-Command41.Name=Tcp Trigger
-Command41.Frame=POST /tcp/trigger?server_id=[server_id,string,literal,0]!26command_id=[command_id,string,literal,0]!0D!0A
-Command42.Name=Tcp Command
-Command42.Frame=POST /tcp/command?command_id=[command_id,string,literal,0]!26charsPerItem=[charsPerItem,string,literal,0]!0D!0A
+Command16.Name=Background Mode
+Command16.Frame=POST /background_mode?mode=[mode,string,literal,0]!0D!0A
+Command17.Name=Background Color
+Command17.Frame=POST /background_color?color=[color,string,literal,0]!0D!0A
+Command18.Name=Foreground Image
+Command18.Frame=POST /foreground_image?on=[on,string,literal,0]!0D!0A
+Command19.Name=View Mode
+Command19.Frame=POST /view_mode?mode=[mode,string,literal,0]!0D!0A
+Command20.Name=Load From Audiotracks
+Command20.Frame=POST /load_from_audiotracks?index=[index,string,literal,0]!0D!0A
+Command21.Name=Load From Playlist
+Command21.Frame=POST /load_from_playlist?index=[index,string,literal,0]!0D!0A
+Command22.Name=Load From Sections
+Command22.Frame=POST /load_from_sections?index=[index,string,literal,0]!0D!0A
+Command23.Name=Spin Pitch Up
+Command23.Frame=POST /spin_pitch_up?on=[on,string,literal,0]!0D!0A
+Command24.Name=Spin Pitch Down
+Command24.Frame=POST /spin_pitch_down?on=[on,string,literal,0]!0D!0A
+Command25.Name=Spin Yaw Left
+Command25.Frame=POST /spin_yaw_left?on=[on,string,literal,0]!0D!0A
+Command26.Name=Spin Yaw Right
+Command26.Frame=POST /spin_yaw_right?on=[on,string,literal,0]!0D!0A
+Command27.Name=Spin Roll Ccw
+Command27.Frame=POST /spin_roll_ccw?on=[on,string,literal,0]!0D!0A
+Command28.Name=Spin Roll Cw
+Command28.Frame=POST /spin_roll_cw?on=[on,string,literal,0]!0D!0A
+Command29.Name=Orientation Reset
+Command29.Frame=POST /orientation_reset!0D!0A
+Command30.Name=Surface Transition
+Command30.Frame=POST /surface_transition!0D!0A
+Command31.Name=Slide Previous
+Command31.Frame=POST /slide_previous!0D!0A
+Command32.Name=Slide Next
+Command32.Frame=POST /slide_next!0D!0A
+Command33.Name=Slides Reset To Start
+Command33.Frame=POST /slides_reset_to_start!0D!0A
+Command34.Name=Select From Slides
+Command34.Frame=POST /select_from_slides?index=[index,string,literal,0]!0D!0A
+Command35.Name=Load From Slides
+Command35.Frame=POST /load_from_slides?index=[index,string,literal,0]!0D!0A
+Command36.Name=Slide Volume
+Command36.Frame=POST /slide_volume?slide_idx=[slide_idx,string,literal,0]!26slide_name=[slide_name,string,literal,0]!26level=[level,string,literal,0]!0D!0A
+Command37.Name=Slide Volume Fade Up
+Command37.Frame=POST /slide_volume_fade_up?slide_idx=[slide_idx,string,literal,0]!26slide_name=[slide_name,string,literal,0]!0D!0A
+Command38.Name=Slide Volume Fade Down
+Command38.Frame=POST /slide_volume_fade_down?slide_idx=[slide_idx,string,literal,0]!26slide_name=[slide_name,string,literal,0]!0D!0A
+Command39.Name=Layer Volume
+Command39.Frame=POST /layer_volume?slide_idx=[slide_idx,string,literal,0]!26layer_idx=[layer_idx,string,literal,0]!26level=[level,string,literal,0]!0D!0A
+Command40.Name=Layer Visibility
+Command40.Frame=POST /layer_visibility?slide_idx=[slide_idx,string,literal,0]!26layer_idx=[layer_idx,string,literal,0]!26value=[value,string,literal,0]!0D!0A
+Command41.Name=Layer Fade Up
+Command41.Frame=POST /layer_fade_up?slide_idx=[slide_idx,string,literal,0]!26layer_idx=[layer_idx,string,literal,0]!0D!0A
+Command42.Name=Layer Fade Down
+Command42.Frame=POST /layer_fade_down?slide_idx=[slide_idx,string,literal,0]!26layer_idx=[layer_idx,string,literal,0]!0D!0A
+Command43.Name=Layer Plane
+Command43.Frame=POST /layer_plane?slide_idx=[slide_idx,string,literal,0]!26layer_idx=[layer_idx,string,literal,0]!26azimuth=[azimuth,string,literal,0]!26elevation=[elevation,string,literal,0]!26roll=[roll,string,literal,0]!26distance=[distance,string,literal,0]!26horizontal=[horizontal,string,literal,0]!26vertical=[vertical,string,literal,0]!26circular=[circular,string,literal,0]!26centreDegrees=[centreDegrees,string,literal,0]!26widthDegrees=[widthDegrees,string,literal,0]!0D!0A
+Command44.Name=Tcp Connect
+Command44.Frame=POST /tcp/connect?server_id=[server_id,string,literal,0]!0D!0A
+Command45.Name=Tcp Disconnect
+Command45.Frame=POST /tcp/disconnect?server_id=[server_id,string,literal,0]!0D!0A
+Command46.Name=Tcp Trigger
+Command46.Frame=POST /tcp/trigger?server_id=[server_id,string,literal,0]!26command_id=[command_id,string,literal,0]!0D!0A
+Command47.Name=Tcp Command
+Command47.Frame=POST /tcp/command?command_id=[command_id,string,literal,0]!26charsPerItem=[charsPerItem,string,literal,0]!0D!0A
 
 [POSITRACK GROUPS]
 Count=0

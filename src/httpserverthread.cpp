@@ -1444,6 +1444,20 @@ void HttpServerThread::setupPresenterRoutes() {
         sendJson(res, ok ? std::optional<QJsonObject>(QJsonObject{{QStringLiteral("ok"), *ok}}) : std::nullopt);
     });
 
+    svr.Get("/presentation_recent", [this](const httplib::Request &, httplib::Response &res) {
+        QPointer<PresenterController> presenter(m_presenter);
+        sendJson(res, runOnThreadOf<QJsonObject>(m_presenter, [presenter]() { return presenter ? presenter->recentPresentations() : QJsonObject(); }));
+    });
+
+    // Opens path, one of the recent presentations (/presentation_recent).
+    registerPost("/presentation_open_recent", [this](const httplib::Request &req, httplib::Response &res) {
+        QPointer<PresenterController> presenter(m_presenter);
+        const QString path = QString::fromStdString(req.get_param_value("path"));
+        const auto ok = runOnThreadOf<bool>(m_presenter, [presenter, path]() { return presenter && presenter->openRecentPresentation(path); });
+        if (ok && !*ok) res.status = 400;
+        sendJson(res, ok ? std::optional<QJsonObject>(QJsonObject{{QStringLiteral("ok"), *ok}}) : std::nullopt);
+    });
+
     mountWebApp("/presenter", QStringLiteral("presentation_mode"));
 }
 
@@ -1501,6 +1515,20 @@ void HttpServerThread::setupMovieRoutes() {
         const auto ok = runOnThreadOf<bool>(m_movie, [movie, index, section, position, play, audio]() {
             return movie && movie->cue(index, section, position, play, audio);
         });
+        if (ok && !*ok) res.status = 400;
+        sendJson(res, ok ? std::optional<QJsonObject>(QJsonObject{{QStringLiteral("ok"), *ok}}) : std::nullopt);
+    });
+
+    svr.Get("/movie_recent", [this](const httplib::Request &, httplib::Response &res) {
+        QPointer<MovieController> movie(m_movie);
+        sendJson(res, runOnThreadOf<QJsonObject>(m_movie, [movie]() { return movie ? movie->recentFiles() : QJsonObject(); }));
+    });
+
+    // Loads path, one of the recent playlists or media files (/movie_recent).
+    registerPost("/movie_open_recent", [this](const httplib::Request &req, httplib::Response &res) {
+        QPointer<MovieController> movie(m_movie);
+        const QString path = QString::fromStdString(req.get_param_value("path"));
+        const auto ok = runOnThreadOf<bool>(m_movie, [movie, path]() { return movie && movie->openRecentFile(path); });
         if (ok && !*ok) res.status = 400;
         sendJson(res, ok ? std::optional<QJsonObject>(QJsonObject{{QStringLiteral("ok"), *ok}}) : std::nullopt);
     });

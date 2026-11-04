@@ -59,6 +59,17 @@ export interface MovieState {
   items: MovieItem[];
 }
 
+/** A file C-Play loaded recently. */
+export interface RecentFile {
+  path: string;
+  name: string;
+}
+
+export interface RecentFiles {
+  playlists: RecentFile[];
+  media: RecentFile[];
+}
+
 export interface EventsResponse {
   type: 'snapshot' | 'events';
   sequence: string;
@@ -205,6 +216,10 @@ export const api = {
   /** As #rrggbb. */
   backgroundColor: async () => (await text('/background_color')).trim(),
   setBackgroundColor: (color: string) => post('/background_color', { color: color.replace(/^#/, '') }),
+  /** The recently loaded playlists and media files, the newest first. */
+  recent: async () => (await (await request('GET', '/movie_recent')).json()) as Partial<RecentFiles>,
+  /** Loads one of the recent playlists or media files in C-Play. */
+  openRecent: (path: string) => post('/movie_open_recent', { path }),
   /** The cue lists saved next to the playlist in C-Play. */
   cueLists: async () => (await (await request('GET', '/movie_cuelists')).json()) as CueListFolder,
   loadCueList: async (name: string) => (await (await request('GET', '/movie_cuelist', { name })).json()) as unknown,

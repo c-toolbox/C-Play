@@ -44,15 +44,23 @@ The presenter view shows the current and the next slide as thumbnails, the notes
 
 ![Presenter view](/assets/ui/presenter_view.png)
 
-* **Header** — the presentation name (with an *Unsaved* mark when C-Play has unsaved changes), the clock, the presentation timer with start/pause and reset, the connection state (*Live*), **Save**, a light/dark theme toggle and fullscreen.
+* **Header** — the presentation name (with an *Unsaved* mark when C-Play has unsaved changes), the clock, the presentation timer with start/pause and reset, the connection state (*Live*), **Recent ▾** (see [Opening a recent presentation](#opening-a-recent-presentation)), **Save**, a light/dark theme toggle and fullscreen.
 * **Current** — the slide shown in C-Play now, with **Update thumbnail** to replace its thumbnail. Before the first slide is triggered it says *Not started, Next shows the first slide*.
-* **Next** — the slide that **Next →** triggers.
+* **Next** — the slide that **Next →** triggers. **Skip slide** marks it as skipped, and Next then shows the slide after it.
 * **Notes** — the notes of the current slide (or of the next slide before the presentation has started). **A−** / **A+** change the text size; *Saved to slide* shows that an edit has reached C-Play.
-* **Slide strip** — every slide with its thumbnail (or its number when it has none yet). Click one to trigger it.
+* **Slide strip** — every slide with its thumbnail (or its number when it has none yet). Click one to read or edit its notes; **Go to slide** then triggers it and **Back to current** follows the current slide again. Each slide has a **Skip** / **Include** toggle in its top left corner (shown on hover, always on touch screens).
+
+* **Skipped slides** — choose which slides to present by marking the others as skipped, in the slide strip or with **Skip slide** / **Include slide** above the notes of a slide picked in the strip. Skipped slides are dimmed and marked *Skipped*; **Next** and **Previous** pass over them, as they do in C-Play. This is the same skip setting as in the C-Play slide list, so it is saved with the presentation, and the view shows changes made in C-Play. Go to slide still triggers a skipped slide.
 
 * **Slide notes** are editable in the view and saved in the presentation file. The slide thumbnails are numbered JPEG files in a `cplaypres_thumbnails` folder next to the presentation file, or where the [presentation thumbnail location](/settings/location#presentation-thumbnail-location) says, and the presentation file refers to them. Notes and thumbnails are kept in presentations also by builds without the web views.
 * **Thumbnails** — the thumbnail button of a slide uses what C-Play shows now as that slide's thumbnail, rendered with the [master view](/playback/views#-master-view) camera (perspective, fisheye or sphere view). Choose the master view mode before updating thumbnails.
 * An *Unsaved* mark shows when the presentation has unsaved changes in C-Play; **Save** writes the notes and the references to the thumbnails to the `*.cplaypres` file the presentation was loaded from or last saved to.
+
+### Opening a recent presentation
+
+**Recent ▾** in the header lists the presentations recently loaded in C-Play, the newest first, the same list as *File → Open Recent Presentations* on the master. Each entry shows the file name with its full path below. Select one and confirm to open it in C-Play; the confirmation warns when the open presentation has unsaved changes. C-Play then loads it as from its own menu, and the view follows the new presentation. Esc or a click outside closes the list.
+
+Only presentations that are in the recent list can be opened from the view, so a device on the network cannot open other files on the master.
 
 | Key | Action |
 | --- | --- |
@@ -83,6 +91,12 @@ The cue timeline works for files added to the playlist directly too: C-Play read
 The mode and the prepared cue are remembered on the device across reloads.
 
 When a new file loads, C-Play holds playback until all cluster nodes have it loaded (see [Starting playback on all nodes](/remote-control/api#starting-playback-on-all-nodes)). Meanwhile the on-air panel shows *Loading on nodes*, and **Play** and **Play & fade in** are disabled; hover them to see which nodes are still loading. **Transition** waits for the nodes after loading too, so the new file fades in only once every node has it.
+
+### Loading a recent playlist or media file
+
+**Recent ▾** in the header (next to the connection state) lists the playlists and the media files recently loaded in C-Play, in two groups with the newest first: the same lists as *File → Open Recent Playlists* and *File → Open Recent Media Files* on the master. Each entry shows the file name with its full path (or the URL of a stream) below. Select one and confirm to load it in C-Play; it replaces what is loaded, so this is best done between shows or while the picture is faded out. A playlist replaces the playlist in the view. A prepared cue refers to playlist items by their position, so check it in Prepare mode after loading another playlist (it starts over from what is on air when its item no longer exists). The button is disabled while a [transition](#transition) runs.
+
+Only files that are in the recent lists can be loaded from the view, so a device on the network cannot open other files on the master.
 
 ### Transition
 
@@ -137,8 +151,11 @@ The views use the [HTTP API](/remote-control/api) and the [event feed](/remote-c
 | GET | `/presentation_state` | The presentation state: slides, notes, current and next slide |
 | GET | `/slide_thumbnail?index=N[&rev=R]` | Thumbnail JPEG of slide N |
 | POST | `/slide_notes?index=N` | Sets the notes of slide N (UTF-8 text body) |
+| POST | `/slide_skipped?slide_idx=N&on=0\|1` | Skips slide N or includes it again (see the [HTTP API](/remote-control/api)); `/presentation_state` lists `skipped` for each slide |
 | POST | `/slide_thumbnail_update[?index=N]` | Renders the shown slide with the master view camera as its thumbnail |
 | POST | `/presentation_save` | Saves the presentation to its file |
+| GET | `/presentation_recent` | `{files: [{path, name}]}`: the recently loaded presentations, the newest first |
+| POST | `/presentation_open_recent?path=` | Opens the presentation at `path` in C-Play, as *File → Open Recent Presentations* does. `path` has to be one of `/presentation_recent` (400 otherwise) |
 | GET | `/movie_state` | Playlist, sections of each item and of the loaded file, playing item and section |
 | GET | `/movie_media?index=N` | `{tracks: [{index, id, text}], duration}`: the audio and seconds of item N, also when it is not loaded (422 when the file cannot be opened) |
 | POST | `/movie_cue?index=N&section=S&position=T&audio=A&play=0\|1` | Loads item N unless loaded, then audio track A (zero-based), section S (-1 for none) and time T (seconds); parameters left out keep what C-Play has |
@@ -149,3 +166,5 @@ The views use the [HTTP API](/remote-control/api) and the [event feed](/remote-c
 | GET | `/movie_cuelists` | `{folder, playlist, files: [{name, modified}]}`: the `*.cplaycue` files in the cue list folder |
 | GET | `/movie_cuelist?name=` | A cue list: `{type: "cplaycue", version, playlist, cues}` |
 | POST | `/movie_cuelist?name=` | Saves the cue list in the body (JSON) as `name.cplaycue` |
+| GET | `/movie_recent` | `{playlists: [{path, name}], media: [{path, name}]}`: the recently loaded playlists and media files, the newest first |
+| POST | `/movie_open_recent?path=` | Loads the playlist or media file at `path` in C-Play, as *File → Open Recent* does. `path` has to be one of `/movie_recent` (400 otherwise) |

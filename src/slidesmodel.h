@@ -361,6 +361,8 @@ Q_SIGNALS:
     void pauseLayerUpdateChanged();
     void preLoadLayersChanged();
     void recentPresentationsChanged();
+    // Asks the slides view to open the presentation at path, as File > Open Recent Presentations does.
+    void openPresentationRequested(const QString &path);
 
 private:
     QList<QSharedPointer<LayersModel>> m_slides;

@@ -2,7 +2,8 @@
 
 Web app for presenting a C-Play presentation (`*.cplaypres`). It shows the current and next slide
 thumbnails, the slide notes (editable, saved in the presentation), a clock and timer, and moves
-forward and backward through the slides on the C-Play master.
+forward and backward through the slides on the C-Play master. Slides can be marked as skipped, so
+next and previous pass over them.
 
 C-Play serves it from `data/web/presentation_mode` at `http://<master>:<port>/presenter/`, where the
 port is set in `data/http-server-conf.json` (default 7007, `"run": "yes"` needed). In C-Play,
@@ -39,8 +40,11 @@ pnpm check        # svelte-check / TypeScript
 | GET | `/presentation_state` | The presentation state (slides, notes, current/next) |
 | GET | `/slide_thumbnail?index=N[&rev=R]` | Thumbnail JPEG of slide N |
 | POST | `/slide_notes?index=N` | Sets the notes of slide N (UTF-8 text body) |
+| POST | `/slide_skipped?slide_idx=N&on=0\|1` | Skips slide N (next/previous pass over it) or includes it again |
 | POST | `/slide_thumbnail_update[?index=N]` | Renders the shown slide with the master view camera (perspective, fisheye or sphere) as its thumbnail |
 | POST | `/presentation_save` | Saves the presentation to its file |
+| GET | `/presentation_recent` | `{files: [{path, name}]}`, the recently loaded presentations (Recent ▾), newest first |
+| POST | `/presentation_open_recent?path=` | Opens one of those presentations in C-Play (400 for a path that is not in them) |
 | POST | `/slide_next`, `/slide_previous`, `/load_from_slides?index=N` | Navigation |
 
 Keyboard: → ↓ Page Down Space Enter = next, ← ↑ Page Up Backspace = previous, Esc = follow the
