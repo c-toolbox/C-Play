@@ -125,12 +125,12 @@ ItemDelegate {
     }
     contentItem: Rectangle {
         color: "transparent"
-        implicitHeight: 50
+        implicitHeight: 50 + (volumeControl.visible ? volumeControl.height + 4 : 0)
         implicitWidth: root.width
 
         MouseArea {
             id: layerIC_MA
-            implicitHeight: parent.height
+            implicitHeight: 50
             implicitWidth: parent.width
             acceptedButtons: Qt.RightButton
             onClicked: {
@@ -324,12 +324,107 @@ ItemDelegate {
             }
         }
 
+        // Volume of the selected layer, so it can be set without opening the layer view.
+        RowLayout {
+            id: volumeControl
+
+            readonly property bool active: layersView.currentIndex === index
+                                           && layerView.layerItem.layerIdx === index
+                                           && layerView.layerItem.layerHasAudio
+                                           && !root.dragging
+
+            function syncValue() {
+                if (active && !compactVolumeSlider.pressed)
+                    compactVolumeSlider.value = layerView.layerItem.layerVolume;
+            }
+
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: layerIC_MA.bottom
+            anchors.leftMargin: 14
+            anchors.rightMargin: 6
+            height: 20
+            spacing: 4
+            visible: active
+            enabled: !root.layerIsLocked
+
+            onActiveChanged: syncValue()
+
+            Kirigami.Icon {
+                implicitWidth: 14
+                implicitHeight: 14
+                source: compactVolumeSlider.value > 0 ? "audio-volume-high" : "audio-volume-muted"
+                color: its.color
+            }
+            Slider {
+                id: compactVolumeSlider
+
+                // Reads the visibility slider too, which also follows fades.
+                readonly property int currentVolume: {
+                    visibilitySlider.value;
+                    return layerView.layerItem.layerCurrentVolume;
+                }
+
+                Layout.fillWidth: true
+                implicitHeight: 18
+                focusPolicy: Qt.NoFocus
+                from: 0
+                leftPadding: 0
+                rightPadding: 0
+                to: 100
+                wheelEnabled: false
+                ToolTip.text: qsTr("The layer's maximum volume. Fading the layer in stops at this level, and lower visibility lowers the volume in proportion.")
+                ToolTip.visible: hovered
+
+                onMoved: {
+                    if (Math.round(value) !== layerView.layerItem.layerVolume)
+                        layerView.layerItem.layerVolume = Math.round(value);
+                }
+
+                background: Rectangle {
+                    color: Kirigami.Theme.alternateBackgroundColor
+
+                    Rectangle {
+                        color: Qt.alpha("#2563a8", 0.35)
+                        height: parent.height
+                        width: compactVolumeSlider.visualPosition * parent.width
+                    }
+                    Rectangle {
+                        color: "#2563a8"
+                        height: parent.height
+                        width: compactVolumeSlider.currentVolume * 0.01 * parent.width
+                    }
+                }
+                handle: Item {
+                    visible: false
+                }
+
+                Label {
+                    anchors.centerIn: parent
+                    color: enabled ? "white" : "grey"
+                    font.pointSize: 8
+                    layer.enabled: true
+                    text: compactVolumeSlider.currentVolume < Math.round(compactVolumeSlider.value)
+                          ? qsTr("Max volume: %1\% (now %2\%)").arg(Math.round(compactVolumeSlider.value)).arg(compactVolumeSlider.currentVolume)
+                          : qsTr("Max volume: %1\%").arg(Math.round(compactVolumeSlider.value))
+
+                    layer.effect: DropShadow {
+                        color: "#111"
+                        radius: 5
+                        samples: 17
+                        spread: 0.3
+                        verticalOffset: 1
+                    }
+                }
+            }
+        }
+
         // Drag handle area: small left-side handle to avoid blocking interactive controls.
         Rectangle {
             id: dragHandleRect
             anchors.left: parent.left
             anchors.top: parent.top
-            anchors.bottom: parent.bottom
+            height: 50
             width: 12
             color: "transparent"
 
@@ -679,10 +774,12 @@ ItemDelegate {
         function onLayerChanged() {
             if (visibilitySlider.value !== app.slides.selected.layerVisibility(index))
                 visibilitySlider.syncValue(app.slides.selected.layerVisibility(index));
+            volumeControl.syncValue();
         }
         function onLayerValueChanged() {
             if (visibilitySlider.value !== app.slides.selected.layerVisibility(index))
                 visibilitySlider.syncValue(app.slides.selected.layerVisibility(index));
+            volumeControl.syncValue();
         }
 
         target: layerView.layerItem

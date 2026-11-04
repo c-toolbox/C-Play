@@ -895,7 +895,7 @@ Rectangle {
             MouseArea {
                 id: layers_MA
                 anchors.bottom: layersView.bottom
-                implicitHeight: layersView.height - (layersView.count*50)
+                implicitHeight: Math.max(0, layersView.height - layersView.contentHeight)
                 implicitWidth: parent.width
                 propagateComposedEvents: true
                 acceptedButtons: Qt.RightButton
@@ -946,10 +946,10 @@ Rectangle {
         property int insertRow: -1
         property int scrollDirection: 0
 
-        // Row pitch of the list (delegate height + spacing).
+        // Row pitch of the list (collapsed delegate height + spacing). The selected row can be
+        // taller while it shows its volume control, so its height is not used.
         function rowPitch() {
-            var first = layersView.itemAtIndex(0);
-            return (first ? first.height : 50) + layersView.spacing;
+            return 50 + layersView.spacing;
         }
         function updateInsertRow(dragY) {
             var contentY = dropAreaLayers.mapToItem(layersView.contentItem, 0, dragY).y;
