@@ -100,7 +100,7 @@ Saving a stream with credentials to the predefined stream list writes the passwo
 
 ## Playback options
 
-Both RTSP and SRT streams are played by mpv inside the Stream layer (the bundled ffmpeg build includes libSRT, so `srt://` URLs work out of the box). Note that SRT uses UDP port `8890` by default. A preset named **Rtsp-tcp-lowlatency** is included and can be selected per layer in the layer view. It forces RTSP over TCP, disables caching, and shortens probing so the stream starts quickly:
+Both RTSP and SRT streams are played by mpv inside the Stream layer (the bundled ffmpeg build includes libSRT, so `srt://` URLs work out of the box). Note that SRT uses UDP port `8890` by default. A preset named **Rtsp-tcp-lowlatency** is included and can be selected per layer in the Inspect view. It forces RTSP over TCP, disables caching, and shortens probing so the stream starts quickly:
 
 ```json
 {

@@ -101,7 +101,31 @@ AbstractButton {
                 ctx.rotate(rot);
                 ctx.scale(s, s);
 
-                if (root.preset === 9) {
+                if (root.preset === 11) {
+                    // Particles scatter out from the centre, each on its own schedule.
+                    var pc = 8, pr = 6;
+                    var pw = bw / pc, ph = bh / pr;
+                    ctx.fillStyle = root.accentColor;
+                    for (var pi = 0; pi < pc; pi++) {
+                        for (var pj = 0; pj < pr; pj++) {
+                            var t = Math.max(0, Math.min(1, (v - hash(pi, pj) * 0.5) / 0.5));
+                            var sc = 1 - t;
+                            if (t <= 0)
+                                continue;
+                            var cx = -bw / 2 + (pi + 0.5) * pw, cy = -bh / 2 + (pj + 0.5) * ph;
+                            var ang = hash(pj, pi) * 2 * Math.PI;
+                            var dist = sc * w * (0.3 + 0.4 * hash(pi + 7, pj + 3));
+                            ctx.save();
+                            ctx.globalAlpha = Math.min(1, t * 3);
+                            ctx.translate(cx + (cx * 0.5 + Math.cos(ang) * w * 0.1) * sc * 4 * dist / w,
+                                          cy + (cy * 0.5 + Math.sin(ang) * h * 0.1) * sc * 4 * dist / w);
+                            ctx.rotate(sc * (hash(pi + 3, pj) - 0.5) * 6);
+                            var ps = 1 + sc * (hash(pi, pj + 5) - 0.4);
+                            ctx.fillRect(-pw * ps / 2, -ph * ps / 2, pw * ps + 0.5, ph * ps + 0.5);
+                            ctx.restore();
+                        }
+                    }
+                } else if (root.preset === 9) {
                     var cols = 8, rows = 6;
                     for (var i = 0; i < cols; i++) {
                         for (var j = 0; j < rows; j++) {

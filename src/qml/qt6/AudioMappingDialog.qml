@@ -183,7 +183,7 @@ Kirigami.ApplicationWindow {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                     text: qsTr("The layer is summed to mono and shared out over any number of speakers, each on its own output channel. "
-                               + "The closer a speaker is to the layer, the larger its share. The output opens %n channel(s).", "",
+                               + "Distance is measured to the layer's covered area, including its width and height. Speakers inside that area share the sound equally. The output opens %n channel(s).", "",
                                root.mapping.arrayChannelCount)
                 }
                 Label {

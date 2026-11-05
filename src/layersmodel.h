@@ -443,6 +443,7 @@ public:
     Q_INVOKABLE int effectPresetCategory(int preset) const;
     Q_INVOKABLE bool effectPresetUsesDirection(int preset) const;
     Q_INVOKABLE bool effectPresetUsesFeather(int preset) const;
+    Q_INVOKABLE bool effectPresetIsParticles(int preset) const;
     Q_INVOKABLE QStringList effectDirectionNames() const;
     Q_INVOKABLE QStringList easingNames() const;
     // Eased value of t in [0,1] for drawing easing curves in the UI.
@@ -475,7 +476,10 @@ public:
     // Plays the layer's entrance (show) or exit effects by themselves, as when the layer is
     // faded in or out by hand. Works in every slide, the master slide included. Returns
     // false when the layer has no effects in that phase, so the caller fades it normally.
+    // A layer without exit effects hides by playing its entrance effects backwards.
     Q_INVOKABLE bool playLayerAnimation(int layerIdx, bool show);
+    // True when hiding the layer plays its entrance backwards: it has entrance but no exit effects.
+    Q_INVOKABLE bool layerExitReversesEntrance(int layerIdx) const;
     Q_INVOKABLE bool layerAnimationRunning(int layerIdx) const;
     // Shows the layer at visibility value (0..100) of its entrance or exit, as when its
     // visibility slider is dragged. The phase is picked when a scrub starts (a fully shown
@@ -713,6 +717,8 @@ private:
     struct LayerPlay {
         const BaseLayer *layer = nullptr;
         bool show = true;
+        // Hides the layer by playing its entrance backwards (it has no exit effects).
+        bool reversed = false;
         QVector<ScheduledEffect> schedule;
         int spanMs = 0;
         cplay::anim::PlanePose startPose;

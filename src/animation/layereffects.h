@@ -30,6 +30,7 @@ enum class EffectPreset : int {
     Clock,
     Dissolve,
     Move,
+    Particles,
     Count
 };
 
@@ -61,6 +62,8 @@ struct LayerEffect {
     int direction = static_cast<int>(EffectDirection::Left);
     float feather = 0.1f;
     float amount = 1.f;
+    // Particles: particle columns across the texture.
+    int particles = 32;
     // Move: where the plane ends up; it starts from wherever earlier moves left it,
     // or from start when hasStart is set.
     PlanePose target;
@@ -74,15 +77,21 @@ void applyEffect(const LayerEffect &effect, float progress, LayerAnimState &stat
 
 const char *effectPresetName(int preset);
 int effectPresetCount();
-// Category for the effect gallery: 0 Basic, 1 Wipe & mask, 2 Motion, 3 Zoom & spin, 4 Move.
+// Category for the effect gallery: 0 Basic, 1 Wipe & mask, 2 Motion, 3 Zoom & spin, 4 Move,
+// 5 Particles.
 int effectPresetCategory(int preset);
 // Moves keep the layer visible and carry their end pose into following slides.
 bool effectPresetIsMove(int preset);
 bool effectPresetUsesDirection(int preset);
 bool effectPresetUsesFeather(int preset);
+bool effectPresetIsParticles(int preset);
 
 const char *effectDirectionName(int direction);
 int effectDirectionCount();
+
+// Particle columns allowed across the texture.
+constexpr int kMinParticles = 4;
+constexpr int kMaxParticles = 256;
 
 }
 

@@ -17,7 +17,7 @@ The feature is available in builds with `BUILD_CPLAY_WITH_NODE_STREAM` (ON by de
 
 ## Enabling for a layer
 
-1. Open the *Layer View* for the slide and select the layer you want to stream (any layer type except Audio).
+1. Open the *Inspect* view for the slide and select the layer you want to stream (any layer type except Audio).
 2. In the layer's control row, click the **Nodes** button to enable streaming of that layer's texture from the master to all nodes.
 3. The button icon shows the state: crimson when OFF, orange when ON but not actively sending yet, and lime while frames are being sent. The tooltip shows where the layer is streamed — the multicast address or the NDI source name.
 

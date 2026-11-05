@@ -9,9 +9,9 @@ Once a layer is added to a slide, you can position and crop it, apply post proce
 
 ## Position, crop, and preview
 
-After you have added a new layer, you can specify its parameters in more detail through the *"Layer View"*. Here you control grid and stereo parameters, the volume level if applicable, and inspect how the output looks.
+After you have added a new layer, you can specify its parameters in more detail through the *"Inspect"* view. Here you control grid and stereo parameters, the volume level if applicable, and inspect how the output looks.
 
-![Layer View Video](/assets/ui/layers_view_video.png) &nbsp;&nbsp;&nbsp; ![Layer View Grid Parameters](/assets/ui/layer_view_grid_parameters.png)
+![Inspect view Video](/assets/ui/layers_view_video.png) &nbsp;&nbsp;&nbsp; ![Inspect view Grid Parameters](/assets/ui/layer_view_grid_parameters.png)
 
 ### Region of interest
 
@@ -23,13 +23,13 @@ For mapping choices, see [Video & image mapping modes](/media/mapping). For fade
 
 ### Maximum visibility
 
-In **Layer View**, set the **Layer visibility** slider to the brightest level you want, then click the lock beside it. The current percentage becomes that layer's maximum. The slider shows **max …%** and shades the part of the range above the limit. You can still lower the visibility or fade the layer out; fading it in stops at the locked maximum, including during slide transitions and entrance effects.
+In the **Inspect** view, set the **Layer visibility** slider to the brightest level you want, then click the lock beside it. The current percentage becomes that layer's maximum. The slider shows **max …%** and shades the part of the range above the limit. You can still lower the visibility or fade the layer out; fading it in stops at the locked maximum, including during slide transitions and entrance effects.
 
 Click the lock again to restore the full 0–100% range. The maximum is saved with the layer. If you select a division sublayer, the lock applies to that sublayer.
 
 ### Maximum volume
 
-The **Max volume** slider in **Layer View** sets the loudest level for a layer with audio. Visibility scales the volume, so fading the layer in stops at this level and fading it out takes the audio down to silence. At 50% visibility, a layer with **Max volume** at 80% plays at 40%. A locked maximum visibility limits the volume in the same way. While the layer plays below its maximum, the slider shows **(now …%)**, with the solid bar marking the current level and the lighter bar reaching up to the maximum. If the master volume also controls layer volumes and is below 100%, or the slide volume is below 100%, a line below the slider shows the actual volume after these are applied.
+The **Max volume** slider in the **Inspect** view sets the loudest level for a layer with audio. Visibility scales the volume, so fading the layer in stops at this level and fading it out takes the audio down to silence. At 50% visibility, a layer with **Max volume** at 80% plays at 40%. A locked maximum visibility limits the volume in the same way. While the layer plays below its maximum, the slider shows **(now …%)**, with the solid bar marking the current level and the lighter bar reaching up to the maximum. If the master volume also controls layer volumes and is below 100%, or the slide volume is below 100%, a line below the slider shows the actual volume after these are applied.
 
 ### Slide volume
 
@@ -43,7 +43,7 @@ The slide volume is saved with the presentation, so saving after a fade down sto
 
 Post process effects are always applied to the layer's image, for example to key out a green screen. Unlike [entrance and exit effects](/media/cplaypres#effects-pane-entrance-exit-and-post-process-effects), they belong to the layer, not to the slide: they apply in every slide that shows the layer, on the master and on every node, and they are saved with the layer.
 
-Click **Effects** in the layer view toolbar and open the **Post Process** tab. The **Effects** button is highlighted when the layer has effects. Turn an effect on with its check box; its settings then appear below it. **Reset** restores an effect's default settings, and **Remove all** turns every effect off.
+Click **Effects** in the Inspect view toolbar and open the **Post Process** tab. The **Effects** button is highlighted when the layer has effects. Turn an effect on with its check box; its settings then appear below it. **Reset** restores an effect's default settings, and **Remove all** turns every effect off.
 
 ![Post process effects](/assets/ui/effects_post_process.png)
 
@@ -67,19 +67,19 @@ Set the key color in one of these ways:
 
 * Click the color swatch to open a color dialog, or type a hex value such as `#00b140`.
 * Click **Green**, **Blue** or **Magenta** for a standard key color.
-* Click **Pick from image**, then click in the layer view on the background to remove. You can also drag across the image; the color follows the mouse until you release the button. Press **Esc** to cancel. The color is averaged over 5 × 5 pixels of the original image (before effects), so camera noise does not decide it. Picking is available when the pane is opened from the layer view.
+* Click **Pick from image**, then click in the Inspect view on the background to remove. You can also drag across the image; the color follows the mouse until you release the button. Press **Esc** to cancel. The color is averaged over 5 × 5 pixels of the original image (before effects), so camera noise does not decide it. Picking is available when the pane is opened from the Inspect view.
 
-While the pane is open from the layer view, **Preview in layer view** shows the layer view with the effects applied, over a checkerboard where they make the image transparent.
+While the pane is open from the Inspect view, **Preview in Inspect view** shows the Inspect view with the effects applied, over a checkerboard where they make the image transparent.
 
 For a typical green screen: pick the key color from the background, raise *Similarity* until the background is gone, then raise *Smoothness* a little for softer edges and *Spill reduction* until no green tint is left on the edges.
 
 ## Master and node sources
 
-By default, nodes load their own copy of a synchronized layer. The **Sync** control in Layer View can make a layer exist only on the master. This is separate from the **Master slide** and its Front/Back marking, which determine the layer's position in the [rendering order](/media/cplaypres).
+By default, nodes load their own copy of a synchronized layer. The **Sync** control in Inspect view can make a layer exist only on the master. This is separate from the **Master slide** and its Front/Back marking, which determine the layer's position in the [rendering order](/media/cplaypres).
 
-![Layer View toolbar with Effects, ROI, Nodes, Sync and NDI](/assets/ui/layer_view_toolbar.png)
+![Inspect view toolbar with Effects, ROI, Nodes, Sync and NDI](/assets/ui/layer_view_toolbar.png)
 
-For supported live layer types, **Nodes read from original source** lets each machine load its source, while **Master sends content to nodes** renders on the master and streams the texture. The **Nodes** control in Layer View also enables texture streaming. See [Streaming layers from master to nodes](/playback/node-streaming) for transport, audio, and synchronization details.
+For supported live layer types, **Nodes read from original source** lets each machine load its source, while **Master sends content to nodes** renders on the master and streams the texture. The **Nodes** control in Inspect view also enables texture streaming. See [Streaming layers from master to nodes](/playback/node-streaming) for transport, audio, and synchronization details.
 
 Use per-machine presets when the master and nodes need different local inputs. Use a master placeholder when the source only exists on the nodes and you still need a visible layer to position in the master view.
 

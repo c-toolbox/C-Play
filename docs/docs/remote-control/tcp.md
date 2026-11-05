@@ -23,7 +23,7 @@ C-Play's master can keep independent outgoing connections to multiple TCP server
 1. Click **New server**, enter its name, host and port, configure framing and reconnection, then click **Save server**. Repeat for every device or control system.
 2. Click **New command**, give it a name, select its server, and enter a UTF-8 text or hexadecimal payload. Click **Save command**.
 3. Use **Trigger saved command** to send the saved command immediately.
-4. Add a layer with type **TCP** and select a saved command. It fires when the layer starts. Double-click the layer to trigger it manually, or use **Trigger** in its layer view. The layer view also lets you change the referenced command.
+4. Add a layer with type **TCP** and select a saved command. It fires when the layer starts. Double-click the layer to trigger it manually, or use **Trigger** in its Inspect view. The Inspect view also lets you change the referenced command.
 
 For example, define a **Projector** server using CRLF termination and a **Lighting** server using binary messages. Create **Projector on** (`PWR ON`, UTF-8 text) and **Lighting scene** (`020100ff03`, hexadecimal bytes, exact wire bytes). Place them in separate TCP layers on the appropriate slides. They reuse the same persistent connections throughout the presentation.
 

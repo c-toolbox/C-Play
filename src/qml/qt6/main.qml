@@ -132,6 +132,30 @@ Kirigami.ApplicationWindow {
         }
         return marked.length > 0 ? moved : [];
     }
+    // Scrolls a ListView to rows first..last once it has laid out the rows just added or moved,
+    // keeping first in view. Only the latest request per view is kept, so a batch of moves
+    // scrolls once.
+    property var pendingRowScrolls: []
+    function scrollToRowsLater(view, first, last) {
+        pendingRowScrolls.push({ view: view, first: first, last: last === undefined ? first : last });
+        Qt.callLater(flushRowScrolls);
+    }
+    function flushRowScrolls() {
+        const latest = new Map();
+        for (const s of pendingRowScrolls)
+            latest.set(s.view, s);
+        pendingRowScrolls = [];
+        latest.forEach(s => {
+            if (!s.view || s.first < 0 || s.first >= s.view.count)
+                return;
+            s.view.positionViewAtIndex(Math.min(s.last, s.view.count - 1), ListView.Contain);
+            s.view.positionViewAtIndex(s.first, ListView.Contain);
+        });
+    }
+    // Final row of the first moved row after rowsMoved(parent, start, end, destination, row).
+    function movedRowsTarget(start, end, row) {
+        return row > start ? row - (end - start + 1) : row;
+    }
     property bool uiPopupOpen: false  // True when any popup (Menu, ComboBox dropdown or Dialog) is open in this ApplicationWindow
 
     // How the central viewport renders its content:

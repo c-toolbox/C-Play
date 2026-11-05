@@ -48,7 +48,8 @@ The layers panel toolbar (first and second row):
 | ![](/assets/icons/layer-delete.svg) | Remove selected layer |
 | ![](/assets/icons/layer-raise.svg) | Move selected layer up |
 | ![](/assets/icons/layer-lower.svg) | Move selected layer down |
-| ![](/assets/icons/document-edit-decrypt-verify.svg) | Layer view (inspect selected layer) |
+| ![](/assets/icons/rating.svg) | Effects of the selected layer (entrance, exit and post process) |
+| ![](/assets/icons/document-edit-decrypt-verify.svg) | Inspect (open the selected layer in the Inspect view) |
 
 Even if you have not created any slides, there is always a special slide called *Master* that you can add layers to. Master layers are permanent: they are not tied to a triggered slide. Each master layer is either a **Back** or a **Front** layer:
 
@@ -78,7 +79,7 @@ To add new layers, click the ![](/assets/icons/list-add.svg) "+" button to the l
 
 ![Layer Add New](/assets/ui/layer_add_new.png)
 
-Choose a layer type and source, then open **Layer View** to preview and position it. The [Layers and sources guide](/media/layers) explains every layer type and source setup. [Layer operations](/media/layer-operations) covers positioning, post process effects, per-node inputs, and [master placeholders](/media/layer-operations#master-placeholders-for-node-sources).
+Choose a layer type and source, then open **Inspect** to preview and position it. The [Layers and sources guide](/media/layers) explains every layer type and source setup. [Layer operations](/media/layer-operations) covers positioning, post process effects, per-node inputs, and [master placeholders](/media/layer-operations#master-placeholders-for-node-sources).
 
 Plane layers can also use [circular horizontal mapping](/settings/grid#circular-surface-mapping). Define and enable the shared 360° canvas in Grid Settings; new plane layers then default to **Circular degrees**. Presentation files store `circular`, `centreDegrees` and `widthDegrees` in the layer's `plane` object, including texture-division sublayers. The shared surface calibration stays in GridSettings. Missing circular mode fields inherit the global default; explicitly saved modes are preserved.
 
@@ -175,7 +176,8 @@ An optional group only interpolates between keyframes that have it turned on. Ke
 
 Open the effects pane in one of these ways:
 
-* Click **Effects** in the layer view toolbar. The pane then shows only the effects of that layer, and follows the layer selected in the layer list. The button is highlighted when the layer has effects.
+* Click **Effects** in the Inspect view toolbar. The pane then shows only the effects of that layer, and follows the layer selected in the layer list. The button is highlighted when the layer has effects.
+* Click the star button left of **Inspect** below the layer list. It opens the same pane for the selected layer.
 * Click **Effects** in the timeline toolbar (the timeline does not have to be enabled).
 * Double-click an effect bar in the timeline.
 
@@ -192,6 +194,7 @@ On a slide without a timeline, layers without effects keep the regular slide fad
 | Motion | **Fly**, **Float** | Slides the layer in from, or out to, a side. *Float* moves a shorter distance and fades at the same time. |
 | Zoom & spin | **Zoom**, **Spin** | Scales the layer from, or to, nothing, or spins it around the viewing axis while fading. |
 | Move | **Move** | Moves the layer's plane from one pose to another. See [Move effects](#move-effects). |
+| Particles | **Particles** | Breaks the image into particles that fly in from all around the view and assemble it, or scatter it until it is gone. See [Particle effects](#particle-effects). |
 
 Select an effect in the list to edit its options:
 
@@ -205,6 +208,9 @@ Select an effect in the list to edit its options:
 | **Direction** | Fly, Float, Wipe and Spin: Left, Right, Top, Bottom, or one of the four corners. |
 | **Softness** | Wipe & mask presets: how soft the mask edge is. |
 | **Amount** | Fly, Float, Zoom and Spin: strength of the effect (0.1×–3×). For example, the number of turns for Spin. |
+| **Particles** | Particles: number of particles across the image (4–256). |
+| **Stagger** | Particles: how much the particles' start times are spread out over the effect. 0 % moves them all together. |
+| **Spread** | Particles: how far the particles are scattered (0.1×–3×). |
 
 Each row shows a timing bar, so you can see when every effect plays within its phase. Use the buttons below the list to:
 
@@ -234,6 +240,8 @@ While a slide has pending click steps, *Next* plays the next step instead of cha
 
 Exit effects always play automatically when the slide is left, so *On click* acts as *After previous* in the exit phase.
 
+A layer with entrance effects but no exit effects plays its entrance in reverse when it is hidden on its own (double-click in the layer list, the hide button or the visibility slider). The *Exit* tab shows a notice for such layers. When the slide is left, these layers fade out with the slide.
+
 #### Move effects
 
 A **Move** effect animates the layer's plane position (azimuth, elevation, roll, distance, horizontal and vertical) from a start pose to an end pose. Unlike other effects, it does not hide or show the layer.
@@ -241,6 +249,20 @@ A **Move** effect animates the layer's plane position (azimuth, elevation, roll,
 * By default, **Automatic start** is on, and the move starts from where earlier moves left the layer.
 * To set a pose visually, select the layer in the Layers panel and drag it in the 3D view (Ctrl, Alt or Shift drag). Then click **Set from layer** under *Start* or *End*. Dragging a layer that is shown at an animated position only changes that position, not the layer's own saved settings.
 * The end pose carries over to later slides where the layer stays visible, so a sequence of slides can move a layer step by step.
+
+#### Particle effects
+
+A **Particles** effect cuts the layer's image into a grid of particles. As an entrance, the particles fly in from all around the view, tumbling and changing size, and settle into place until the image is complete. As an exit, the image breaks up and the particles scatter until they are gone.
+
+The particles move across the image as it is shown, following the layer's grid:
+
+* **None / Plane** — the particles scatter outward across the image area.
+* **Dome** — the particles move along the dome around the audience and keep their shape on the dome. Particles that move below the dome's edge leave the view.
+* **Sphere (EQR)** — the particles move all around the sphere, also behind the audience.
+
+Sphere (EAC) layers scatter the particles as a flat image, so particles can cross between the cube faces.
+
+The default duration is 1.5 s. *Particles* sets the size of the particles, *Stagger* how much they move one after the other, and *Spread* how far they scatter. Stereoscopic layers use the same particle motion for both eyes. Particle effects animate a copy of the image at the resolution of the layer's texture (up to 8192 pixels), which uses extra graphics memory while the effect plays.
 
 #### Layers kept from earlier slides
 

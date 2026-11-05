@@ -1954,6 +1954,7 @@ LayersRendererQtOpenGLObject::~LayersRendererQtOpenGLObject() {
     m_domeMesh.reset();
     m_domeMaskMesh.reset();
     m_sphereMesh.reset();
+    m_particles.release(QOpenGLContext::currentContext());
     if (m_maskTexture) {
         glDeleteTextures(1, &m_maskTexture);
         m_maskTexture = 0;
@@ -2748,11 +2749,6 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
         return;
     }
 
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, layer->textureId());
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
     const float alpha = layer->renderAlpha();
     const glm::vec3 rot = layer->renderRotate();
     const glm::vec3 trans = layer->renderTranslate();
@@ -2775,6 +2771,16 @@ void LayersRendererQtOpenGLObject::renderLayer(const BaseLayer* layer, int eyeMo
         gridMode = SyncHelper::instance().variables.gridToMapOnBg;
         stereoMode = SyncHelper::instance().variables.stereoscopicModeBg;
     }
+
+    // Particle effects draw the layer from their own texture.
+    const unsigned int texture = animActive && anim.hasParticles()
+        ? m_particles.layerTexture(layer, gridMode, layer->renderStereoMode() > 0 ? stereoMode : 0,
+                                   static_cast<float>(m_meshFov), QOpenGLContext::currentContext(), m_particleFrame)
+        : layer->textureId();
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     if (gridMode == 4) {
         // EAC sphere: plain perspective, or one-pass fisheye (fulldome).
@@ -3695,6 +3701,8 @@ void LayersRendererQtOpenGLObject::renderLayers(float angle,
     if (!Application::isCreated())
         return;
 
+    ++m_particleFrame;
+
     applyLensUniforms(viewMatrix, projectionMatrix);
 
     glm::vec3 rotXYZ = glm::vec3(0.f);
@@ -3873,6 +3881,8 @@ void LayersRendererQtOpenGLObject::renderLayers(float angle,
         m_sv->meshPrg->release();
         glDisable(GL_BLEND);
     }
+
+    m_particles.endFrame(QOpenGLContext::currentContext());
 }
 
 void LayersRendererQtOpenGLObject::setViewportRect(const QRect& rect) {

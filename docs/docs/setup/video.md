@@ -120,7 +120,7 @@ C-Play supports playing back transparent videos, which have been tested with bot
 }
 ```
 
-To use it, open the layer view of the video layer and select *transparent* in the **"Video Options"** dropdown.
+To use it, open the Inspect view of the video layer and select *transparent* in the **"Video Options"** dropdown.
 
 1) *"hwdec": "no"*
 

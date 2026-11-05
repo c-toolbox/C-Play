@@ -611,9 +611,11 @@ cplay::audio::SpatialSource BaseLayer::audioSpatialSource() const {
                 model = glm::scale(model, glm::vec3(m_animState.scale, m_animState.scale, 1.f));
         }
         const float widthCm = planeData.actualSize.x > 0.f ? planeData.actualSize.x : planeData.specifiedSize.x;
+        const float heightCm = planeData.actualSize.y > 0.f ? planeData.actualSize.y : planeData.specifiedSize.y;
         source.kind = cplay::audio::SpatialSource::Plane;
         source.centre = glm::vec3(model * glm::vec4(0.f, 0.f, 0.f, 1.f));
         source.halfRight = glm::vec3(model * glm::vec4(widthCm / 200.f, 0.f, 0.f, 0.f));
+        source.halfUp = glm::vec3(model * glm::vec4(0.f, heightCm / 200.f, 0.f, 0.f));
         source.forward = glm::vec3(model * glm::vec4(0.f, 0.f, -1.f, 0.f));
 
         // Position on the circular screen: the unwrapped 360 degree strip of the circular
@@ -624,6 +626,9 @@ cplay::audio::SpatialSource BaseLayer::audioSpatialSource() const {
             source.circularDegrees = static_cast<float>(mapping.cmToAngle(source.centre.x * 100.0));
             source.circularHeightCm = source.centre.y * 100.f;
             source.circleRadiusCm = static_cast<float>(mapping.widthCm / (2.0 * 3.14159265358979323846));
+            const float scale = 100.f / source.circleRadiusCm;
+            source.circularHalfRight = glm::vec2(float(mapping.direction()) * source.halfRight.x, source.halfRight.y) * scale;
+            source.circularHalfUp = glm::vec2(float(mapping.direction()) * source.halfUp.x, source.halfUp.y) * scale;
         }
     } else if (grid == GridMode::Dome || grid == GridMode::Sphere_EQR || grid == GridMode::Sphere_EAC) {
         const glm::vec3 rot = renderRotate();
@@ -633,6 +638,10 @@ cplay::audio::SpatialSource BaseLayer::audioSpatialSource() const {
         model = glm::rotate(model, glm::radians(rot.y), glm::vec3(0, 1, 0)); // yaw
         source.kind = cplay::audio::SpatialSource::Field;
         source.rotation = glm::mat3(model);
+        if (grid == GridMode::Dome) {
+            const double fov = SyncHelper::instance().variables.fov;
+            source.fieldHalfAngle = glm::radians(static_cast<float>(std::clamp(fov, 0.0, 360.0)) * 0.5f);
+        }
     }
     return source;
 }
@@ -884,6 +893,13 @@ void BaseLayer::decodeBaseCore(const std::vector<std::byte>& data, unsigned int&
     m_needSync = true;
 }
 
+namespace {
+// Parts of the animation state that encodeBaseAlways() sends.
+constexpr uint8_t AnimTransform = 1;
+constexpr uint8_t AnimMask = 2;
+constexpr uint8_t AnimParticles = 4;
+}
+
 void BaseLayer::encodeBaseAlways(std::vector<std::byte>& data) const {
     sgct::serializeObject(data, m_shouldUpdate);
     sgct::serializeObject(data, m_shouldPreLoad);
@@ -891,25 +907,41 @@ void BaseLayer::encodeBaseAlways(std::vector<std::byte>& data) const {
 
     sgct::serializeObject(data, m_animActive);
     if (m_animActive) {
+        // Only the parts of the state in use are sent; the others keep their defaults.
         const auto &a = m_animState;
-        sgct::serializeObject(data, a.alphaMul);
-        sgct::serializeObject(data, a.move.x);
-        sgct::serializeObject(data, a.move.y);
-        sgct::serializeObject(data, a.scale);
-        sgct::serializeObject(data, a.spin);
-        for (int i = 0; i < 3; ++i) {
-            sgct::serializeObject(data, a.rotateOffset[i]);
-            sgct::serializeObject(data, a.translateOffset[i]);
-            sgct::serializeObject(data, a.planeAngleOffset[i]);
-            sgct::serializeObject(data, a.planePosOffset[i]);
+        const uint8_t parts = (a.hasTransform() ? AnimTransform : 0) | (a.hasMask() ? AnimMask : 0)
+                            | (a.hasParticles() ? AnimParticles : 0);
+        sgct::serializeObject(data, parts);
+        if (parts & AnimTransform) {
+            sgct::serializeObject(data, a.alphaMul);
+            sgct::serializeObject(data, a.move.x);
+            sgct::serializeObject(data, a.move.y);
+            sgct::serializeObject(data, a.scale);
+            sgct::serializeObject(data, a.spin);
+            for (int i = 0; i < 3; ++i) {
+                sgct::serializeObject(data, a.rotateOffset[i]);
+                sgct::serializeObject(data, a.translateOffset[i]);
+                sgct::serializeObject(data, a.planeAngleOffset[i]);
+                sgct::serializeObject(data, a.planePosOffset[i]);
+            }
         }
-        sgct::serializeObject(data, a.maskType);
-        sgct::serializeObject(data, a.maskProgress);
-        sgct::serializeObject(data, a.maskFeather);
-        sgct::serializeObject(data, a.maskAngle);
-        sgct::serializeObject(data, a.maskCenter.x);
-        sgct::serializeObject(data, a.maskCenter.y);
-        sgct::serializeObject(data, a.maskInvert);
+        if (parts & AnimMask) {
+            sgct::serializeObject(data, a.maskType);
+            sgct::serializeObject(data, a.maskProgress);
+            sgct::serializeObject(data, a.maskFeather);
+            sgct::serializeObject(data, a.maskAngle);
+            sgct::serializeObject(data, a.maskCenter.x);
+            sgct::serializeObject(data, a.maskCenter.y);
+            sgct::serializeObject(data, a.maskInvert);
+        }
+        if (parts & AnimParticles) {
+            sgct::serializeObject(data, a.particleMode);
+            sgct::serializeObject(data, a.particleProgress);
+            sgct::serializeObject(data, a.particleSpread);
+            sgct::serializeObject(data, a.particleStagger);
+            sgct::serializeObject(data, a.particleColumns);
+            sgct::serializeObject(data, a.particleSeed);
+        }
     }
 }
 
@@ -919,29 +951,41 @@ void BaseLayer::decodeBaseAlways(const std::vector<std::byte>& data, unsigned in
     sgct::deserializeObject(data, pos, renderData.alpha);
 
     sgct::deserializeObject(data, pos, m_animActive);
+    m_animState = cplay::anim::LayerAnimState();
     if (m_animActive) {
         auto &a = m_animState;
-        sgct::deserializeObject(data, pos, a.alphaMul);
-        sgct::deserializeObject(data, pos, a.move.x);
-        sgct::deserializeObject(data, pos, a.move.y);
-        sgct::deserializeObject(data, pos, a.scale);
-        sgct::deserializeObject(data, pos, a.spin);
-        for (int i = 0; i < 3; ++i) {
-            sgct::deserializeObject(data, pos, a.rotateOffset[i]);
-            sgct::deserializeObject(data, pos, a.translateOffset[i]);
-            sgct::deserializeObject(data, pos, a.planeAngleOffset[i]);
-            sgct::deserializeObject(data, pos, a.planePosOffset[i]);
+        uint8_t parts = 0;
+        sgct::deserializeObject(data, pos, parts);
+        if (parts & AnimTransform) {
+            sgct::deserializeObject(data, pos, a.alphaMul);
+            sgct::deserializeObject(data, pos, a.move.x);
+            sgct::deserializeObject(data, pos, a.move.y);
+            sgct::deserializeObject(data, pos, a.scale);
+            sgct::deserializeObject(data, pos, a.spin);
+            for (int i = 0; i < 3; ++i) {
+                sgct::deserializeObject(data, pos, a.rotateOffset[i]);
+                sgct::deserializeObject(data, pos, a.translateOffset[i]);
+                sgct::deserializeObject(data, pos, a.planeAngleOffset[i]);
+                sgct::deserializeObject(data, pos, a.planePosOffset[i]);
+            }
         }
-        sgct::deserializeObject(data, pos, a.maskType);
-        sgct::deserializeObject(data, pos, a.maskProgress);
-        sgct::deserializeObject(data, pos, a.maskFeather);
-        sgct::deserializeObject(data, pos, a.maskAngle);
-        sgct::deserializeObject(data, pos, a.maskCenter.x);
-        sgct::deserializeObject(data, pos, a.maskCenter.y);
-        sgct::deserializeObject(data, pos, a.maskInvert);
-    }
-    else {
-        m_animState = cplay::anim::LayerAnimState();
+        if (parts & AnimMask) {
+            sgct::deserializeObject(data, pos, a.maskType);
+            sgct::deserializeObject(data, pos, a.maskProgress);
+            sgct::deserializeObject(data, pos, a.maskFeather);
+            sgct::deserializeObject(data, pos, a.maskAngle);
+            sgct::deserializeObject(data, pos, a.maskCenter.x);
+            sgct::deserializeObject(data, pos, a.maskCenter.y);
+            sgct::deserializeObject(data, pos, a.maskInvert);
+        }
+        if (parts & AnimParticles) {
+            sgct::deserializeObject(data, pos, a.particleMode);
+            sgct::deserializeObject(data, pos, a.particleProgress);
+            sgct::deserializeObject(data, pos, a.particleSpread);
+            sgct::deserializeObject(data, pos, a.particleStagger);
+            sgct::deserializeObject(data, pos, a.particleColumns);
+            sgct::deserializeObject(data, pos, a.particleSeed);
+        }
     }
 }
 

@@ -17,7 +17,7 @@ It has three levels, each one building on the previous:
 | --- | --- | --- |
 | 1. Up/down mix | [Audio settings](/settings/audio#audio-settings-for-live-video-layers) → *Perform audio mixing (up/down) to output device* and *Output channels* | Mixes every live layer to one output layout, for example 2.0 → 5.1 or 7.1 → 2.0. |
 | 2. Spatial mapping | *Audio mapping...* dialog (button below *Output channels*) | Optional. Makes the sound follow where each layer is shown: **surround panning** of the output layout, or **mono to a speaker array** by distance. |
-| 3. Per layer | Layer View, above the audio meter | Each live layer can opt out of the up/down mix and of the spatial mapping. Both are on by default. mpv layers first opt in with *Audio mapping via JACK* (off by default). |
+| 3. Per layer | Inspect view, above the audio meter | Each live layer can opt out of the up/down mix and of the spatial mapping. Both are on by default. mpv layers first opt in with *Audio mapping via JACK* (off by default). |
 
 When a level is off, the levels after it do nothing: without the up/down mix the live layers play their source channels unmixed, and without a spatial mapping they keep the plain up/down mix.
 
@@ -64,10 +64,10 @@ The positions belong to one output layout. When you change *Output channels*, th
 
 ![Audio mapping dialog: mono to a speaker array](/assets/ui/settings/audio_mapping_array.png)
 
-Each layer is summed to mono and shared out over any number of speakers (up to 64), each on its own output channel. The closer a speaker is to the layer, the larger its share. This suits installations where speakers are spread around a dome or along a circular screen rather than in a standard surround layout.
+Each layer is summed to mono and shared out over any number of speakers (up to 64), each on its own output channel. Distance is measured to the layer's covered area, including its width, height, rotation and animated scale. Speakers inside that area share the sound equally; outside it, their share falls with distance from the nearest edge. A layer covering all speakers therefore uses all of them equally. This suits installations where speakers are spread around a dome or along a circular screen rather than in a standard surround layout.
 
 * **Speaker positions** —
-  * **On the dome (azimuth / elevation)**: speakers are placed like the surround speakers, and compared with the direction of the layer as seen from the dome centre.
+  * **On the dome (azimuth / elevation)**: speakers are placed like the surround speakers, and compared with the layer's angular coverage as seen from the dome centre. Plane layers use their projected rectangle, dome layers use their rotated dome coverage, and sphere layers cover all directions.
   * **Along the circular screen (degrees / height)**: for the [circular surface mapping](/settings/grid#circular-surface-mapping). A speaker is placed at an angle on the screen (the same degrees as the *Centre angle* of circular plane layers) and a height in cm (like the layer's vertical position). The distance is measured around the real circle, so a layer at 350° is close to a speaker at 0°. The *Full surface width* of the circular mapping is taken as the circumference of the screen, which sets how much the height counts compared with the angle. Only plane layers have a position on the circular screen, and only while the circular mapping is enabled.
 * **Level drop** — how much quieter a speaker gets per doubling of its distance to the layer (1–24 dB, default 6 dB, the inverse distance law). Higher values keep the sound at the nearest speakers.
 * **Spatial blur** — added to every distance, in percent of the dome/circle radius (default 5 %). It avoids that a layer right on top of a speaker plays from that speaker only.
@@ -76,7 +76,7 @@ Each layer is summed to mono and shared out over any number of speakers (up to 6
 
 The device opens as many channels as the highest output channel used by a speaker (limited to what the device has). Layers without a position — 2D layers, and in the circular layout also dome and sphere layers — play equally on all speakers.
 
-**Share of each speaker:** select a 3D layer in the Layers panel and the dialog shows the share of every speaker for that layer, updated live while the layer moves. With constant loudness on, the share is the part of the power; otherwise the part of the amplitude. For example, with 8 speakers 45° apart, a layer right on a speaker gives it about 99 %, and a layer halfway between two speakers gives each about 41 %.
+**Share of each speaker:** select a 3D layer in the Layers panel and the dialog shows the share of every speaker for that layer, updated live while the layer moves or changes size. With constant loudness on, the share is the part of the power; otherwise the part of the amplitude. For example, a circular layer spanning all eight speakers gives each 12.5 %. A smaller layer favors the speakers it covers and those closest to its edges.
 
 ### Placing the speakers in the master view
 
@@ -92,9 +92,9 @@ Closing the dialog hides the speakers again; the positions are saved as soon as 
 
 ## 3. Per layer: opt out of the mapping
 
-![Layer View audio options](/assets/ui/layer_view_audio_mapping.png)
+![Inspect view audio options](/assets/ui/layer_view_audio_mapping.png)
 
-The Layer View of every live layer shows its audio options above the audio meter toggle:
+The Inspect view of every live layer shows its audio options above the audio meter toggle:
 
 * **Map audio to the output layout (up/down mix)** — shown while *Perform audio mixing (up/down) to output device* is on. Uncheck it to play this layer's source channels unmixed; its audio output reopens with its own channel count.
 * **Follow the spatial mapping (surround panning / speaker array by distance)** — shown while a spatial mapping is selected, and available only while the layer uses the up/down mix. Uncheck it to give this layer the plain up/down mix, for example for a presenter microphone that should play from all fronts regardless of where its video is shown. In speaker array mode such a layer gets the standard up/down mix onto the first output channels.
@@ -109,12 +109,13 @@ Both options are on by default whenever the mapping is enabled in the audio sett
 
 1. **Run a JACK server** on every machine that plays the audio: the master, and the nodes when *Enable audio on: Nodes / Clients* is on. See the [Audio configuration guide](/setup/audio#jack-low-latency-up-to-64-or-128-channels) for installing JACK on Windows.
 2. **Let mpv use JACK:** in the [audio settings](/settings/audio#audio-output), check *Use custom audio output for video/audio playback*, select *Use audio driver* and choose **jack**. Under *mpv layers via JACK* at the bottom of the audio settings, a status line shows whether this is set.
-3. **Set up the audio mapping** as for the live layers: the output device, *Perform audio mixing (up/down) to output device*, *Output channels* and, if wanted, a spatial mapping in the *Audio mapping...* dialog.
-4. **Turn it on for the layer:** open the layer in the Layer View and check **Audio mapping via JACK** next to its volume slider.
+3. **Select the mapped output** under the audio output settings for live layers. To send the mapped channels to JACK's `system:playback_*` ports, enable *Use custom audio output* there and select **C-Play JACK client**. Alternatively select a multichannel ASIO/WASAPI device. Leaving this output at the system default can limit the mapping to stereo, even when mpv uses JACK.
+4. **Set up the audio mapping:** enable *Perform audio mixing (up/down) to output device* and choose *Output channels*. For eight independent mono speakers, select *Mono to a speaker array, by distance* in *Audio mapping...* and assign the speakers to output channels 1–8. A stereo source can feed all eight speakers; its input channel count does not limit the mapped output count.
+5. **Turn it on for the layer:** open the layer in the Inspect view and check **Audio mapping via JACK** next to its volume slider. To enable this automatically for new Video, Audio, Stream and YouTube layers, check **Audio mapping via JACK by default for new layers** in Audio settings (default off). This does not change existing layers or saved presentations.
 
 The layer then shows the same options as a live layer above the audio meter toggle: *Map audio to the output layout (up/down mix)*, *Follow the spatial mapping* and the audio level meter (see [Per layer](#3-per-layer-opt-out-of-the-mapping)).
 
-The option is saved with the layer in the presentation only when on (`"jackAudio": true`) and synced to the nodes. Like the rest of the mapping, the mpv audio driver and the JACK server are set up on each machine.
+The option is saved with the layer in the presentation (`"jackAudio": true` or `false`) and synced to the nodes. Older presentations without this property keep routing off, regardless of the new-layer default. Like the rest of the mapping, the mpv audio driver and the JACK server are set up on each machine.
 
 ### How it works
 
@@ -124,7 +125,7 @@ mpv (layer) ──JACK──▶ cplay-mix-… (8 input ports) ──▶ up/down 
 
 * For each layer with the option on, C-Play opens a JACK client of its own named `cplay-mix-<process id>-<n>`, with eight input ports `in_1` … `in_8`. The layer's mpv client is named `cplay-mpv-<process id>-<n>`, so the master and a node can share one JACK server.
 * C-Play sets mpv's `jack-port` option to these input ports, so mpv connects its output ports there instead of to the system playback ports. A multichannel source keeps its channels (up to 7.1), in the same order as the [output layouts](#1-updown-mix-to-the-output-layout).
-* The connected inputs are mixed exactly like a live layer and played on the PortAudio device of the audio settings. The output opens as soon as mpv connects, and reopens when the number of channels, the device or the layer's audio mapping changes.
+* The connected inputs are mixed exactly like a live layer and played on the output selected for live layers: a PortAudio device or the **C-Play JACK client**, whose mapped output ports connect to JACK's system playback ports. The output opens as soon as mpv connects, and reopens when the number of channels, the device or the layer's audio mapping changes. An unavailable custom device is reported instead of silently falling back to stereo; a device with too few channels produces a warning in the log.
 * The layer's **volume and mute** are still applied by mpv, before JACK.
 * Turning the option on or off at runtime reloads mpv's audio output, so it reconnects right away. If the JACK server is not running, C-Play tries again every few seconds.
 
@@ -140,4 +141,4 @@ mpv (layer) ──JACK──▶ cplay-mix-… (8 input ports) ──▶ up/down 
 * **Audio on the nodes** — the mapping settings and the speaker positions are read from each machine's own audio settings. When nodes play audio (*Enable audio on: Nodes / Clients*), configure the mapping on those nodes as well; the per-layer options come from the master.
 * **Coherent stereo in the speaker array** — a stereo source whose left and right channels are identical sounds about 3 dB louder when summed to mono for the array.
 * **No position** — 2D layers have no place in the dome: with surround panning they keep the standard up/down mix, in speaker array mode they play equally on all speakers.
-* **Audio level meter** — the meter in the Layer View shows the level after the mapping, for all live layers.
+* **Audio level meter** — the meter in the Inspect view shows the level after the mapping, for all live layers.

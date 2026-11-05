@@ -190,7 +190,7 @@ public:
     void setLoadAudioInVidFolder(bool v);
     void setAudioFile(const std::string &audioFile);
 
-    // Per layer, off by default. Only works with mpv's JACK audio output (ao=jack): mpv
+    // Per layer, initially taken from AudioSettings (off by default). Only works with mpv's JACK audio output (ao=jack): mpv
     // connects its output ports to a JACK client of this layer instead of the system playback
     // ports, and the audio is mixed (up/down mix and spatial mapping) and played through
     // PortAudio like the live layers.

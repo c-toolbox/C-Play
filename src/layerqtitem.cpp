@@ -152,6 +152,10 @@ void LayerQtItem::setLayerIdx(int idx) {
         m_layer->setAudioLevelsEnabled(m_audioLevelsEnabled); // re-apply the meter state to the new layer
         m_lastEmittedAudioLevel = -1.f; // force a fresh audio level emit for the new layer
         m_lastEmittedHasAudio = false;  // force a fresh has-audio emit (and track refresh) for the new layer
+        // The renderer only reports a view change when the view geometry differs, so refresh
+        // the texture size and ROI rectangle for the new layer here.
+        Q_EMIT viewChanged();
+        updateRoi();
         Q_EMIT layerChanged();
         Q_EMIT layerValueChanged();
         if (window()) {
@@ -1050,8 +1054,9 @@ void LayerQtItem::updateView() {
     if (m_renderer) {
         m_viewOffset = m_renderer->viewOffset() / window()->devicePixelRatio();
         m_viewSize = m_renderer->viewSize() / window()->devicePixelRatio();
-        updateRoi();
+        // Emit before updateRoi so the ROI spin box ranges (textureSize) are current when their values update
         Q_EMIT viewChanged();
+        updateRoi();
     }
 }
 

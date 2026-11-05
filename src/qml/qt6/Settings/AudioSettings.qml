@@ -456,7 +456,9 @@ SettingsBasePage {
             Layout.columnSpan: 3
             Layout.topMargin: 20
             Layout.fillWidth: true
-            text: qsTr("Audio settings for Live video layers (NDI/OMT/Capture/DirectShow/WebRTC)")
+            text: JACK_AUDIO_MAPPING_SUPPORT
+                  ? qsTr("Audio output for live layers and mpv layers mapped via JACK")
+                  : qsTr("Audio settings for Live video layers (NDI/OMT/Capture/DirectShow/WebRTC)")
             level: 4
         }
         Item {
@@ -621,6 +623,10 @@ SettingsBasePage {
             enabled: true
             text: qsTr("Perform audio mixing (up/down) to output device")
 
+            ToolTip.visible: hovered
+            ToolTip.delay: 500
+            ToolTip.text: qsTr("Required for spatial mapping, including mpv layers mapped via JACK. When off, stereo input remains stereo even if an eight-channel output or speaker array is configured.")
+
             onCheckedChanged: {
                 AudioSettings.portAudioMixInputToOutput = checked;
                 AudioSettings.save();
@@ -731,13 +737,42 @@ SettingsBasePage {
             Layout.columnSpan: 2
         }
 
+        SettingsHeader {
+            visible: JACK_AUDIO_MAPPING_SUPPORT
+            Layout.columnSpan: 3
+            Layout.topMargin: 20
+            Layout.fillWidth: true
+            text: qsTr("mpv layers via JACK")
+            level: 4
+        }
         Item {
-            visible: root.portAudioLayers
+            visible: JACK_AUDIO_MAPPING_SUPPORT
+            height: 1
+            width: 1
+        }
+        CheckBox {
+            visible: JACK_AUDIO_MAPPING_SUPPORT
+            text: qsTr("Audio mapping via JACK by default for new layers")
+            checked: AudioSettings.jackAudioRoutingByDefault
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+
+            onToggled: {
+                AudioSettings.jackAudioRoutingByDefault = checked;
+                AudioSettings.save();
+            }
+
+            ToolTip.visible: hovered
+            ToolTip.delay: 500
+            ToolTip.text: qsTr("Applies to new Video, Audio, Stream and YouTube layers. Existing layers and saved presentations keep their per-layer choice. Requires mpv to play through JACK.")
+        }
+        Item {
+            visible: JACK_AUDIO_MAPPING_SUPPORT
             height: 1
             width: 1
         }
         Label {
-            visible: root.portAudioLayers
+            visible: JACK_AUDIO_MAPPING_SUPPORT
             wrapMode: Text.WordWrap
             Layout.columnSpan: 2
             Layout.fillWidth: true
@@ -746,6 +781,18 @@ SettingsBasePage {
             text: root.mpvUsesJack
                     ? qsTr("mpv plays through JACK: layers can use \"Audio mapping via JACK\".")
                     : qsTr("mpv does not play through JACK yet (\"jack\" driver or a JACK audio device): \"Audio mapping via JACK\" has no effect until it does.")
+        }
+        Item {
+            visible: JACK_AUDIO_MAPPING_SUPPORT
+            height: 1
+            width: 1
+        }
+        Label {
+            visible: JACK_AUDIO_MAPPING_SUPPORT
+            wrapMode: Text.WordWrap
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+            text: qsTr("Mapped audio uses the output for live layers above. To reach JACK's system playback ports, enable its custom audio output and choose \"C-Play JACK client\". Enable audio mixing to use the output layout or speaker array; stereo input can then feed all mapped speakers.")
         }
     }
 }

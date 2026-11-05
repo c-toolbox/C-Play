@@ -25,7 +25,7 @@ For changing the presentation timings, this is made in the "Settings -> Configur
 
 ## Layer operation modes (C-Play v2.3 and newer)
 
-Layers that receive a live video feed (NDI, OMT, Stream, DirectShow, Capture, Spout and WebRTC) support a **Layer Operation** mode that controls how the layer's texture is subdivided into sublayers. The mode is selected via a combo box in the layer view:
+Layers that receive a live video feed (NDI, OMT, Stream, DirectShow, Capture, Spout and WebRTC) support a **Layer Operation** mode that controls how the layer's texture is subdivided into sublayers. The mode is selected via a combo box in the Inspect view:
 
 | Mode | Description | Supported by |
 |------|-------------|--------------|
@@ -33,7 +33,7 @@ Layers that receive a live video feed (NDI, OMT, Stream, DirectShow, Capture, Sp
 | **ImPres Mode (QR)** | QR code-driven sublayer control (see below). | NDI, OMT, Stream, DirectShow, Capture, Spout, WebRTC |
 | **Division Mode** | Static grid-based texture division (see below). | NDI, OMT, Stream, DirectShow, Capture, Spout, WebRTC |
 
-When a sublayer mode is active, the layer view shows a **Sub-Layer** selector and highlights the selected sublayer's region in yellow on the preview.
+When a sublayer mode is active, the Inspect view shows a **Sub-Layer** selector and highlights the selected sublayer's region in yellow on the preview.
 
 ---
 
@@ -83,7 +83,7 @@ ImPres is a QR code-driven presentation mode. When enabled, C-Play scans incomin
 
 ### Enabling ImPres
 
-In the layer view for a live-feed layer (NDI, OMT, Stream, DirectShow, Capture, Spout or WebRTC), select *"ImPres Mode (QR)"* from the **Layer Operation** combo box. This setting is saved with the presentation. NDI, OMT, DirectShow and WebRTC layers scan each frame before it is uploaded; Stream, Capture and Spout layers read the frame back from the GPU, which costs more on high resolutions.
+In the Inspect view for a live-feed layer (NDI, OMT, Stream, DirectShow, Capture, Spout or WebRTC), select *"ImPres Mode (QR)"* from the **Layer Operation** combo box. This setting is saved with the presentation. NDI, OMT, DirectShow and WebRTC layers scan each frame before it is uploaded; Stream, Capture and Spout layers read the frame back from the GPU, which costs more on high resolutions.
 
 ### Example
 You can open the example PowerPoint at `data/impres/ImPres_PPT_Template.ppt`, which shows one practical way to display the QR codes so they are visible immediately when a new slide appears and then disappear quite quickly.

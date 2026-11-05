@@ -226,6 +226,20 @@ Window {
     }
 
     // Layers with an image, for the layer pickers: { title, layerIdx }.
+    // Names of the shown layers that have entrance but no exit effects: hiding one of them
+    // plays its entrance backwards (see LayersModel::layerExitReversesEntrance).
+    function reversedEntranceLayers() {
+        var _r = revision;
+        var names = [];
+        if (!slideModel)
+            return names;
+        for (var i = 0; i < slideModel.rowCount(); i++) {
+            if ((!layerMode || i === layerFilter) && slideModel.layerExitReversesEntrance(i))
+                names.push(slideModel.layerTitle(i));
+        }
+        return names;
+    }
+
     function imageLayers() {
         var _r = revision;
         var list = [];
@@ -478,6 +492,19 @@ Window {
                     }
                 }
 
+                // Exit tab: layers whose entrance is reused, backwards, as their exit.
+                Kirigami.InlineMessage {
+                    readonly property var names: root.phase === 1 ? root.reversedEntranceLayers() : []
+                    Layout.fillWidth: true
+                    visible: names.length > 0
+                    type: Kirigami.MessageType.Information
+                    text: (root.layerMode
+                           ? qsTr("This layer has no exit effects, so hiding it plays its entrance effects in reverse.")
+                           : qsTr("No exit effects on %1, so hiding them plays their entrance effects in reverse.")
+                                 .arg(names.join(", ")))
+                          + " " + qsTr("Add an exit effect to use another exit. Leaving the slide still fades the layer out with the slide.")
+                }
+
                 // -----------------------------------------------------------
                 // Effect list (animation pane)
                 // -----------------------------------------------------------
@@ -672,6 +699,7 @@ Window {
                     readonly property var e: root.selectedEffect()
                     readonly property bool isMove: e !== null && root.slideModel !== null && root.slideModel.effectPresetIsMove(e.preset)
                     readonly property var startPose: isMove ? root.slideModel.poseBeforeEffect(e.layerIdx, e.effectIdx) : null
+                    readonly property bool isParticles: e !== null && root.slideModel !== null && root.slideModel.effectPresetIsParticles(e.preset)
 
                     Label { text: qsTr("Effect:") }
                     ComboBox {
@@ -754,12 +782,42 @@ Window {
                     }
 
                     Label {
-                        text: qsTr("Amount:")
-                        visible: options.e !== null && [2, 3, 4, 5].indexOf(options.e.preset) >= 0
+                        text: qsTr("Particles:")
+                        visible: options.isParticles
+                    }
+                    SpinBox {
+                        Layout.fillWidth: true
+                        visible: options.isParticles
+                        from: 4; to: 256; stepSize: 4
+                        editable: true
+                        value: options.e ? options.e.particles : 32
+                        onValueModified: root.updateSelected({ particles: value })
+                        ToolTip.visible: hovered
+                        ToolTip.delay: 600
+                        ToolTip.text: qsTr("Particles across the image")
+                    }
+
+                    Label {
+                        text: qsTr("Stagger:")
+                        visible: options.isParticles
                     }
                     Slider {
                         Layout.fillWidth: true
-                        visible: options.e !== null && [2, 3, 4, 5].indexOf(options.e.preset) >= 0
+                        visible: options.isParticles
+                        from: 0; to: 0.95; stepSize: 0.01
+                        value: options.e ? options.e.feather : 0.5
+                        onMoved: root.updateSelected({ feather: value })
+                        ToolTip.visible: hovered || pressed
+                        ToolTip.text: qsTr("Particle start times spread over %1 % of the effect").arg(Math.round(value * 100))
+                    }
+
+                    Label {
+                        text: options.isParticles ? qsTr("Spread:") : qsTr("Amount:")
+                        visible: options.e !== null && ([2, 3, 4, 5].indexOf(options.e.preset) >= 0 || options.isParticles)
+                    }
+                    Slider {
+                        Layout.fillWidth: true
+                        visible: options.e !== null && ([2, 3, 4, 5].indexOf(options.e.preset) >= 0 || options.isParticles)
                         from: 0.1; to: 3; stepSize: 0.05
                         value: options.e ? options.e.amount : 1
                         onMoved: root.updateSelected({ amount: value })
@@ -913,7 +971,7 @@ Window {
                         font.pointSize: 8
                         opacity: 0.7
                         text: root.isMaster
-                              ? qsTr("Master slide layers play their entrance when they are shown and their exit when they are hidden (double-click in the layer list, or the show/hide buttons of the layer view).")
+                              ? qsTr("Master slide layers play their entrance when they are shown and their exit when they are hidden (double-click in the layer list, or the show/hide buttons of the Inspect view).")
                               : (root.phase === 0
                                  ? qsTr("\"On click\" steps wait for Next (keyboard, remote or /slide_next) before playing. Moves on a layer kept from an earlier slide continue from where that slide left it.")
                                  : qsTr("Exit effects play automatically when the slide is left."))
@@ -958,11 +1016,11 @@ Window {
                     CheckBox {
                         visible: root.layerView !== null
                         Layout.fillWidth: true
-                        text: qsTr("Preview in layer view")
+                        text: qsTr("Preview in Inspect view")
                         checked: root.layerView !== null && root.layerView.showPostEffects
                         onToggled: root.layerView.showPostEffects = checked
                         ToolTip.visible: hovered
-                        ToolTip.text: qsTr("Shows the layer view with the effects applied, over a checkerboard where they make the image transparent.")
+                        ToolTip.text: qsTr("Shows the Inspect view with the effects applied, over a checkerboard where they make the image transparent.")
                     }
                     Item {
                         visible: root.layerMode && root.layerView === null
@@ -1074,7 +1132,7 @@ Window {
                                         }
                                         Button {
                                             Layout.fillWidth: true
-                                            text: colorRow.picking ? qsTr("Click in the layer view…") : qsTr("Pick from image")
+                                            text: colorRow.picking ? qsTr("Click in the Inspect view…") : qsTr("Pick from image")
                                             icon.name: "color-picker"
                                             checkable: true
                                             checked: colorRow.picking
@@ -1082,8 +1140,8 @@ Window {
                                             onClicked: root.togglePick(colorRow.colorKey)
                                             ToolTip.visible: hovered
                                             ToolTip.text: root.canPick
-                                                          ? qsTr("Click or drag in the layer view to sample the color under the mouse (5×5 pixel average, before effects). Esc cancels.")
-                                                          : qsTr("Open this pane from the layer view (Effects button) to pick the color from the layer's image.")
+                                                          ? qsTr("Click or drag in the Inspect view to sample the color under the mouse (5×5 pixel average, before effects). Esc cancels.")
+                                                          : qsTr("Open this pane from the Inspect view (Effects button) to pick the color from the layer's image.")
                                         }
                                     }
 
@@ -1197,7 +1255,7 @@ Window {
         focus: true
         padding: Kirigami.Units.largeSpacing
 
-        readonly property var categories: [qsTr("Basic"), qsTr("Wipe & mask"), qsTr("Motion"), qsTr("Zoom & spin"), qsTr("Move (keeps visibility, carries to next slides)")]
+        readonly property var categories: [qsTr("Basic"), qsTr("Wipe & mask"), qsTr("Motion"), qsTr("Zoom & spin"), qsTr("Move (keeps visibility, carries to next slides)"), qsTr("Particles")]
 
         contentItem: ColumnLayout {
             spacing: Kirigami.Units.smallSpacing

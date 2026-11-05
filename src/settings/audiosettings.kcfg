@@ -40,6 +40,10 @@
     <entry name="PreferredAudioOutputDriver" type="String">
       <label>Preferred audio output driver</label>
     </entry>
+    <entry name="JackAudioRoutingByDefault" type="bool">
+      <label>Enable audio mapping via JACK for new Video, Audio, Stream and YouTube layers</label>
+      <default>false</default>
+    </entry>
     <entry name="VolumeStep" type="Int">
       <label>Volume step</label>
       <default>5</default>

@@ -131,7 +131,7 @@ The path is `<room>/<stream ID>`. The stream ID appears in the guest's browser a
 
 The layer decodes H.264/H.265 with FFmpeg (NVDEC hardware decoding when available) and re-establishes the session automatically if it drops while the slide should be running — a guest who briefly loses connection comes back without touching C-Play.
 
-In the *Layer View* you can change the **WHEP URL** at any time (changing it restarts the connection), set **Auth user/password** for HTTP Basic authentication, and toggle **Master only** / **Master relay**. See [Build presentation](/media/cplaypres) for the full layer reference.
+In the *Inspect* view you can change the **WHEP URL** at any time (changing it restarts the connection), set **Auth user/password** for HTTP Basic authentication, and toggle **Master only** / **Master relay**. See [Build presentation](/media/cplaypres) for the full layer reference.
 
 ## Option D: VDO.Ninja Arena Rooms (new in 2.4)
 
@@ -201,18 +201,18 @@ The layers are ordinary WebRTC layers: Master relay, master-only, audio, the [au
 
 ## Master Relay option
 
-The WebRTC layer has a **Master relay** checkbox — in the *Add new layer* dialog and on the WebRTC section of the *Layer View*. It is checked by default.
+The WebRTC layer has a **Master relay** checkbox — in the *Add new layer* dialog and on the WebRTC section of the *Inspect* view. It is checked by default.
 
 * **On (default):** the master pulls the WHEP stream once and relays it to all nodes through its built-in hub, so only one upstream connection is used. Nodes do not need direct network access to the WHEP server — they receive the feed from the master over the cluster network.
 * **Off:** every machine that has this layer opens its own WHEP session directly against the endpoint. That means N concurrent readers on the server for an N-node cluster, and each node must be able to reach the WHEP URL itself.
 
 For VDO.Ninja feeds, keep it on: the guest's WHIP publish is a single upstream stream, and fanning it out from the master keeps the load on the WHEP endpoint (VDO.Ninja's hosted service or your MediaMTX server) — and on the guest's upload link — at one copy regardless of cluster size. Turn it off only when each node has a better or more direct path to the WHEP endpoint than through the master.
 
-The *Layer View* also offers **Master only** for WebRTC layers (the same Sync control as other live layers). When checked, the layer exists on the master only and is not synced to the nodes at all — useful when the VDO.Ninja feed is needed on the master alone, for example for [NDI output](/system-integration/ndi-output) or monitoring.
+The *Inspect* view also offers **Master only** for WebRTC layers (the same Sync control as other live layers). When checked, the layer exists on the master only and is not synced to the nodes at all — useful when the VDO.Ninja feed is needed on the master alone, for example for [NDI output](/system-integration/ndi-output) or monitoring.
 
 ## Audio notes
 
-* The guest's microphone arrives as Opus audio in the WHEP stream; C-Play decodes it and plays it through PortAudio like NDI/OMT layers. Volume and mute are available per layer in the *Layer View*.
+* The guest's microphone arrives as Opus audio in the WHEP stream; C-Play decodes it and plays it through PortAudio like NDI/OMT layers. Volume and mute are available per layer in the *Inspect* view.
 * Have remote guests use headphones. VDO.Ninja applies echo cancellation by default, but speakerphone feedback is still a risk — especially when C-Play is also playing local media audio on the same machine.
 
 ## Limitations and troubleshooting

@@ -20,7 +20,7 @@ Kirigami.ApplicationWindow {
     height: 880
     title: qsTr("C-Play Preferences")
     visible: false
-    width: 1080
+    width: 1150
 
     Component.onCompleted: pageStack.push(`${root.pagePath}/Navigation.qml`)
     onVisibleChanged: {

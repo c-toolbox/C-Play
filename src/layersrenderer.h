@@ -10,6 +10,7 @@
 
 #include <layers/baselayer.h>
 #include <animation/maskglsl.h>
+#include <animation/particlecompositor.h>
 #include <array>
 #include <mutex>
 #include <sgct/sgct.h>
@@ -84,6 +85,9 @@ private:
 
     std::unique_ptr<DomeGrid> domeMesh;
     std::unique_ptr<SphereGrid> sphereMesh;
+
+    // Particle entrance/exit effects, per window (OpenGL context).
+    cplay::anim::ParticleCompositor particles;
 };
 
 #endif // LAYERSRENDERER_H

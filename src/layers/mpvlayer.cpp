@@ -540,6 +540,7 @@ MpvLayer::MpvLayer(gl_adress_func_v1 opa,
     m_data.loggingOn = loggingOn;
     m_data.logLevel = std::move(logLevel);
     m_data.fileLoadedCallback = flc;
+    m_data.jackAudio = jackAudioRoutingSupported() && AudioSettings::jackAudioRoutingByDefault();
 
     // Unique per process and layer: master and nodes may share one JACK server.
     static std::atomic_int jackLayerCount{0};

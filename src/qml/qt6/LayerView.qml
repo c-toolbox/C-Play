@@ -32,6 +32,11 @@ Kirigami.ApplicationWindow {
     property var flipYControls: undefined
     property var webrtcControls: undefined
 
+    // Opens the Effects pane locked to the layer shown here (also used from the layer list).
+    function openEffectsPane() {
+        layerAnimationPaneLoader.open();
+    }
+
     // Plays the layer's entrance (show) or exit effects instead of fading it, when it has them.
     // A selected sublayer has no effects of its own and fades as usual.
     function playLayerAnimation(show) {
@@ -1267,7 +1272,7 @@ Kirigami.ApplicationWindow {
                         to: layerViewItem.textureSize.width
                         value: layerViewItem.roiTexOffset.x
 
-                        onValueChanged: {
+                        onValueModified: {
                             if (value != layerViewItem.roiTexOffset.x)
                                 layerViewItem.roiTexOffset = Qt.point(value, layerViewItem.roiTexOffset.y);
                         }
@@ -1282,7 +1287,7 @@ Kirigami.ApplicationWindow {
                         to: layerViewItem.textureSize.height
                         value: layerViewItem.roiTexOffset.y
 
-                        onValueChanged: {
+                        onValueModified: {
                             if (value != layerViewItem.roiTexOffset.y)
                                 layerViewItem.roiTexOffset = Qt.point(layerViewItem.roiTexOffset.x, value);
                         }
@@ -1297,7 +1302,7 @@ Kirigami.ApplicationWindow {
                         to: layerViewItem.textureSize.width
                         value: layerViewItem.roiTexSize.width
 
-                        onValueChanged: {
+                        onValueModified: {
                             if (value != layerViewItem.roiTexSize.width)
                                 layerViewItem.roiTexSize = Qt.size(value, layerViewItem.roiTexSize.height);
                         }
@@ -1312,7 +1317,7 @@ Kirigami.ApplicationWindow {
                         to: layerViewItem.textureSize.height
                         value: layerViewItem.roiTexSize.height
 
-                        onValueChanged: {
+                        onValueModified: {
                             if (value != layerViewItem.roiTexSize.height)
                                 layerViewItem.roiTexSize = Qt.size(layerViewItem.roiTexSize.width, value);
                         }
@@ -1749,7 +1754,7 @@ Kirigami.ApplicationWindow {
                         }
                     }
                     // mpv layers: route the audio through JACK into the audio mapping of the
-                    // live layers (off by default; needs mpv playing through JACK).
+                    // live layers (new layers follow Audio settings; needs mpv playing through JACK).
                     Rectangle {
                         // The "jack" driver or a JACK entry in mpv's device list ("jack" or "jack/<port>").
                         readonly property bool jackDriverSelected: AudioSettings.useCustomAudioOutput

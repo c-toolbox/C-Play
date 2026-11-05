@@ -40,7 +40,7 @@ void setMask(LayerAnimState &state, MaskType type, float progress, float feather
 }
 
 const char *const kPresetNames[] = {
-    "Appear", "Fade", "Fly", "Float", "Zoom", "Spin", "Wipe", "Iris", "Clock", "Dissolve", "Move"
+    "Appear", "Fade", "Fly", "Float", "Zoom", "Spin", "Wipe", "Iris", "Clock", "Dissolve", "Move", "Particles"
 };
 static_assert(sizeof(kPresetNames) / sizeof(kPresetNames[0]) == static_cast<int>(EffectPreset::Count));
 
@@ -48,6 +48,7 @@ const char *const kDirectionNames[] = {
     "Left", "Right", "Top", "Bottom", "Top left", "Top right", "Bottom left", "Bottom right"
 };
 static_assert(sizeof(kDirectionNames) / sizeof(kDirectionNames[0]) == static_cast<int>(EffectDirection::Count));
+
 
 }
 
@@ -106,6 +107,17 @@ void applyEffect(const LayerEffect &effect, float progress, LayerAnimState &stat
     case EffectPreset::Dissolve:
         setMask(state, MaskType::Dissolve, v, effect.feather, 0.f);
         break;
+    case EffectPreset::Particles:
+        // A complete image renders as the layer itself.
+        if (v >= 1.f)
+            break;
+        state.particleMode = 1;
+        state.particleProgress = std::clamp(v, 0.f, 1.f);
+        state.particleSpread = amount;
+        state.particleStagger = std::clamp(effect.feather, 0.f, 0.95f);
+        state.particleColumns = std::clamp(effect.particles, kMinParticles, kMaxParticles);
+        state.particleSeed = effect.order * 2 + effect.phase;
+        break;
     case EffectPreset::Move:
     case EffectPreset::Count:
         break;
@@ -137,6 +149,8 @@ int effectPresetCategory(int preset) {
         return 2;
     case EffectPreset::Move:
         return 4;
+    case EffectPreset::Particles:
+        return 5;
     default:
         return 3;
     }
@@ -160,6 +174,10 @@ bool effectPresetUsesDirection(int preset) {
 
 bool effectPresetUsesFeather(int preset) {
     return effectPresetCategory(preset) == 1;
+}
+
+bool effectPresetIsParticles(int preset) {
+    return preset == static_cast<int>(EffectPreset::Particles);
 }
 
 const char *effectDirectionName(int direction) {

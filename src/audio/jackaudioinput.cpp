@@ -25,6 +25,9 @@ constexpr auto kCheckInterval = std::chrono::seconds(1);
 // Same choice of output device as the other PortAudio layers.
 PaDeviceIndex chooseOutputDevice() {
     const PaDeviceIndex chosen = Pa_GetDefaultOutputDevice();
+    // Our JACK output is a virtual stream: it needs no PortAudio hardware device.
+    if (jackOutputSelected())
+        return paNoDevice;
     if (!AudioSettings::portAudioCustomOutput() || AudioSettings::portAudioOutputDevice().isEmpty()
         || AudioSettings::portAudioOutputApi().isEmpty())
         return chosen;
@@ -33,12 +36,13 @@ PaDeviceIndex chooseOutputDevice() {
     for (int i = 0; i < count; ++i) {
         const PaDeviceInfo *info = Pa_GetDeviceInfo(i);
         const PaHostApiInfo *api = info ? Pa_GetHostApiInfo(info->hostApi) : nullptr;
-        if (info && api && info->maxOutputChannels > 1
+        if (info && api && info->maxOutputChannels > 0
             && QString::fromUtf8(info->name) == AudioSettings::portAudioOutputDevice()
             && QString::fromUtf8(api->name) == AudioSettings::portAudioOutputApi())
             return i;
     }
-    return chosen;
+    // A missing custom device must not silently send the mapping to default stereo.
+    return paNoDevice;
 }
 } // namespace
 
@@ -102,13 +106,19 @@ bool JackAudioInput::update() {
 
     const PaDeviceIndex device = chooseOutputDevice();
     const PaDeviceInfo *info = device != paNoDevice ? Pa_GetDeviceInfo(device) : nullptr;
-    if (!info || info->maxOutputChannels <= 0) {
+    const int maxChannels = outputMaxChannels(device);
+    if (maxChannels <= 0) {
         closeOutput();
+        if (m_lastOutputFailure == std::chrono::steady_clock::time_point{} || now - m_lastOutputFailure >= kRetryInterval) {
+            sgct::Log::Warning("JackAudioInput: the selected mapping output is unavailable. Select C-Play JACK client "
+                               "or an available multichannel device in the audio output settings for live layers.");
+            m_lastOutputFailure = now;
+        }
         return reopened;
     }
     // Up/down mix to the output layout, or the source channels unmixed (as the live layers).
-    int outChannels = m_layer.audioMixingEnabled() ? configuredOutputChannels(info->maxOutputChannels) : connected;
-    outChannels = std::clamp(outChannels, 1, outputMaxChannels(device));
+    const int wantedChannels = m_layer.audioMixingEnabled() ? configuredOutputChannels(kMaxOutputChannels) : connected;
+    const int outChannels = std::clamp(wantedChannels, 1, maxChannels);
     if (m_stream && device == m_device && outChannels == m_outChannels
         && !outputRoutingChanged(m_stream, device))
         return reopened;
@@ -116,6 +126,10 @@ bool JackAudioInput::update() {
     closeOutput();
     if (m_lastOutputFailure != std::chrono::steady_clock::time_point{} && now - m_lastOutputFailure < kRetryInterval)
         return reopened;
+    if (outChannels < wantedChannels)
+        sgct::Log::Warning(std::format("JackAudioInput: the mapping needs {} output channels, but \"{}\" only provides {}. "
+                                       "Select C-Play JACK client or a multichannel device in the audio output settings for live layers.",
+                                       wantedChannels, info ? info->name : "?", maxChannels));
     if (!openOutput(device, outChannels))
         m_lastOutputFailure = now;
     return reopened;
@@ -173,7 +187,8 @@ void JackAudioInput::closeClient() {
 }
 
 bool JackAudioInput::openOutput(PaDeviceIndex device, int outChannels) {
-    const PaDeviceInfo *info = Pa_GetDeviceInfo(device);
+    const PaDeviceInfo *info = device != paNoDevice ? Pa_GetDeviceInfo(device) : nullptr;
+    const char *outputName = jackOutputSelected() ? kJackOutputDevice : (info ? info->name : "?");
     PaStreamParameters params{};
     params.device = device;
     params.channelCount = outChannels;
@@ -197,13 +212,18 @@ bool JackAudioInput::openOutput(PaDeviceIndex device, int outChannels) {
         m_stream = nullptr;
         m_outChannels = 0;
         sgct::Log::Error(std::format("JackAudioInput: could not open {} channels at {} Hz on \"{}\" ({})", outChannels,
-                                     m_sampleRate, info ? info->name : "?", Pa_GetErrorText(err)));
+                                     m_sampleRate, outputName, Pa_GetErrorText(err)));
         return false;
     }
     m_device = device;
+    m_lastOutputFailure = {};
     m_outputRunning.store(true, std::memory_order_release);
-    sgct::Log::Info(std::format("JackAudioInput: \"{}\" plays {} -> {} channel(s) on \"{}\".", m_clientName,
-                                m_openedInChannels, outChannels, info ? info->name : "?"));
+    const bool mixing = m_layer.audioMixingEnabled();
+    const int spatialMode = mixing && m_layer.spatialAudioEnabled() ? AudioSettings::portAudioSpatialMode() : 0;
+    const char *spatial = spatialMode == static_cast<int>(SpatialMode::SpeakerArray) ? "speaker array by distance"
+                        : spatialMode == static_cast<int>(SpatialMode::Surround) ? "surround panning" : "off";
+    sgct::Log::Info(std::format("JackAudioInput: \"{}\" plays {} -> {} channel(s) on \"{}\" (mixing {}, spatial mapping {}).",
+                                m_clientName, m_openedInChannels, outChannels, outputName, mixing ? "on" : "off", spatial));
     return true;
 }
 

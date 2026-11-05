@@ -45,12 +45,27 @@ struct LayerAnimState {
     glm::vec2 maskCenter = glm::vec2(0.5f);
     int32_t maskInvert = 0;
 
-    bool isIdentity() const {
-        return alphaMul == 1.f && move == glm::vec2(0.f) && scale == 1.f && spin == 0.f
-            && rotateOffset == glm::vec3(0.f) && translateOffset == glm::vec3(0.f)
-            && planeAngleOffset == glm::vec3(0.f) && planePosOffset == glm::vec3(0.f)
-            && maskType == 0;
+    // Particle entrance/exit: the layer's texture is cut into particles that are scattered
+    // around the view, moving as the layer's grid (flat, dome or sphere) shows them. 0 = off.
+    int32_t particleMode = 0;
+    // How assembled the image is: 0 scattered (and gone), 1 complete.
+    float particleProgress = 1.f;
+    float particleSpread = 1.f;
+    // Share of the effect over which particle start times are spread out, 0..1.
+    float particleStagger = 0.5f;
+    int32_t particleColumns = 32;
+    int32_t particleSeed = 0;
+
+    bool hasTransform() const {
+        return alphaMul != 1.f || move != glm::vec2(0.f) || scale != 1.f || spin != 0.f
+            || rotateOffset != glm::vec3(0.f) || translateOffset != glm::vec3(0.f)
+            || planeAngleOffset != glm::vec3(0.f) || planePosOffset != glm::vec3(0.f);
     }
+    // The mask and particle parameters only apply while these are on.
+    bool hasMask() const { return maskType != 0; }
+    bool hasParticles() const { return particleMode != 0; }
+
+    bool isIdentity() const { return !hasTransform() && !hasMask() && !hasParticles(); }
 };
 
 }

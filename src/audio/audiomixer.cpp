@@ -264,9 +264,11 @@ void anglesFromDirection(const glm::vec3 &dir, float &azimuthDeg, float &elevati
 }
 
 bool SpatialSource::operator==(const SpatialSource &o) const {
-    return kind == o.kind && useSpatial == o.useSpatial && centre == o.centre && halfRight == o.halfRight && forward == o.forward && rotation == o.rotation
+    return kind == o.kind && useSpatial == o.useSpatial && centre == o.centre && halfRight == o.halfRight && halfUp == o.halfUp
+        && forward == o.forward && rotation == o.rotation && fieldHalfAngle == o.fieldHalfAngle
         && circularValid == o.circularValid && circularDegrees == o.circularDegrees
-        && circularHeightCm == o.circularHeightCm && circleRadiusCm == o.circleRadiusCm;
+        && circularHeightCm == o.circularHeightCm && circleRadiusCm == o.circleRadiusCm
+        && circularHalfRight == o.circularHalfRight && circularHalfUp == o.circularHalfUp;
 }
 
 MixMatrix standardMix(int inChannels, int outChannels) {
@@ -286,6 +288,117 @@ MixMatrix standardMix(int inChannels, int outChannels) {
     return m;
 }
 
+namespace {
+// The plane projected onto the unit dome. Its edges are great-circle arcs, so no sampling
+// density is needed: even a speaker covered by a very thin or very large plane is found.
+struct DomeFootprint {
+    std::array<glm::vec3, 4> corners;
+    glm::vec3 centre;
+    bool hasArea;
+
+    explicit DomeFootprint(const SpatialSource &source) {
+        const glm::vec3 c = glm::length(source.centre) > 0.01f ? source.centre : source.forward;
+        const float len = glm::length(c);
+        centre = len > 1e-6f ? c / len : glm::vec3(0.f, 0.f, -1.f);
+        corners = {c - source.halfRight - source.halfUp, c + source.halfRight - source.halfUp,
+                   c + source.halfRight + source.halfUp, c - source.halfRight + source.halfUp};
+        const glm::vec3 normal = glm::cross(source.halfRight, source.halfUp);
+        hasArea = std::fabs(glm::dot(normal, centre)) > 1e-8f;
+        for (glm::vec3 &p : corners) {
+            const float l = glm::length(p);
+            p = l > 1e-6f ? p / l : centre;
+        }
+    }
+
+    float distance(const glm::vec3 &speaker) const {
+        bool inside = hasArea;
+        float bestDot = -1.f;
+        for (int i = 0; i < 4; ++i) {
+            const glm::vec3 &a = corners[i];
+            const glm::vec3 &b = corners[(i + 1) % 4];
+            bestDot = std::max(bestDot, glm::dot(speaker, a));
+            glm::vec3 n = glm::cross(a, b);
+            const float len = glm::length(n);
+            if (len < 1e-7f) {
+                inside = false;
+                continue; // collapsed edge: the endpoint already contributes
+            }
+            n /= len;
+            const float side = glm::dot(n, centre) >= 0.f ? glm::dot(n, speaker) : -glm::dot(n, speaker);
+            if (side < -1e-7f)
+                inside = false;
+            const glm::vec3 projected = speaker - glm::dot(speaker, n) * n;
+            const float projectedLength = glm::length(projected);
+            if (projectedLength < 1e-7f)
+                continue;
+            const glm::vec3 q = projected / projectedLength;
+            if (glm::dot(glm::cross(a, q), n) >= -1e-7f && glm::dot(glm::cross(q, b), n) >= -1e-7f)
+                bestDot = std::max(bestDot, glm::dot(speaker, q));
+        }
+        return inside ? 0.f : std::sqrt(std::max(0.f, 2.f - 2.f * std::clamp(bestDot, -1.f, 1.f)));
+    }
+};
+
+float cross2(const glm::vec2 &a, const glm::vec2 &b) {
+    return a.x * b.y - a.y * b.x;
+}
+
+// Project the transformed rectangle onto the unwrapped circular screen. Clip to one
+// revolution, as the circular renderer does, and consider copies across the seam.
+struct CircularFootprint {
+    std::array<glm::vec2, 8> corners{};
+    int count = 4;
+    bool hasArea = false;
+
+    explicit CircularFootprint(const SpatialSource &source) {
+        const glm::vec2 r = source.circularHalfRight, u = source.circularHalfUp;
+        corners[0] = -r - u; corners[1] = r - u;
+        corners[2] = r + u; corners[3] = -r + u;
+        for (float sign : {-1.f, 1.f}) {
+            std::array<glm::vec2, 8> clipped{};
+            int n = 0;
+            for (int i = 0; i < count; ++i) {
+                const glm::vec2 a = corners[i], b = corners[(i + 1) % count];
+                const bool aIn = sign * a.x <= kPi, bIn = sign * b.x <= kPi;
+                if (aIn)
+                    clipped[n++] = a;
+                if (aIn != bIn) {
+                    const float t = (sign * kPi - a.x) / (b.x - a.x);
+                    clipped[n++] = a + t * (b - a);
+                }
+            }
+            corners = clipped;
+            count = n;
+        }
+        float area = 0.f;
+        for (int i = 0; i < count; ++i)
+            area += cross2(corners[i], corners[(i + 1) % count]);
+        hasArea = std::fabs(area) > 1e-8f;
+    }
+
+    float distance(const glm::vec2 &speaker) const {
+        float best = 1e30f;
+        for (int copy = -1; copy <= 1; ++copy) {
+            const glm::vec2 p = speaker + glm::vec2(copy * 2.f * kPi, 0.f);
+            bool positive = false, negative = false;
+            for (int i = 0; i < count; ++i) {
+                const glm::vec2 a = corners[i], edge = corners[(i + 1) % count] - a;
+                const float side = cross2(edge, p - a);
+                positive |= side > 1e-7f; negative |= side < -1e-7f;
+                const float length2 = glm::dot(edge, edge);
+                const float t = length2 > 1e-12f ? std::clamp(glm::dot(p - a, edge) / length2, 0.f, 1.f) : 0.f;
+                const glm::vec2 delta = p - (a + t * edge);
+                const float chord = 2.f * std::sin(delta.x * 0.5f);
+                best = std::min(best, chord * chord + delta.y * delta.y);
+            }
+            if (hasArea && !(positive && negative))
+                return 0.f;
+        }
+        return std::sqrt(best);
+    }
+};
+} // namespace
+
 bool arraySpeakerGains(const SpatialSource &source, const SpeakerSetup &setup, float *gains) {
     const int count = std::clamp(setup.arrayCount, 0, kMaxArraySpeakers);
     if (count == 0)
@@ -298,26 +411,27 @@ bool arraySpeakerGains(const SpatialSource &source, const SpeakerSetup &setup, f
     if (setup.arrayLayout == static_cast<int32_t>(ArrayLayout::Circular)) {
         if (source.circularValid && source.circleRadiusCm > 0.f) {
             positioned = true;
+            const CircularFootprint footprint(source);
             for (int i = 0; i < count; ++i) {
                 const ArraySpeaker &spk = setup.speakers[static_cast<std::size_t>(i)];
                 const float delta = std::remainder(spk.degrees - source.circularDegrees, 360.f) * kPi / 180.f;
-                const float chord = 2.f * std::sin(std::fabs(delta) * 0.5f);
                 const float dh = (spk.heightCm - source.circularHeightCm) / source.circleRadiusCm;
-                distances[i] = std::sqrt(chord * chord + dh * dh);
+                distances[i] = footprint.distance(glm::vec2(delta, dh));
             }
         }
     } else if (source.kind != SpatialSource::None) {
-        glm::vec3 dir(0.f, 0.f, -1.f);
-        if (source.kind == SpatialSource::Field)
-            dir = source.rotation * glm::vec3(0.f, 0.f, -1.f);
-        else
-            dir = glm::length(source.centre) > 0.01f ? source.centre : source.forward;
-        const float len = glm::length(dir);
-        if (len > 1e-6f) {
-            dir /= len;
-            positioned = true;
-            for (int i = 0; i < count; ++i)
-                distances[i] = glm::length(dir - setup.speakers[static_cast<std::size_t>(i)].direction);
+        positioned = true;
+        const DomeFootprint footprint(source);
+        for (int i = 0; i < count; ++i) {
+            const glm::vec3 &speaker = setup.speakers[static_cast<std::size_t>(i)].direction;
+            if (source.kind == SpatialSource::Field) {
+                const glm::vec3 axis = source.rotation * glm::vec3(0.f, 1.f, 0.f);
+                const float angle = std::acos(std::clamp(glm::dot(axis, speaker), -1.f, 1.f));
+                const float outside = std::max(0.f, angle - std::clamp(source.fieldHalfAngle, 0.f, kPi));
+                distances[i] = 2.f * std::sin(outside * 0.5f);
+            } else {
+                distances[i] = footprint.distance(speaker);
+            }
         }
     }
 

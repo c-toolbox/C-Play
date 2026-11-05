@@ -14,7 +14,7 @@ Two levels of output are available:
 | Output | What is sent | Where you toggle it |
 |--------|--------------|---------------------|
 | **Player output** | What C-Play's main window displays — the full player output (main media + composited layers) in flat playback, or the 3D view when a 3D master view mode is active | Upload button (![](/assets/icons/kt-set-max-upload-speed-white.svg)) in the header taskbar, or the Settings menu |
-| **Layers** | A single presentation layer, independently of the main output | Per-layer **NDI** button in the layer view |
+| **Layers** | A single presentation layer, independently of the main output | Per-layer **NDI** button in the Inspect view |
 
 Both outputs are **video only** for now and run on the **master** computer. The nodes are not affected by NDI output.
 
@@ -51,9 +51,9 @@ The perspective camera and the sphere view keep a 16:9 aspect ratio, while the f
 
 Each presentation layer can additionally be published as its **own** NDI source, independently of the main video output. This is useful when another application should receive a single feed — for example one camera or one OBS scene that C-Play displays as a layer — without the rest of the composition.
 
-![Layer View toolbar with Nodes, Sync and NDI](/assets/ui/layer_view_toolbar.png)
+![Inspect view toolbar with Nodes, Sync and NDI](/assets/ui/layer_view_toolbar.png)
 
-1. Open the layer view for the slide and select the layer you want to send.
+1. Open the Inspect view for the slide and select the layer you want to send.
 2. In the layer's control row (next to the Grid, ROI, and visibility controls), click the **NDI** button to enable NDI output for that layer.
 3. The layer is then published from the master as an NDI source with a generated name:
 
@@ -80,7 +80,7 @@ For sending a layer to C-Play's **own nodes** instead of an external application
 
 ## Master-only layers ("Sync" button)
 
-The layer view also has a **Sync** button next to the **NDI** button that controls whether a layer is synced from the master to the nodes:
+The Inspect view also has a **Sync** button next to the **NDI** button that controls whether a layer is synced from the master to the nodes:
 
 * ![](/assets/icons/network-connect-lime.svg) Layer is synced to the nodes (default)
 * ![](/assets/icons/network-disconnect-orange.svg) Layer exists on the master only, it is not synced to the nodes

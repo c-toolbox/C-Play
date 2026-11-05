@@ -402,10 +402,21 @@ Rectangle {
     }
 
     // Marks are plain row indices, so any change to the rows drops them.
+    // Added or moved rows are scrolled into view so it is clear where they ended up.
     Connections {
-        function onRowsInserted() { clearMarked(); }
+        function onRowsInserted(parent, first, last) {
+            clearMarked();
+            if (!slides.busyIndicator)
+                window.scrollToRowsLater(layersView, first, last);
+        }
         function onRowsRemoved() { clearMarked(); }
-        function onRowsMoved() { if (!movingMarked) clearMarked(); }
+        function onRowsMoved(parent, start, end, destination, row) {
+            if (!movingMarked)
+                clearMarked();
+            const first = window.movedRowsTarget(start, end, row);
+            if (!slides.busyIndicator)
+                window.scrollToRowsLater(layersView, first, first + end - start);
+        }
         function onModelReset() { clearMarked(); }
 
         target: layersView.model
@@ -644,17 +655,65 @@ Rectangle {
                     }
                 }
                 Button {
+                    id: layerEffectsButton
+
+                    // Bumped when the slide's effects change, so the bindings below re-evaluate.
+                    property int revision: 0
+                    readonly property bool hasEntranceExit: {
+                        var _r = revision;
+                        return layersView.currentIndex >= 0
+                               && app.slides.selected.layerHasEffects(layersView.currentIndex);
+                    }
+                    readonly property bool hasPostEffects: {
+                        var _r = revision;
+                        return layersView.currentIndex >= 0
+                               && app.slides.selected.layerHasPostEffects(layersView.currentIndex);
+                    }
+
+                    enabled: {
+                        var _r = revision;
+                        return layersView.currentIndex >= 0
+                               && app.slides.selected.layerSupportsAnimation(layersView.currentIndex);
+                    }
+                    // Yellow: entrance/exit, blue: post process, purple: both, crimson: none.
+                    icon.color: hasEntranceExit && hasPostEffects ? "mediumpurple"
+                              : hasEntranceExit ? "yellow"
+                              : hasPostEffects ? "dodgerblue"
+                              : "crimson"
+                    icon.name: "rating"
+
+                    onClicked: layerView.openEffectsPane()
+
+                    Connections {
+                        target: app.slides.selected
+                        function onTimelineChanged() { layerEffectsButton.revision++; }
+                        function onLayersModelChanged() { layerEffectsButton.revision++; }
+                        function onPostEffectsChanged() { layerEffectsButton.revision++; }
+                    }
+
+                    ToolTip {
+                        text: layerEffectsButton.enabled
+                              ? qsTr("Effects of the selected layer (entrance, exit and post process)")
+                              : qsTr("Effects are available for layers with an image")
+                    }
+                }
+                Button {
+                    // As wide as two and a half icon buttons
+                    Layout.preferredWidth: layerAddButton.implicitWidth * 2.3 + parent.spacing * 2
                     checkable: true
                     checked: layerView.visible
                     icon.name: "document-edit-decrypt-verify"
-                    text: qsTr("Layer View")
+                    leftPadding: 2
+                    rightPadding: 2
+                    spacing: 2
+                    text: qsTr("Inspect")
 
                     onClicked: {
                         layerView.visible = checked;
                     }
 
                     ToolTip {
-                        text: qsTr("Layer View (showing the selected layer)")
+                        text: qsTr("Inspect the selected layer")
                     }
                 }
                 Item {

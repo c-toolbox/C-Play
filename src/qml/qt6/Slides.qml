@@ -253,10 +253,21 @@ Rectangle {
     }
 
     // Marks are plain row indices, so any change to the rows drops them.
+    // Added or moved rows are scrolled into view so it is clear where they ended up.
     Connections {
-        function onRowsInserted() { clearMarked(); }
+        function onRowsInserted(parent, first, last) {
+            clearMarked();
+            if (!busyIndicator)
+                window.scrollToRowsLater(slidesView, first, last);
+        }
         function onRowsRemoved() { clearMarked(); }
-        function onRowsMoved() { if (!movingMarked) clearMarked(); }
+        function onRowsMoved(parent, start, end, destination, row) {
+            if (!movingMarked)
+                clearMarked();
+            const first = window.movedRowsTarget(start, end, row);
+            if (!busyIndicator)
+                window.scrollToRowsLater(slidesView, first, first + end - start);
+        }
         function onModelReset() { clearMarked(); }
 
         target: slidesView.model

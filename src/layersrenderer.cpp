@@ -518,8 +518,13 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
     sv = &variants[fx.active() ? 1 : 0];
     const float aspect = layer->renderAspectRatio();
     const GlUniformSetter setter;
+    // Particle effects draw the layer from their own texture.
+    const unsigned int texture = layer->animActive() && anim.hasParticles()
+        ? particles.layerTexture(layer, layer->gridMode(), layer->renderStereoMode(), static_cast<float>(meshFov),
+                                 &data.window, sgct::Engine::instance().currentFrameNumber())
+        : layer->textureId();
     glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, layer->textureId());
+    glBindTexture(GL_TEXTURE_2D, texture);
     glEnable(GL_BLEND);
     // Blend straight-alpha RGB while accumulating coverage separately. Using
     // SRC_ALPHA for alpha would square it and make an opaque background translucent
@@ -814,4 +819,5 @@ void LayersRenderer::renderLayers(const sgct::RenderData &data, int viewMode, fl
                 renderLayer(data, layer.get(), currentEye, angle);
         }
     }
+    particles.endFrame(&data.window);
 }

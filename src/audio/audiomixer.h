@@ -28,8 +28,8 @@
 //  - Surround panning: the speakers of the output layout are placed around the dome and each
 //    channel of a layer is panned toward the speakers closest to where the layer is shown.
 //  - Speaker array: the layer is summed to mono and played on any number of speakers, each
-//    on its own output channel, with a share of the sound based on the distance between the
-//    layer and the speaker. The speakers are placed on the dome (azimuth/elevation) or along
+//    on its own output channel, with a share of the sound based on the distance to the
+//    layer's covered area. The speakers are placed on the dome (azimuth/elevation) or along
 //    the circular screen of the circular surface mapping (degrees/height).
 //
 // Dome positions use the dome frame of the 3D view, without the dome tilt: x right, y up and
@@ -78,14 +78,18 @@ struct SpatialSource {
     int32_t useSpatial = 1;           // 0: the layer opted out of the spatial mapping (standard mapping)
     glm::vec3 centre{0.f, 0.f, -1.f}; // Plane: centre of the plane
     glm::vec3 halfRight{0.f};         // Plane: from the centre to the right edge of the plane
+    glm::vec3 halfUp{0.f};            // Plane: from the centre to the top edge of the plane
     glm::vec3 forward{0.f, 0.f, -1.f};// Plane: facing direction, used when the centre is at the origin
     glm::mat3 rotation{1.f};          // Field: content orientation
+    float fieldHalfAngle = 3.14159265358979323846f; // Field: coverage around rotated +y (radians); pi = full sphere
 
     // Position on the circular screen (plane layers while the circular surface mapping is on).
     int32_t circularValid = 0;
     float circularDegrees = 0.f;      // centre angle
     float circularHeightCm = 0.f;     // vertical position
     float circleRadiusCm = 0.f;       // circular surface width / 2pi: 360 degrees around the screen
+    glm::vec2 circularHalfRight{0.f}; // Plane footprint in (radians, height / circle radius)
+    glm::vec2 circularHalfUp{0.f};
 
     bool operator==(const SpatialSource &o) const;
 };

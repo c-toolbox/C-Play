@@ -2069,6 +2069,8 @@ int LayersModel::decodeLayerFromJSON(const QJsonObject &o, const QStringList &fo
                     MpvLayer* mpvLayer = static_cast<MpvLayer*>(m_layers[idx].first.get());
                     mpvLayer->setMpvOptionsName(mpvOptions);
                 }
+                // Saved layers keep their choice independently of the new-layer default.
+                // Older presentations omitted this property when routing was off.
                 static_cast<MpvLayer*>(m_layers[idx].first.get())->setJackAudioRouting(o.value(QStringLiteral("jackAudio")).toBool());
             }
 
@@ -2562,9 +2564,7 @@ QJsonObject LayersModel::encodeLayerToJSON(const std::shared_ptr<BaseLayer> &lay
         if (!mpvLayer->mpvOptionsName().empty()) {
             layerData.insert(QStringLiteral("mpvOptions"), QJsonValue(QString::fromStdString(mpvLayer->mpvOptionsName())));
         }
-        // Only saved when on (off by default).
-        if (mpvLayer->jackAudioRouting())
-            layerData.insert(QStringLiteral("jackAudio"), QJsonValue(true));
+        layerData.insert(QStringLiteral("jackAudio"), QJsonValue(mpvLayer->jackAudioRouting()));
     }
     if (layer->type() == BaseLayer::VIDEO || layer->type() == BaseLayer::AUDIO || layer->type() == BaseLayer::YOUTUBE) {
         if (layer->hasAudio()) {
@@ -2925,6 +2925,8 @@ QJsonObject LayersModel::encodeTrack(const LayerTimeline &track) const {
             eo.insert(QStringLiteral("direction"), e.direction);
             eo.insert(QStringLiteral("feather"), static_cast<double>(e.feather));
             eo.insert(QStringLiteral("amount"), static_cast<double>(e.amount));
+            if (cplay::anim::effectPresetIsParticles(e.preset))
+                eo.insert(QStringLiteral("particles"), e.particles);
             if (cplay::anim::effectPresetIsMove(e.preset)) {
                 QJsonObject t;
                 t.insert(QStringLiteral("azimuth"), static_cast<double>(e.target.azimuth));
@@ -2995,6 +2997,7 @@ void LayersModel::decodeTrack(const QJsonObject &o, LayerTimeline &track) const 
         e.direction  = std::clamp(eo.value(QStringLiteral("direction")).toInt(0), 0, cplay::anim::effectDirectionCount() - 1);
         e.feather    = static_cast<float>(eo.value(QStringLiteral("feather")).toDouble(0.1));
         e.amount     = static_cast<float>(eo.value(QStringLiteral("amount")).toDouble(1.0));
+        e.particles  = std::clamp(eo.value(QStringLiteral("particles")).toInt(32), cplay::anim::kMinParticles, cplay::anim::kMaxParticles);
         const QJsonObject t = eo.value(QStringLiteral("planeTarget")).toObject();
         e.target.azimuth    = static_cast<float>(t.value(QStringLiteral("azimuth")).toDouble(0.0));
         e.target.elevation  = static_cast<float>(t.value(QStringLiteral("elevation")).toDouble(0.0));
@@ -3463,6 +3466,7 @@ QVariantMap effectToMap(const cplay::anim::LayerEffect &e) {
     m[QStringLiteral("direction")]  = e.direction;
     m[QStringLiteral("feather")]    = static_cast<double>(e.feather);
     m[QStringLiteral("amount")]     = static_cast<double>(e.amount);
+    m[QStringLiteral("particles")]  = e.particles;
     m[QStringLiteral("targetAzimuth")]    = static_cast<double>(e.target.azimuth);
     m[QStringLiteral("targetElevation")]  = static_cast<double>(e.target.elevation);
     m[QStringLiteral("targetRoll")]       = static_cast<double>(e.target.roll);
@@ -4209,6 +4213,10 @@ int LayersModel::addEffect(int layerIdx, int phase, int preset) {
     const bool isMove = effectPresetIsMove(e.preset);
     if (isMove)
         e.easing = static_cast<int>(Easing::InOutCubic);
+    if (effectPresetIsParticles(e.preset)) {
+        e.feather = 0.5f; // stagger
+        e.durationMs = std::max(e.durationMs, 1500);
+    }
     track->effects.append(e);
     rebuildEffectSchedule();
     // A new move starts as a no-op where the layer currently ends up.
@@ -4228,6 +4236,7 @@ void LayersModel::updateEffect(int layerIdx, int effectIdx, const QVariantMap &v
         return;
     LayerEffect &e = track->effects[effectIdx];
     const bool wasMove = effectPresetIsMove(e.preset);
+    const bool wasParticles = effectPresetIsParticles(e.preset);
     auto readInt = [&values](const char *key, int &out, int lo, int hi) {
         const QString k = QString::fromLatin1(key);
         if (values.contains(k))
@@ -4247,6 +4256,9 @@ void LayersModel::updateEffect(int layerIdx, int effectIdx, const QVariantMap &v
     readInt("direction", e.direction, 0, effectDirectionCount() - 1);
     readFloat("feather", e.feather, 0.f, 1.f);
     readFloat("amount", e.amount, 0.f, 10.f);
+    if (!wasParticles && effectPresetIsParticles(e.preset) && !values.contains(QStringLiteral("feather")))
+        e.feather = 0.5f; // stagger
+    readInt("particles", e.particles, kMinParticles, kMaxParticles);
     readFloat("targetAzimuth", e.target.azimuth, -36000.f, 36000.f);
     readFloat("targetElevation", e.target.elevation, -36000.f, 36000.f);
     readFloat("targetRoll", e.target.roll, -36000.f, 36000.f);
@@ -4448,6 +4460,10 @@ bool LayersModel::effectPresetUsesFeather(int preset) const {
     return cplay::anim::effectPresetUsesFeather(preset);
 }
 
+bool LayersModel::effectPresetIsParticles(int preset) const {
+    return cplay::anim::effectPresetIsParticles(preset);
+}
+
 QStringList LayersModel::effectDirectionNames() const {
     QStringList names;
     for (int i = 0; i < cplay::anim::effectDirectionCount(); ++i)
@@ -4536,16 +4552,31 @@ bool LayersModel::playLayerAnimation(int layerIdx, bool show) {
     return true;
 }
 
+bool LayersModel::layerExitReversesEntrance(int layerIdx) const {
+    using namespace cplay::anim;
+    const LayerTimeline *track = timelineAt(layerIdx);
+    if (!track || !layerSupportsAnimation(layerIdx))
+        return false;
+    for (const LayerEffect &e : track->effects) {
+        if (e.phase == static_cast<int>(EffectPhase::Outro))
+            return false;
+    }
+    return hasVisibilityEffects(*track, EffectPhase::Intro);
+}
+
 bool LayersModel::buildLayerPlay(int layerIdx, bool show, LayerPlay &play) const {
     using namespace cplay::anim;
     BaseLayer *layer = rowLayer(layerIdx);
     const LayerTimeline *track = timelineAt(layerIdx);
-    const EffectPhase phase = show ? EffectPhase::Intro : EffectPhase::Outro;
     if (!layer || !track || !layerSupportsAnimation(layerIdx))
         return false;
+    // Without exit effects, the entrance played backwards hides the layer.
+    const bool reversed = !show && layerExitReversesEntrance(layerIdx);
+    const EffectPhase phase = show || reversed ? EffectPhase::Intro : EffectPhase::Outro;
 
     play.layer = layer;
     play.show = show;
+    play.reversed = reversed;
     // The layer's effects of the phase in their slide order, timed among themselves:
     // there is no click to wait for, so "On click" follows the previous effect.
     QVector<int> order;
@@ -4570,8 +4601,8 @@ bool LayersModel::buildLayerPlay(int layerIdx, bool show, LayerPlay &play) const
         prevEnd = end;
     }
     // Entrance moves start where the layer enters the slide, exit moves where its entrance left it.
-    play.moved = show ? evaluateMovePose(layer, -1, play.startPose)
-                      : finalMovePose(layer, play.startPose);
+    play.moved = show || reversed ? evaluateMovePose(layer, -1, play.startPose)
+                                  : finalMovePose(layer, play.startPose);
     return true;
 }
 
@@ -4662,12 +4693,14 @@ cplay::anim::LayerAnimState LayersModel::evaluateLayerPlay(const LayerPlay &play
     auto it = m_layerTimelines.find(play.layer);
     if (it == m_layerTimelines.end())
         return state;
+    if (play.reversed)
+        ms = play.spanMs - ms;
     PlanePose pose = play.startPose;
     bool moved = play.moved;
     runMoveEffects(play.layer, it->second, play.schedule, ms, pose, moved, nullptr);
     if (moved)
         setPoseOffsets(play.layer, pose, state);
-    applyScheduledEffects(play.layer, it->second, play.schedule, ms, play.show, state);
+    applyScheduledEffects(play.layer, it->second, play.schedule, ms, play.show || play.reversed, state);
     return state;
 }
 

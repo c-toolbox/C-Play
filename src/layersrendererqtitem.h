@@ -12,6 +12,7 @@
 #include <QOpenGLFunctions_4_5_Core>
 #include <QOpenGLShaderProgram>
 #include <QOpenGLVertexArrayObject>
+#include <animation/particlecompositor.h>
 #include <QImage>
 #include <QPointer>
 #include <QtQuick/QQuickItem>
@@ -283,6 +284,9 @@ private:
     std::unique_ptr<SphereGrid> m_sphereMesh;
     bool m_meshesDirty = false;
     unsigned int m_maskTexture = 0;
+    // Particle entrance/exit effects; each renderLayers() call is a frame for them.
+    cplay::anim::ParticleCompositor m_particles;
+    uint64_t m_particleFrame = 0;
 
     // Quad rendering
     QOpenGLVertexArrayObject m_quadVAO;
