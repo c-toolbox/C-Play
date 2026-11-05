@@ -345,8 +345,7 @@ Rectangle {
     function hierarchyEditableRows() {
         const _r = rowsRevision;
         const model = app.slides.selected;
-        return targetRows.filter(r => model.layerHierarchy(r) >= 0 && !model.isReference(r)
-                                      && !(model.isLocked(r) && model.layersCanBeLocked));
+        return targetRows.filter(r => model.layerHierarchy(r) >= 0 && !model.isReference(r));
     }
     // The hierarchy shared by all target rows, -1 when they differ.
     function targetHierarchy() {
@@ -812,7 +811,7 @@ Rectangle {
 
                     ToolTip {
                         text: markedIndices.length > 0
-                              ? qsTr("%1 (applies to the %2 marked layers, references and locked layers are kept)").arg(modelData.tip).arg(markedIndices.length)
+                              ? qsTr("%1 (applies to the %2 marked layers, references are kept)").arg(modelData.tip).arg(markedIndices.length)
                               : modelData.tip
                     }
                 }

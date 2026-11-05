@@ -71,7 +71,7 @@ Within each group, the order of the master layers list applies (top of the list 
 
 #### Marking master layers as Front or Back
 
-When the *Master* slide is selected, two buttons, **Front** and **Back**, are shown next to the *Master Layers* title above the layers list. They set the hierarchy of the selected layer, and show which one it currently has. Each master layer also shows a small grey *Front*/*Back* mark in the top right corner of its row; click the mark to toggle it. Locked layers and references cannot be changed.
+When the *Master* slide is selected, two buttons, **Front** and **Back**, are shown next to the *Master Layers* title above the layers list. They set the hierarchy of the selected layer, and show which one it currently has. Each master layer also shows a small grey *Front*/*Back* mark in the top right corner of its row; click the mark to toggle it. References cannot be changed. Locking a layer only protects it from deletion; its parameters, position, list order, volume and Front/Back hierarchy remain editable.
 
 New master layers start as Back layers. Presentations saved before this feature load with all master layers as Back, so they render exactly as before. A `"hierarchy": "front"` entry is only saved for Front layers; older C-Play versions ignore it and show those layers as Back layers.
 

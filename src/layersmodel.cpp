@@ -225,6 +225,10 @@ LayersModel::LayersModel(QObject *parent)
 
 LayersModel::~LayersModel() {
     std::lock_guard<std::recursive_mutex> layersLock(m_layersMutex);
+    for (const auto &entry : m_layers) {
+        if (entry.first)
+            entry.first->setEnabled(false);
+    }
     m_order.clear();
     m_refs.clear();
     m_layers.clear();

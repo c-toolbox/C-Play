@@ -24,7 +24,6 @@ ItemDelegate {
     // Read by the master Front/Back buttons in Layers.qml through layersView.currentItem.
     readonly property int layerHierarchy: model.hierarchy
     readonly property bool layerIsReference: model.isReference
-    readonly property bool layerIsLocked: model.locked && app.slides.selected.layersCanBeLocked
 
     // Drag state for visual feedback
     property bool dragging: false
@@ -204,7 +203,7 @@ ItemDelegate {
                 }
 
                 ToolTip {
-                    text: model.locked ? qsTr("Layer is locked. Click to unlock it for editing.") : qsTr("Layer is unlocked. Click to lock it against editing.")
+                    text: model.locked ? qsTr("Layer is protected from deletion. Click to allow deletion.") : qsTr("Layer can be deleted. Click to protect it from deletion.")
                 }
             }
             Label {
@@ -224,7 +223,6 @@ ItemDelegate {
                     anchors.fill: parent
                     anchors.margins: -2
                     hoverEnabled: true
-                    enabled: !root.layerIsLocked
                     cursorShape: Qt.PointingHandCursor
 
                     onClicked: {
@@ -346,7 +344,6 @@ ItemDelegate {
             height: 20
             spacing: 4
             visible: active
-            enabled: !root.layerIsLocked
 
             onActiveChanged: syncValue()
 
