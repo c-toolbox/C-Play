@@ -1,18 +1,19 @@
 ---
-title: Presenter and movie views (web)
+title: Presenter, movie and layer views (web)
 sidebar_position: 1.5
 ---
 
-# Presenter view and movie view
+# Presenter view, movie view and layer view
 
 *New in C-Play v2.4.*
 
-C-Play includes two web interfaces that its [HTTP server](/remote-control/api) serves from the master:
+C-Play includes three web interfaces that its [HTTP server](/remote-control/api) serves from the master:
 
 * **Presenter view** (presentation mode) — for presenting a presentation (`*.cplaypres`) with slide thumbnails and speaker notes.
 * **Movie view** (movie mode) — for running a playlist (`*.cplaylist`) and the sections of its files, with a cue that can be prepared before it goes live.
+* **Layer view** — for placing the layers of the slides on a fisheye, flat, sphere or circular canvas, and setting their volume and visibility.
 
-Both are open from **Views** in the menu bar. They can be shown fullscreen on a screen of the master, in the default browser, or on a tablet or phone on the same network.
+All are open from **Views** in the menu bar. They can be shown fullscreen on a screen of the master, in the default browser, or on a tablet or phone on the same network.
 
 ## Requirements
 
@@ -24,10 +25,11 @@ Both are open from **Views** in the menu bar. They can be shown fullscreen on a 
 | --- | --- |
 | Presenter view | `http://<master>:<port>/presenter/` |
 | Movie view | `http://<master>:<port>/movie/` |
+| Layer view | `http://<master>:<port>/layerview/` |
 
 ## Opening a view
 
-The **Views** menu in the menu bar has one submenu per web view: *Presenter view (slides, notes)* and *Movie view (playlist, sections, cues)*. Each submenu has:
+The **Views** menu in the menu bar has one submenu per web view: *Presenter view (slides, notes)*, *Movie view (playlist, sections, cues)* and *Layer view (position, size, volume)*. Each submenu has:
 
 ![Views menu: Presenter view submenu](/assets/ui/views_presenter.png)
 
@@ -36,6 +38,7 @@ The **Views** menu in the menu bar has one submenu per web view: *Presenter view
 * **Close** — closes the view opened on a screen (the C-Play window or the browser app window).
 * **Open in default browser** — opens the view in a normal browser tab on the master.
 * **Copy address for other devices** — lists the network addresses of the view on the master; select one to copy it to the clipboard and open it on a tablet or phone.
+* **Move layers on** (layer view only, first in its submenu) — what the layer view moves the flat layers on: *Fisheye (dome)*, *Flat*, *Sphere* or *Circular screen*. The current choice is shown in its title, for example *Move layers on: Fisheye (dome)*. See [What layers are moved on](#what-layers-are-moved-on).
 
 In the C-Play window, **F11** toggles fullscreen and **Ctrl+W** / **Ctrl+Q** closes it. In a browser, **F** toggles fullscreen.
 
@@ -143,9 +146,39 @@ C-Play encodes with `ffmpeg.exe` next to `C-Play.exe` (otherwise the one on the 
 | Page Up | Put the previous cue on standby |
 | F | Fullscreen (browser) |
 
+## Layer view
+
+The layer view is for preparing a presentation, not for running it: it lists the master and the slides with their layers, and places the layers. Picking a slide does not trigger it in C-Play. Each change goes to C-Play at once, as if made in the layer's grid parameters, and is saved with the presentation (**Save**).
+
+* **Slides** — the master and every slide, with the number of layers. *On air* marks the slide shown on the output, *C-Play* the slide selected in the C-Play slide list. The view starts on the slide selected in C-Play and follows it until another slide is picked.
+* **Canvas** — the flat layers (grid mode *Plane*) of the slide, drawn where C-Play renders them. Drag a layer to move it, and scroll over the canvas to resize the selected layer. Layers that are faded out have a dashed outline.
+* **Selected layer** — azimuth, elevation, roll, distance, horizontal and vertical move, width and height as numbers, with move and *Smaller* / *Larger* buttons for touch screens. A size that follows the media aspect ratio (*Plane size based on* in the grid parameters) is not editable.
+* **Layers** — every layer of the slide, top first, with its grid mode and type. **On** / **Off** fades the layer in or out as double-clicking it in C-Play does (with its entrance or exit effects); a partly visible layer shows its visibility in percent. Layers with sound have a **volume** slider (0–100). Layers kept visible from an earlier slide are marked *From &lt;slide&gt;*; changing them changes them in that slide.
+
+Dome and sphere layers and 2D layers have no position on the canvas; their visibility and volume are set in the list.
+
+### What layers are moved on
+
+**Views → Layer view → Move layers on** in C-Play chooses the canvas, to match the display. The choice is saved in C-Play and the view follows it at once.
+
+| Canvas | Dragging sets | The canvas shows |
+| --- | --- | --- |
+| **Fisheye (dome)** | Azimuth and elevation | The fisheye image of the dome as the master view fisheye camera shows it: the zenith in the centre, the front down, the field of view of the Grid settings. |
+| **Flat** | Horizontal and vertical move (cm) | The plane move ranges of the Grid settings (*Plane horizontal/vertical range*), with a grid. |
+| **Sphere** | Azimuth and elevation | An equirectangular map of the whole sphere, the front in the centre. |
+| **Circular screen** | Degrees around the screen and vertical move (cm) | A ring for the circular surface mapping of the Grid settings: the screen height outwards, the seam in red. Layers with *Horizontal movement: Circular degrees* move their centre angle; other layers move their horizontal position, converted to degrees. |
+
+| Key | Action |
+| --- | --- |
+| ← → ↑ ↓ | Move the selected layer (1° or 10 cm; with Shift 10 times as far) |
+| + − | Resize the selected layer |
+| Page Up / Page Down | Previous / next slide |
+| Esc | Deselect the layer |
+| F | Fullscreen (browser) |
+
 ## HTTP endpoints
 
-The views use the [HTTP API](/remote-control/api) and the [event feed](/remote-control/api#change-subscriptions) (topics `presentation` and `movie`). The endpoints below are only available in builds with the web views and can also be used by other clients.
+The views use the [HTTP API](/remote-control/api) and the [event feed](/remote-control/api#change-subscriptions) (topics `presentation`, `movie` and `layerview`). The endpoints below are only available in builds with the web views and can also be used by other clients.
 
 | Method | Path | Description |
 | --- | --- | --- |
@@ -169,3 +202,6 @@ The views use the [HTTP API](/remote-control/api) and the [event feed](/remote-c
 | POST | `/movie_cuelist?name=` | Saves the cue list in the body (JSON) as `name.cplaycue` |
 | GET | `/movie_recent` | `{playlists: [{path, name}], media: [{path, name}]}`: the recently loaded playlists and media files, the newest first |
 | POST | `/movie_open_recent?path=` | Loads the playlist or media file at `path` in C-Play, as *File → Open Recent* does. `path` has to be one of `/movie_recent` (400 otherwise) |
+| GET | `/layerview_state` | The layer view state: the slides (index -1 is the master) and their layers with grid mode, visibility, volume and plane values; the canvas chosen in C-Play and the dome, flat range and circular mapping settings it is drawn with |
+| POST | `/layerview_layer?slide=S&row=R&...` | Sets plane values of the layer in row R of slide S (`azimuth`, `elevation`, `roll`, `distance`, `horizontal`, `vertical`, `width`, `height`, `centreDegrees`, `widthDegrees`; flat layers only) and/or `volume` (0–100). Nothing changes when one value is invalid (400). Answers the layer |
+| POST | `/layerview_fade?slide=S&row=R&on=0\|1` | Fades the layer in (1) or out (0), as double-clicking it in C-Play does |

@@ -11,7 +11,7 @@ import "../Components/PopupHelpers.js" as PopupHelpers
 import org.ctoolbox.cplay
 
 // The master view, the node windows, and the web views served by the HTTP server (presenter view,
-// movie view). In the menu bar.
+// movie view, layer view). In the menu bar.
 Menu {
     id: root
 
@@ -70,7 +70,8 @@ Menu {
 
         model: WEB_VIEWS_SUPPORT ? [
             { view: "presenter", title: qsTr("Presenter view (slides, notes)"), windowLoader: presenterWindowLoader },
-            { view: "movie", title: qsTr("Movie view (playlist, sections, cues)"), windowLoader: movieWindowLoader }
+            { view: "movie", title: qsTr("Movie view (playlist, sections, cues)"), windowLoader: movieWindowLoader },
+            { view: "layerview", title: qsTr("Layer view (position, size, volume)"), windowLoader: layerWindowLoader }
         ] : []
         delegate: WEB_VIEWS_SUPPORT ? Qt.createComponent("WebViewMenu.qml") : null
 

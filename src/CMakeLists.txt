@@ -8,7 +8,7 @@ set(CPLAY_VERSION_MAJOR 2)
 set(CPLAY_VERSION_MINOR 4)
 set(CPLAY_VERSION_PATCH 0)
 set(CPLAY_VERSION_PR_NAME "Beta")
-set(CPLAY_VERSION_PR_VERS 53)
+set(CPLAY_VERSION_PR_VERS 54)
 
 qt_add_executable(${TARGET_NAME})
 set_compile_options(${TARGET_NAME})
@@ -436,7 +436,8 @@ else()
     list(APPEND QML_SRC_FILES qml/qt6/Components/Legacy/DecimalSpinBox.qml)
 endif()
 if(BUILD_CPLAY_WEB_VIEWS)
-    target_sources(${TARGET_NAME} PRIVATE presentercontroller.cpp presentercontroller.h moviecontroller.cpp moviecontroller.h)
+    target_sources(${TARGET_NAME} PRIVATE presentercontroller.cpp presentercontroller.h moviecontroller.cpp moviecontroller.h
+        layerviewcontroller.cpp layerviewcontroller.h)
     list(APPEND QML_SRC_FILES qml/qt6/Menus/WebViewMenu.qml qml/qt6/PresenterWindow.qml)
     if(BUILD_CPLAY_WITH_WEBRTC)
         # Live and prepared pictures in the movie view, sent over WebRTC (encoded by ffmpeg.exe).

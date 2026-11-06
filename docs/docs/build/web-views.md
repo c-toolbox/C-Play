@@ -1,21 +1,21 @@
 ---
-title: Web views (presenter and movie view)
+title: Web views (presenter, movie and layer view)
 sidebar_position: 4
 ---
 
 # Build the web views
 
-The [presenter view and movie view](/remote-control/web-views) are web apps (Svelte + Vite) in `web/presentation_mode` and `web/movie_mode`, served by the C-Play HTTP server. They are controlled by these CMake options:
+The [presenter view, movie view and layer view](/remote-control/web-views) are web apps (Svelte + Vite) in `web/presentation_mode`, `web/movie_mode` and `web/layer_mode`, served by the C-Play HTTP server. They are controlled by these CMake options:
 
 | Option | Default | Description |
 | --- | --- | --- |
-| `BUILD_CPLAY_WEB_VIEWS` | ON | Builds the web apps and the parts of C-Play that serve them, and adds the *Presenter view* and *Movie view* entries to the **Views** menu. With it OFF, neither is built; slide notes and thumbnails in presentations are kept in either build. |
+| `BUILD_CPLAY_WEB_VIEWS` | ON | Builds the web apps and the parts of C-Play that serve them, and adds the *Presenter view*, *Movie view* and *Layer view* entries to the **Views** menu. With it OFF, neither is built; slide notes and thumbnails in presentations are kept in either build. |
 | `BUILD_CPLAY_WITH_WEBVIEW` | ON | Opens the views in a C-Play window through Qt WebView. Turned off automatically when `BUILD_CPLAY_WEB_VIEWS` is OFF or Qt WebView is not found; the views then open in a browser app window (Edge or Chrome) instead. |
 | `BUILD_CPLAY_WITH_WEBRTC` | OFF | Also enables the video pictures (on air and cue) in the movie view. |
 
 ## Building the web apps
 
-Install [Node.js](https://nodejs.org) and [pnpm](https://pnpm.io) (for example `npm install -g pnpm`) and make sure `pnpm` is on the `PATH` when configuring CMake. When pnpm is found, the build runs `pnpm install --frozen-lockfile` and `pnpm run build` in each web app folder (targets `presentation_mode_web` and `movie_mode_web`), and rebuilds them when their sources change. When pnpm is not found, CMake prints a message and you build them by hand:
+Install [Node.js](https://nodejs.org) and [pnpm](https://pnpm.io) (for example `npm install -g pnpm`) and make sure `pnpm` is on the `PATH` when configuring CMake. When pnpm is found, the build runs `pnpm install --frozen-lockfile` and `pnpm run build` in each web app folder (targets `presentation_mode_web`, `movie_mode_web` and `layer_mode_web`), and rebuilds them when their sources change. When pnpm is not found, CMake prints a message and you build them by hand:
 
 ```sh
 cd web/presentation_mode
@@ -24,9 +24,12 @@ pnpm build
 cd ../movie_mode
 pnpm install
 pnpm build
+cd ../layer_mode
+pnpm install
+pnpm build
 ```
 
-The **INSTALL** target copies each `dist/` folder to `bin/data/web/presentation_mode` and `bin/data/web/movie_mode`, where the HTTP server looks for them.
+The **INSTALL** target copies each `dist/` folder to `bin/data/web/presentation_mode`, `bin/data/web/movie_mode` and `bin/data/web/layer_mode`, where the HTTP server looks for them.
 
 To work on a web app, run `pnpm dev` in its folder: the Vite dev server proxies the API to a running C-Play (`CPLAY_URL`, default `http://127.0.0.1:7007`). `pnpm check` runs svelte-check and TypeScript.
 

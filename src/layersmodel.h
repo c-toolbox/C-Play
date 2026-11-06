@@ -295,6 +295,8 @@ public:
 
     Q_INVOKABLE void setLayersNeedsSave(bool value);
     Q_INVOKABLE bool getLayersNeedsSave();
+    // Marks the slide owning the layer in row layerIdx (this one or, for a reference, its owner) as changed.
+    void markLayerNeedsSave(int layerIdx);
 
     Q_PROPERTY(int layerToCopy
         READ getLayerToCopyIdx
@@ -599,8 +601,6 @@ private:
     bool isTimelineSuppressed(const BaseLayer *layer) const;
     // Hides referenced layers that are not shown by the live slide (used when this slide is left).
     void hideUnsuppressedReferences(bool evenWhenLive);
-    // Marks the slide owning the layer in row layerIdx (this one or, for a reference, its owner) as changed.
-    void markLayerNeedsSave(int layerIdx);
     QJsonObject encodeTrack(const LayerTimeline &track) const;
     void decodeTrack(const QJsonObject &o, LayerTimeline &track) const;
 

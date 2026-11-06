@@ -98,5 +98,11 @@
       <label>Which operation Shift+left-drag performs on the selected layer in the 3D view (same options as CtrlDragLayerAction)</label>
       <default>6</default>
     </entry>
+    <entry name="LayerViewCanvas" type="int">
+      <label>What the layer view (web) moves flat layers on (0=fisheye of the dome, 1=flat with the plane move ranges of the grid settings, 2=sphere, 3=circular screen)</label>
+      <default>0</default>
+      <min>0</min>
+      <max>3</max>
+    </entry>
   </group>
 </kcfg>

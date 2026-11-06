@@ -16,6 +16,7 @@
 #include "controleventfeed.h"
 #include "tcp/tcpcontrolrestapi.h"
 #ifdef WEB_VIEWS_SUPPORT
+#include "layerviewcontroller.h"
 #include "moviecontroller.h"
 #include "presentercontroller.h"
 #endif
@@ -1361,6 +1362,7 @@ void HttpServerThread::setupHttpServer() {
 #ifdef WEB_VIEWS_SUPPORT
         setupPresenterRoutes();
         setupMovieRoutes();
+        setupLayerViewRoutes();
         svr.set_file_request_handler([](const httplib::Request &, httplib::Response &res) {
             res.set_header("Cache-Control", "no-cache");
         });
@@ -1649,6 +1651,65 @@ void HttpServerThread::setupMovieRoutes() {
 #endif
 
     mountWebApp("/movie", QStringLiteral("movie_mode"));
+}
+
+// The layer view (web/layer_mode) and the API it uses, through runOnThreadOf like the presenter view.
+void HttpServerThread::setupLayerViewRoutes() {
+    // The slide (-1 is the master) and row of the layer a request is about.
+    const auto layerOf = [this](const httplib::Request &req, int &slide, int &row) {
+        return req.has_param("slide") && stringToInt(req.get_param_value("slide"), slide)
+            && req.has_param("row") && stringToInt(req.get_param_value("row"), row);
+    };
+
+    svr.Get("/layerview_state", [this](const httplib::Request &, httplib::Response &res) {
+        QPointer<LayerViewController> layerView(m_layerView);
+        sendJson(res, runOnThreadOf<QJsonObject>(m_layerView, [layerView]() { return layerView ? layerView->state() : QJsonObject(); }));
+    });
+
+    // Sets plane values (azimuth, elevation, roll, distance, horizontal, vertical, width, height,
+    // centreDegrees, widthDegrees) and/or the volume of a layer. Answers the layer as in the state.
+    registerPost("/layerview_layer", [this, layerOf](const httplib::Request &req, httplib::Response &res) {
+        int slide = -2, row = -1;
+        if (!layerOf(req, slide, row)) {
+            res.status = 400;
+            res.set_content("Invalid slide or row parameter", "text/plain");
+            return;
+        }
+        QJsonObject values;
+        for (const auto &[key, value] : req.params) {
+            if (key != "slide" && key != "row")
+                values.insert(QString::fromStdString(key), QString::fromStdString(value));
+        }
+        QPointer<LayerViewController> layerView(m_layerView);
+        const auto layer = runOnThreadOf<QJsonObject>(m_layerView, [layerView, slide, row, values]() {
+            return layerView ? layerView->setLayerValues(slide, row, values) : QJsonObject();
+        });
+        if (layer && layer->contains(QStringLiteral("error"))) {
+            res.status = 400;
+            res.set_content(layer->value(QStringLiteral("error")).toString().toStdString(), "text/plain");
+            return;
+        }
+        sendJson(res, layer);
+    });
+
+    // Fades a layer up (on=1) or down (on=0), as double-clicking it in C-Play does.
+    registerPost("/layerview_fade", [this, layerOf](const httplib::Request &req, httplib::Response &res) {
+        int slide = -2, row = -1, on = -1;
+        if (!layerOf(req, slide, row) || !req.has_param("on") || !stringToInt(req.get_param_value("on"), on) || (on != 0 && on != 1)) {
+            res.status = 400;
+            res.set_content("Invalid slide, row or on parameter", "text/plain");
+            return;
+        }
+        QPointer<LayerViewController> layerView(m_layerView);
+        const auto ok = runOnThreadOf<bool>(m_layerView, [layerView, slide, row, on]() {
+            return layerView && layerView->fadeLayer(slide, row, on == 1);
+        });
+        if (ok && !*ok) res.status = 400;
+        sendJson(res, ok ? std::optional<QJsonObject>(QJsonObject{{QStringLiteral("ok"), *ok}}) : std::nullopt);
+    });
+
+    // Not at /layers/: GET /layers is the layer list of the HTTP API.
+    mountWebApp("/layerview", QStringLiteral("layer_mode"));
 }
 
 void HttpServerThread::mountWebApp(const std::string &path, const QString &folder) {

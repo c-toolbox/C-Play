@@ -425,7 +425,7 @@ The event feed exposes the same sampled state to HTTP, WebSocket and outgoing TC
 | `/event_topics` | GET | — | JSON array of supported topic names. |
 | `/events` | GET | `topics` (optional), `since` (optional), `wait` (optional) | JSON state snapshot or changes after a sequence cursor. |
 
-`topics` is a comma-separated list, such as `volume,playing_in_slides,playlist`; omit it or use `*` for all topics. Topic names include `position`, `remaining`, `duration`, `pause`, `volume`, `mute`, `speed`, `playlist`, `sections`, `audiotracks`, `slides`, `layers`, `triggered_slide` and `main_video_load` (see [Starting playback on all nodes](#starting-playback-on-all-nodes)), plus `presentation` and `movie` in builds with the [web views](/remote-control/web-views). Call `/event_topics` for the complete list. Unsupported topics return HTTP 400.
+`topics` is a comma-separated list, such as `volume,playing_in_slides,playlist`; omit it or use `*` for all topics. Topic names include `position`, `remaining`, `duration`, `pause`, `volume`, `mute`, `speed`, `playlist`, `sections`, `audiotracks`, `slides`, `layers`, `triggered_slide` and `main_video_load` (see [Starting playback on all nodes](#starting-playback-on-all-nodes)), plus `presentation`, `movie` and `layerview` in builds with the [web views](/remote-control/web-views). Call `/event_topics` for the complete list. Unsupported topics return HTTP 400.
 
 ### Initial snapshot and long polling
 

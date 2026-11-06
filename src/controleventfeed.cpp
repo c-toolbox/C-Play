@@ -61,7 +61,7 @@ QStringList ControlEventFeed::availableTopics() {
         QStringLiteral("slides"), QStringLiteral("slide_name"), QStringLiteral("playing_in_slides"),
         QStringLiteral("triggered_slide"), QStringLiteral("layers"), QStringLiteral("main_video_load")
 #ifdef WEB_VIEWS_SUPPORT
-        , QStringLiteral("presentation"), QStringLiteral("movie")
+        , QStringLiteral("presentation"), QStringLiteral("movie"), QStringLiteral("layerview")
 #endif
     };
 }

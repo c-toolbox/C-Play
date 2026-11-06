@@ -1093,6 +1093,13 @@ Kirigami.ApplicationWindow {
         source: active ? Qt.resolvedUrl("PresenterWindow.qml") : ""
         onLoaded: item.view = "movie"
     }
+    // The layer view to place the layers of the slides and set their volume (web/layer_mode).
+    Loader {
+        id: layerWindowLoader
+        active: WEB_VIEWS_SUPPORT
+        source: active ? Qt.resolvedUrl("PresenterWindow.qml") : ""
+        onLoaded: item.view = "layerview"
+    }
 
     Window {
         id: floatingTextureWindow

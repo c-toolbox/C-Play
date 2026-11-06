@@ -27,6 +27,7 @@ class ControlEventFeed;
 class TcpControlManager;
 class PresenterController;
 class MovieController;
+class LayerViewController;
 
 class HttpServerThread : public QThread {
     Q_OBJECT
@@ -44,6 +45,7 @@ public:
 #ifdef WEB_VIEWS_SUPPORT
     void setPresenter(PresenterController *presenter) { m_presenter = presenter; }
     void setMovie(MovieController *movie) { m_movie = movie; }
+    void setLayerView(LayerViewController *layerView) { m_layerView = layerView; }
 #endif
     // From http-server-conf.json, known after setupHttpServer().
     bool serverEnabled() const { return runServer; }
@@ -125,6 +127,7 @@ private:
 #ifdef WEB_VIEWS_SUPPORT
     void setupPresenterRoutes();
     void setupMovieRoutes();
+    void setupLayerViewRoutes();
     // Serves the built web app data/web/<folder> at <path>/.
     void mountWebApp(const std::string &path, const QString &folder);
 #endif
@@ -137,6 +140,7 @@ private:
 #ifdef WEB_VIEWS_SUPPORT
     PresenterController *m_presenter = nullptr;
     MovieController *m_movie = nullptr;
+    LayerViewController *m_layerView = nullptr;
 #endif
     SlidesModel* m_slidesModel;
     httplib::Server svr;

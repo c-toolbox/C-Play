@@ -19,6 +19,7 @@ class SlidesModel;
 class ControlEventFeed;
 class PresenterController;
 class MovieController;
+class LayerViewController;
 
 class PlayerController : public QObject {
     Q_OBJECT
@@ -267,6 +268,7 @@ private:
 #ifdef WEB_VIEWS_SUPPORT
     PresenterController *m_presenter;
     MovieController *m_movie;
+    LayerViewController *m_layerView;
 #endif
     QString m_backgroundFile;
     QString m_foregroundFile;

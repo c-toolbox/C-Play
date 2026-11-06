@@ -48,3 +48,4 @@ endfunction()
 
 cplay_web_app(presentation_mode "presenter view")
 cplay_web_app(movie_mode "movie view")
+cplay_web_app(layer_mode "layer view")

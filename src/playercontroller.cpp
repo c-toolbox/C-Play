@@ -23,6 +23,7 @@
 #include "tcp/tcpcontrolcommandadapter.h"
 #include "controleventfeed.h"
 #ifdef WEB_VIEWS_SUPPORT
+#include "layerviewcontroller.h"
 #include "moviecontroller.h"
 #include "presentercontroller.h"
 #endif
@@ -67,6 +68,7 @@ PlayerController::PlayerController(QObject *parent)
 #ifdef WEB_VIEWS_SUPPORT
     m_presenter(new PresenterController(this)),
     m_movie(new MovieController(this)),
+    m_layerView(new LayerViewController(this)),
 #endif
     m_backgroundFile(QStringLiteral("")),
     m_foregroundFile(QStringLiteral("")),
@@ -88,6 +90,7 @@ PlayerController::PlayerController(QObject *parent)
 #ifdef WEB_VIEWS_SUPPORT
     httpServer->setPresenter(m_presenter);
     httpServer->setMovie(m_movie);
+    httpServer->setLayerView(m_layerView);
 #endif
     setupControlEvents();
     setupHttpServer();
@@ -328,6 +331,9 @@ void PlayerController::setupControlEvents() {
     });
     m_controlEvents->addTopic(QStringLiteral("movie"), [this]() -> QJsonValue {
         return m_movie->state();
+    });
+    m_controlEvents->addTopic(QStringLiteral("layerview"), [this]() -> QJsonValue {
+        return m_layerView->state();
     });
 #endif
     m_controlEvents->addTopic(QStringLiteral("layers"), [this]() -> QJsonValue {
@@ -1387,6 +1393,7 @@ void PlayerController::setSlidesModel(SlidesModel* sm) {
     httpServer->setSlidesModel(sm);
 #ifdef WEB_VIEWS_SUPPORT
     m_presenter->setSlidesModel(sm);
+    m_layerView->setSlidesModel(sm);
 #endif
     Q_EMIT slidesModelChanged();
 }

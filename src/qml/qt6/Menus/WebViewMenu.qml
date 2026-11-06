@@ -7,14 +7,15 @@
 
 import QtQuick
 import QtQuick.Controls
+import org.ctoolbox.cplay
 
-// Opens a web view served by the HTTP server: the presenter view (web/presentation_mode) or the
-// movie view (web/movie_mode), shows the screen it is open on, and closes it. Used by
-// ViewsMenu.qml, only in builds with the web views.
+// Opens a web view served by the HTTP server: the presenter view (web/presentation_mode), the
+// movie view (web/movie_mode) or the layer view (web/layer_mode), shows the screen it is open on,
+// and closes it. Used by ViewsMenu.qml, only in builds with the web views.
 Menu {
     id: root
 
-    // The path the view is served at: "presenter" or "movie".
+    // The path the view is served at: "presenter", "movie" or "layerview".
     property string view: "presenter"
     // Loader of the PresenterWindow that shows the view (WEBVIEW_SUPPORT).
     property var windowLoader
@@ -29,6 +30,17 @@ Menu {
         return browserScreen === undefined ? -1 : browserScreen;
     }
     readonly property bool isOpen: openScreen >= 0
+    // The layer view: what the flat layers are moved on (PresentationSettings.layerViewCanvas).
+    readonly property var canvases: [
+        { text: qsTr("Fisheye (dome)"), tip: qsTr("Azimuth and elevation on the fisheye image of the dome, as the master view fisheye camera shows it.") },
+        { text: qsTr("Flat"), tip: qsTr("Horizontal and vertical move in cm, within the plane move ranges of the Grid settings.") },
+        { text: qsTr("Sphere"), tip: qsTr("Azimuth and elevation on an equirectangular map of the whole sphere.") },
+        { text: qsTr("Circular screen"), tip: qsTr("Degrees around and height on the circular screen of the circular surface mapping (Grid settings).") }
+    ]
+    // The chosen canvas, shown in the title of its menu; empty for the other views.
+    readonly property string canvasName: view === "layerview" ? (canvases[PresentationSettings.layerViewCanvas] || canvases[0]).text : ""
+    // Items put above the screens (the canvas menu and its separator).
+    property int headerItems: 0
 
     function closeView() {
         if (windowLoader && windowLoader.item)
@@ -55,7 +67,7 @@ Menu {
             }
         }
 
-        onObjectAdded: function(index, object) { root.insertItem(index, object) }
+        onObjectAdded: function(index, object) { root.insertItem(index + root.headerItems, object) }
         onObjectRemoved: function(index, object) { root.removeItem(object) }
     }
     MenuItem {
@@ -95,5 +107,55 @@ Menu {
         visible: !root.serverRunning
         height: visible ? implicitHeight : 0
         text: qsTr("The HTTP server is off (data/http-server-conf.json)")
+    }
+
+    // The layer view: what the flat layers are moved on, first in the menu with the choice in its title.
+    Component {
+        id: separatorComponent
+
+        MenuSeparator {}
+    }
+    Instantiator {
+        model: root.view === "layerview" ? 1 : 0
+
+        delegate: Menu {
+            id: canvasMenu
+
+            title: qsTr("Move layers on: %1").arg(root.canvasName)
+
+            Instantiator {
+                model: root.canvases
+
+                delegate: MenuItem {
+                    checkable: true
+                    checked: PresentationSettings.layerViewCanvas === index
+                    text: modelData.text
+                    ToolTip.text: modelData.tip
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 500
+
+                    onTriggered: {
+                        PresentationSettings.layerViewCanvas = index;
+                        PresentationSettings.save();
+                        // Clicking toggles checked, which would break the binding.
+                        checked = Qt.binding(() => PresentationSettings.layerViewCanvas === index);
+                    }
+                }
+
+                onObjectAdded: function(index, object) { canvasMenu.insertItem(index, object) }
+                onObjectRemoved: function(index, object) { canvasMenu.removeItem(object) }
+            }
+        }
+
+        onObjectAdded: function(index, object) {
+            root.insertMenu(0, object);
+            root.insertItem(1, separatorComponent.createObject(null));
+            root.headerItems = 2;
+        }
+        onObjectRemoved: function(index, object) {
+            root.removeItem(root.itemAt(1));
+            root.removeMenu(object);
+            root.headerItems = 0;
+        }
     }
 }
