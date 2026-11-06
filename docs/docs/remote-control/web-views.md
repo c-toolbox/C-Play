@@ -15,6 +15,8 @@ C-Play includes three web interfaces that its [HTTP server](/remote-control/api)
 
 All are open from **Views** in the menu bar. They can be shown fullscreen on a screen of the master, in the default browser, or on a tablet or phone on the same network.
 
+A **start page** links the three, so one address is enough: `http://<master>:<port>/` leads to it. Every view has a menu under the C-Play logo, top left, to go to another view or back to the start page. See [Start page and switching views](#start-page-and-switching-views).
+
 ## Requirements
 
 * The HTTP server has to run: set `"run": "yes"` in `data/http-server-conf.json` (default). The port is set there too (default 7007). When the server is off, the view menus only say *The HTTP server is off (data/http-server-conf.json)*.
@@ -23,13 +25,14 @@ All are open from **Views** in the menu bar. They can be shown fullscreen on a s
 
 | View | Address |
 | --- | --- |
+| Start page | `http://<master>:<port>/views/` (also `http://<master>:<port>/`) |
 | Presenter view | `http://<master>:<port>/presenter/` |
 | Movie view | `http://<master>:<port>/movie/` |
 | Layer view | `http://<master>:<port>/layerview/` |
 
 ## Opening a view
 
-The **Views** menu in the menu bar has one submenu per web view: *Presenter view (slides, notes)*, *Movie view (playlist, sections, cues)* and *Layer view (position, size, volume)*. Each submenu has:
+The **Views** menu in the menu bar has one submenu per web view: *Web views start page (links to all views)*, *Presenter view (slides, notes)*, *Movie view (playlist, sections, cues)* and *Layer view (position, size, volume)*. Each submenu has:
 
 ![Views menu: Presenter view submenu](/assets/ui/views_presenter.png)
 
@@ -41,6 +44,12 @@ The **Views** menu in the menu bar has one submenu per web view: *Presenter view
 * **Move layers on** (layer view only, first in its submenu) — what the layer view moves the flat layers on: *Fisheye (dome)*, *Flat*, *Sphere* or *Circular screen*. The current choice is shown in its title, for example *Move layers on: Fisheye (dome)*. See [What layers are moved on](#what-layers-are-moved-on).
 
 In the C-Play window, **F11** toggles fullscreen and **Ctrl+W** / **Ctrl+Q** closes it. In a browser, **F** toggles fullscreen.
+
+## Start page and switching views
+
+The start page shows a card per view: **Presenter**, **Movie** and **Layers**, each with what C-Play shows now (the slide on air, the file playing, the slide selected in C-Play). Click a card, or press **1**, **2** or **3**, to open that view.
+
+In every view, the C-Play logo top left is a menu with the name of the view: it lists **All views** (the start page) and the three views, the current one marked. Choosing one opens it in the same window or tab, so a tablet only needs the address of the start page. A view opened from C-Play in its window stays in that window when you switch, and its close button still closes it. The menu of C-Play still tells which view the window was opened with.
 
 ## Presenter view
 

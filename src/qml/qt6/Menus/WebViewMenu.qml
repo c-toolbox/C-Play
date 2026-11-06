@@ -10,12 +10,13 @@ import QtQuick.Controls
 import org.ctoolbox.cplay
 
 // Opens a web view served by the HTTP server: the presenter view (web/presentation_mode), the
-// movie view (web/movie_mode) or the layer view (web/layer_mode), shows the screen it is open on,
-// and closes it. Used by ViewsMenu.qml, only in builds with the web views.
+// movie view (web/movie_mode), the layer view (web/layer_mode) or the start page linking them
+// (web/views_mode), shows the screen it is open on, and closes it. Used by ViewsMenu.qml, only in
+// builds with the web views.
 Menu {
     id: root
 
-    // The path the view is served at: "presenter", "movie" or "layerview".
+    // The path the view is served at: "presenter", "movie", "layerview" or "views".
     property string view: "presenter"
     // Loader of the PresenterWindow that shows the view (WEBVIEW_SUPPORT).
     property var windowLoader

@@ -50,7 +50,7 @@ public:
     QString localUrl() const;
     bool webViewAvailable() const;
     QVariantMap browserViews() const;
-    // Address on this computer of the web view served at /<view>/: "presenter" or "movie".
+    // Address on this computer of the web view served at /<view>/: "views", "presenter", "movie" or "layerview".
     Q_INVOKABLE QString localUrlOf(const QString &view) const;
     // Addresses of the web view for other devices on the network.
     Q_INVOKABLE QStringList networkUrls(const QString &view = QStringLiteral("presenter")) const;

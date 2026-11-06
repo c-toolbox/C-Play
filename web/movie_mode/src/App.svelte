@@ -7,6 +7,7 @@
   import RecentFiles, { type RecentGroup } from './components/RecentFiles.svelte';
   import SectionList from './components/SectionList.svelte';
   import Timeline from './components/Timeline.svelte';
+  import ViewSwitcher from './components/ViewSwitcher.svelte';
   import { ApiError, api, audioName, sectionAt, sectionEndModes, type AudioTrack, type CueRequest, type MediaInfo, type RecentFile, type SectionInfo } from './lib/api';
   import { PreparedCue, type TakeMode } from './lib/cue.svelte';
   import { CueList, cueItem, cueRequest, type CueEntry } from './lib/cuelist.svelte';
@@ -582,7 +583,7 @@
 <div class="app" class:preparing={!isLive}>
   <header class="top">
     <div class="title">
-      <img src="./favicon.png" alt="" class="logo" />
+      <ViewSwitcher current="movie" />
       <span class="name" title={s?.name}>{s?.name || 'C-Play playlist'}</span>
     </div>
 
@@ -927,10 +928,6 @@
     gap: 0.6rem;
     min-width: 0;
     flex: 1;
-  }
-  .logo {
-    width: 1.6rem;
-    height: 1.6rem;
   }
   .name {
     font-weight: 600;

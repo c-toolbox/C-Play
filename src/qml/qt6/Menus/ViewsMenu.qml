@@ -11,7 +11,7 @@ import "../Components/PopupHelpers.js" as PopupHelpers
 import org.ctoolbox.cplay
 
 // The master view, the node windows, and the web views served by the HTTP server (presenter view,
-// movie view, layer view). In the menu bar.
+// movie view, layer view, and the start page that links them). In the menu bar.
 Menu {
     id: root
 
@@ -69,6 +69,7 @@ Menu {
         id: webViews
 
         model: WEB_VIEWS_SUPPORT ? [
+            { view: "views", title: qsTr("Web views start page (links to all views)"), windowLoader: viewsWindowLoader },
             { view: "presenter", title: qsTr("Presenter view (slides, notes)"), windowLoader: presenterWindowLoader },
             { view: "movie", title: qsTr("Movie view (playlist, sections, cues)"), windowLoader: movieWindowLoader },
             { view: "layerview", title: qsTr("Layer view (position, size, volume)"), windowLoader: layerWindowLoader }

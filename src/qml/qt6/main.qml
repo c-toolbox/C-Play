@@ -1100,6 +1100,13 @@ Kirigami.ApplicationWindow {
         source: active ? Qt.resolvedUrl("PresenterWindow.qml") : ""
         onLoaded: item.view = "layerview"
     }
+    // The start page of the web views, with links to each of them (web/views_mode).
+    Loader {
+        id: viewsWindowLoader
+        active: WEB_VIEWS_SUPPORT
+        source: active ? Qt.resolvedUrl("PresenterWindow.qml") : ""
+        onLoaded: item.view = "views"
+    }
 
     Window {
         id: floatingTextureWindow

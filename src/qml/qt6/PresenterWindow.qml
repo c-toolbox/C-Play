@@ -13,20 +13,22 @@ import QtQuick.Layouts
 import org.kde.kirigami as Kirigami
 
 // A web view served by the HTTP server fullscreen on a screen: the presenter view
-// (web/presentation_mode), the movie view (web/movie_mode, view: "movie") or the layer view
-// (web/layer_mode, view: "layerview").
+// (web/presentation_mode), the movie view (web/movie_mode, view: "movie"), the layer view
+// (web/layer_mode, view: "layerview") or the start page linking them (web/views_mode, view: "views").
+// The views link to each other, so the window can go on to show another view than it opened.
 // Needs Qt WebView; without it C-Play opens the view in a browser app window instead.
 Window {
     id: root
 
-    // The path the view is served at: "presenter", "movie" or "layerview".
+    // The path the view is served at: "presenter", "movie", "layerview" or "views".
     property string view: "presenter"
     // The screen the window was opened on with openOn, -1 when it is closed.
     readonly property int screenIndex: visible ? openedScreenIndex : -1
     property int openedScreenIndex: -1
 
     title: view === "movie" ? qsTr("C-Play Movie View")
-         : view === "layerview" ? qsTr("C-Play Layer View") : qsTr("C-Play Presenter View")
+         : view === "layerview" ? qsTr("C-Play Layer View")
+         : view === "views" ? qsTr("C-Play Web Views") : qsTr("C-Play Presenter View")
     color: "black"
     width: 1280
     height: 800

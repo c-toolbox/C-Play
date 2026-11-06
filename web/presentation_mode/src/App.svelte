@@ -4,6 +4,7 @@
   import RecentFiles, { type RecentGroup } from './components/RecentFiles.svelte';
   import SlidePreview from './components/SlidePreview.svelte';
   import SlideStrip from './components/SlideStrip.svelte';
+  import ViewSwitcher from './components/ViewSwitcher.svelte';
   import { ApiError, api, type RecentFile } from './lib/api';
   import { Clock, formatDuration } from './lib/clock.svelte';
   import { LivePresentation } from './lib/live.svelte';
@@ -173,7 +174,7 @@
 <div class="app">
   <header class="top">
     <div class="title">
-      <img src="./favicon.png" alt="" class="logo" />
+      <ViewSwitcher current="presenter" />
       <span class="name" title={s?.name}>{s?.name || 'C-Play presentation'}</span>
       {#if s?.needsSave}<span class="unsaved" title="The presentation has unsaved changes in C-Play">Unsaved</span>{/if}
     </div>
@@ -298,10 +299,6 @@
     gap: 0.6rem;
     min-width: 0;
     flex: 1;
-  }
-  .logo {
-    width: 1.6rem;
-    height: 1.6rem;
   }
   .name {
     font-weight: 600;

@@ -4,6 +4,7 @@
   import LayerDetails from './components/LayerDetails.svelte';
   import LayerList from './components/LayerList.svelte';
   import SlideList from './components/SlideList.svelte';
+  import ViewSwitcher from './components/ViewSwitcher.svelte';
   import { ApiError, api, type CanvasKind, type LayerValues } from './lib/api';
   import { LayerEdits } from './lib/edits.svelte';
   import { circularActive, clamp, dragValues, positionValues } from './lib/geometry';
@@ -171,7 +172,7 @@
 <div class="app">
   <header class="top">
     <div class="title">
-      <img src="./favicon.png" alt="" class="logo" />
+      <ViewSwitcher current="layerview" />
       <span class="name" title={s?.name}>{s?.name || 'C-Play layers'}</span>
       {#if s?.needsSave}<span class="unsaved" title="The presentation has unsaved changes in C-Play">Unsaved</span>{/if}
     </div>
@@ -259,10 +260,6 @@
     gap: 0.6rem;
     min-width: 0;
     flex: 1;
-  }
-  .logo {
-    width: 1.6rem;
-    height: 1.6rem;
   }
   .name {
     font-weight: 600;

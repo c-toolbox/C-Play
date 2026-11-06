@@ -5,7 +5,7 @@ sidebar_position: 4
 
 # Build the web views
 
-The [presenter view, movie view and layer view](/remote-control/web-views) are web apps (Svelte + Vite) in `web/presentation_mode`, `web/movie_mode` and `web/layer_mode`, served by the C-Play HTTP server. They are controlled by these CMake options:
+The [presenter view, movie view and layer view](/remote-control/web-views) are web apps (Svelte + Vite) in `web/presentation_mode`, `web/movie_mode` and `web/layer_mode`, with the start page that links them in `web/views_mode`, served by the C-Play HTTP server. They are controlled by these CMake options:
 
 | Option | Default | Description |
 | --- | --- | --- |
@@ -15,7 +15,7 @@ The [presenter view, movie view and layer view](/remote-control/web-views) are w
 
 ## Building the web apps
 
-Install [Node.js](https://nodejs.org) and [pnpm](https://pnpm.io) (for example `npm install -g pnpm`) and make sure `pnpm` is on the `PATH` when configuring CMake. When pnpm is found, the build runs `pnpm install --frozen-lockfile` and `pnpm run build` in each web app folder (targets `presentation_mode_web`, `movie_mode_web` and `layer_mode_web`), and rebuilds them when their sources change. When pnpm is not found, CMake prints a message and you build them by hand:
+Install [Node.js](https://nodejs.org) and [pnpm](https://pnpm.io) (for example `npm install -g pnpm`) and make sure `pnpm` is on the `PATH` when configuring CMake. When pnpm is found, the build runs `pnpm install --frozen-lockfile` and `pnpm run build` in each web app folder (targets `presentation_mode_web`, `movie_mode_web`, `layer_mode_web` and `views_mode_web`), and rebuilds them when their sources change. When pnpm is not found, CMake prints a message and you build them by hand:
 
 ```sh
 cd web/presentation_mode
@@ -27,9 +27,14 @@ pnpm build
 cd ../layer_mode
 pnpm install
 pnpm build
+cd ../views_mode
+pnpm install
+pnpm build
 ```
 
-The **INSTALL** target copies each `dist/` folder to `bin/data/web/presentation_mode`, `bin/data/web/movie_mode` and `bin/data/web/layer_mode`, where the HTTP server looks for them.
+The **INSTALL** target copies each `dist/` folder to `bin/data/web/presentation_mode`, `bin/data/web/movie_mode`, `bin/data/web/layer_mode` and `bin/data/web/views_mode`, where the HTTP server looks for them.
+
+The menu that switches between the views is `src/components/ViewSwitcher.svelte`, copied into each web app; keep the copies the same.
 
 To work on a web app, run `pnpm dev` in its folder: the Vite dev server proxies the API to a running C-Play (`CPLAY_URL`, default `http://127.0.0.1:7007`). `pnpm check` runs svelte-check and TypeScript.
 

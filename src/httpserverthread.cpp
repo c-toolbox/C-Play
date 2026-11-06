@@ -1363,6 +1363,9 @@ void HttpServerThread::setupHttpServer() {
         setupPresenterRoutes();
         setupMovieRoutes();
         setupLayerViewRoutes();
+        // The start page with links to the views (web/views_mode), also the page at the root.
+        mountWebApp("/views", QStringLiteral("views_mode"));
+        svr.Get("/", [](const httplib::Request &, httplib::Response &res) { res.set_redirect("/views/"); });
         svr.set_file_request_handler([](const httplib::Request &, httplib::Response &res) {
             res.set_header("Cache-Control", "no-cache");
         });
