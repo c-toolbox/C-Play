@@ -57,7 +57,7 @@
 
 <section class="details" aria-label="Selected layer">
   {#if !layer}
-    <p class="hint">Select a layer to place it. Flat layers are drawn on the canvas: drag to move, scroll (or the size buttons) to resize.</p>
+    <p class="hint">Select a layer to place it. Flat layers are drawn on the canvas: drag to move; scroll, pinch with two fingers or use the size buttons to resize.</p>
   {:else if !plane || layer.gridMode !== 1}
     <h2>{layer.title}</h2>
     <p class="hint">Only flat layers (grid mode Plane) have a position and size. This layer has volume and visibility only.</p>

@@ -117,3 +117,15 @@ button.primary:hover:not(:disabled) {
   background: var(--accent);
   filter: brightness(1.08);
 }
+
+/* Touch screens: no grey flash on taps, and fields large enough that iOS does not zoom in on them. */
+@media (pointer: coarse) {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  html input:not([type='range'], [type='checkbox'], [type='radio']),
+  html select,
+  html textarea {
+    font-size: max(16px, 1em);
+  }
+}

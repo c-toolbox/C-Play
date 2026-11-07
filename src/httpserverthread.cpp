@@ -31,6 +31,7 @@
 #include <QDir>
 #include <QPointer>
 #include <QThread>
+#include <QUrl>
 #include <chrono>
 #include <future>
 #include <optional>
@@ -1366,6 +1367,26 @@ void HttpServerThread::setupHttpServer() {
         // The start page with links to the views (web/views_mode), also the page at the root.
         mountWebApp("/views", QStringLiteral("views_mode"));
         svr.Get("/", [](const httplib::Request &, httplib::Response &res) { res.set_redirect("/views/"); });
+        // The name of this cluster and the other C-Play clusters to link to, from "clusterName" and
+        // "clusters" ([{"name", "url"}]) in http-server-conf.json. The same list can be on every
+        // master, the entry with the name of this cluster is left out.
+        {
+            const QString clusterName = httpServerConf.value(QStringLiteral("clusterName")).toString().trimmed();
+            QJsonArray otherClusters;
+            for (const auto &value : httpServerConf.value(QStringLiteral("clusters")).toArray()) {
+                const QString name = value[QStringLiteral("name")].toString().trimmed();
+                const QUrl url(value[QStringLiteral("url")].toString().trimmed());
+                if (!url.isValid() || (url.scheme() != QStringLiteral("http") && url.scheme() != QStringLiteral("https"))) continue;
+                if (!clusterName.isEmpty() && name == clusterName) continue;
+                otherClusters.append(QJsonObject{{QStringLiteral("name"), name.isEmpty() ? url.host() : name},
+                    {QStringLiteral("url"), url.toString()}});
+            }
+            const std::string clusters = QJsonDocument(QJsonObject{{QStringLiteral("name"), clusterName},
+                {QStringLiteral("clusters"), otherClusters}}).toJson(QJsonDocument::Compact).toStdString();
+            svr.Get("/clusters", [clusters](const httplib::Request &, httplib::Response &res) {
+                res.set_content(clusters, "application/json");
+            });
+        }
         svr.set_file_request_handler([](const httplib::Request &, httplib::Response &res) {
             res.set_header("Cache-Control", "no-cache");
         });

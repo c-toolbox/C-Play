@@ -14,7 +14,8 @@
   let { slide, role, onsave, heading }: Props = $props();
 
   const fontSizes = [16, 20, 24, 30, 36, 44, 54];
-  let fontSize = $state<number>(load('notesFontSize', 30));
+  // Smaller to start with on phones; then as chosen on the device.
+  let fontSize = $state<number>(load('notesFontSize', matchMedia('(max-width: 600px)').matches ? 20 : 30));
 
   // The text being edited. Follows the slide's notes, unless they are being edited here.
   let text = $state('');

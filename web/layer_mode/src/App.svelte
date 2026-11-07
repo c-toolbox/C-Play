@@ -179,7 +179,7 @@
 
     <div class="tools">
       {#if s}
-        <span class="canvas-name" title="Chosen in C-Play: Views > Layer view > Move layers on">Moving on: {canvasNames[s.canvas]}</span>
+        <span class="canvas-name" title="Chosen in C-Play: Views > Layer view > Move layers on"><span class="prefix">Moving on: </span>{canvasNames[s.canvas]}</span>
       {/if}
       <span class="connection" class:online={live.connected} title={live.connected ? 'Connected to C-Play' : 'Not connected to C-Play'}>
         {live.connected ? 'Live' : 'Offline'}
@@ -373,8 +373,8 @@
     }
   }
 
-  /* Phones and portrait tablets: one column that scrolls. */
-  @media (max-width: 760px), (orientation: portrait) and (max-width: 1100px) {
+  /* Phones (also in landscape) and portrait tablets: one column that scrolls. */
+  @media (max-width: 760px), (orientation: portrait) and (max-width: 1100px), (max-height: 520px) {
     .app {
       height: auto;
       min-height: 100%;
@@ -399,6 +399,25 @@
     }
     .side-col > :global(.layers) {
       max-height: none;
+    }
+  }
+
+  /* Phones: a smaller header. */
+  @media (max-width: 600px), (max-height: 520px) {
+    .tools {
+      flex-wrap: nowrap;
+      gap: 0.15rem;
+    }
+    .canvas-name {
+      margin-right: 0.2rem;
+    }
+    .canvas-name .prefix {
+      display: none;
+    }
+    /* The dot alone; its title still says it. */
+    .connection {
+      font-size: 0;
+      margin-right: 0.2rem;
     }
   }
 </style>

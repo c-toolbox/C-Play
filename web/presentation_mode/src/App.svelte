@@ -443,7 +443,8 @@
   }
 
   /* Phones and portrait tablets: one column that scrolls. */
-  @media (max-width: 820px), (orientation: portrait) and (max-width: 1100px) {
+  /* Phones (also in landscape) and portrait tablets: one column that scrolls. */
+  @media (max-width: 820px), (orientation: portrait) and (max-width: 1100px), (max-height: 520px) {
     .app {
       height: auto;
       min-height: 100%;
@@ -474,6 +475,40 @@
     }
     .side-col > :global(.notes) {
       min-height: 40vh;
+    }
+  }
+
+  /* Phones: Previous and Next stay at the bottom of the screen, the header takes less room. */
+  @media (max-width: 600px), (max-height: 520px) {
+    .app {
+      padding-bottom: calc(5.2rem + env(safe-area-inset-bottom));
+    }
+    .navigation {
+      position: fixed;
+      z-index: 10;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 0.6rem max(var(--gap), env(safe-area-inset-right)) calc(0.6rem + env(safe-area-inset-bottom)) max(var(--gap), env(safe-area-inset-left));
+      background: var(--bg);
+      border-top: 1px solid var(--border);
+    }
+    .nav {
+      padding: 0.85rem;
+    }
+    .clock {
+      gap: 0.15rem;
+    }
+    .tools {
+      gap: 0.15rem;
+    }
+    /* The dot alone; its title still says it. */
+    .connection {
+      font-size: 0;
+      margin-right: 0.2rem;
+    }
+    .toast {
+      bottom: calc(5.8rem + env(safe-area-inset-bottom));
     }
   }
 </style>

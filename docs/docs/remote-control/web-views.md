@@ -49,7 +49,47 @@ In the C-Play window, **F11** toggles fullscreen and **Ctrl+W** / **Ctrl+Q** clo
 
 The start page shows a card per view: **Presenter**, **Movie** and **Layers**, each with what C-Play shows now (the slide on air, the file playing, the slide selected in C-Play). Click a card, or press **1**, **2** or **3**, to open that view.
 
+![Web views start page](/assets/ui/web_start_page.png)
+
 In every view, the C-Play logo top left is a menu with the name of the view: it lists **All views** (the start page) and the three views, the current one marked. Choosing one opens it in the same window or tab, so a tablet only needs the address of the start page. A view opened from C-Play in its window stays in that window when you switch, and its close button still closes it. The menu of C-Play still tells which view the window was opened with.
+
+![The view menu under the C-Play logo](/assets/ui/web_view_menu.png)
+
+### Several clusters
+
+With more than one cluster running C-Play (for example two domes), name each cluster and list the others in `data/http-server-conf.json` of each master:
+
+```json
+{
+    "run": "yes",
+    "port": 7007,
+    "clusterName": "Dome A",
+    "clusters": [
+        { "name": "Dome A", "url": "http://10.0.1.10:7007/" },
+        { "name": "Dome B", "url": "http://10.0.2.10:7007/" },
+        { "name": "Mobile dome", "url": "http://10.0.3.10:7007/" }
+    ]
+}
+```
+
+The start page then shows the cluster name in its header and in the tab title (*C-Play – Dome A*), so tabs and bookmarks of several clusters can be told apart, and links to the start pages of the other clusters below the cards. The menu under the logo in every view has the name of the cluster on top and the other clusters at the bottom. The list can be the same on every master: the entry with the name of the cluster itself is left out. A `url` without a path opens the start page (`/views/`) of that cluster. Restart C-Play after changing the file.
+
+## On phones
+
+Every view also works on a phone, upright or turned sideways: the page becomes one column that scrolls, and the header takes less room (the connection state is shown as a dot only; its tooltip still says it).
+
+* **Presenter view** — **Previous** and **Next** stay at the bottom of the screen while you scroll through the slides and notes. The notes start at a smaller text size on a phone; **A−** / **A+** still change it, remembered per device.
+* **Movie view** — the playlist and cue list show all their items in the page instead of in a box of their own, and the volume slider gets a row of its own above **Fade out** and **Fade in**.
+* **Layer view** — drag a layer with one finger to move it, and pinch it with two fingers (the first one on the layer) to resize it. A finger on the canvas outside the layers scrolls the page.
+
+<div style={{display: 'flex', gap: '0.5rem', alignItems: 'flex-start'}}>
+  <figure style={{flex: '1 1 0', margin: 0, textAlign: 'center'}}><img src={require('@site/static/assets/ui/phone_start_page.png').default} alt="Start page on a phone" style={{width: '100%'}} /><figcaption>Start page</figcaption></figure>
+  <figure style={{flex: '1 1 0', margin: 0, textAlign: 'center'}}><img src={require('@site/static/assets/ui/phone_presenter.png').default} alt="Presenter view on a phone" style={{width: '100%'}} /><figcaption>Presenter view</figcaption></figure>
+  <figure style={{flex: '1 1 0', margin: 0, textAlign: 'center'}}><img src={require('@site/static/assets/ui/phone_movie.png').default} alt="Movie view on a phone" style={{width: '100%'}} /><figcaption>Movie view</figcaption></figure>
+  <figure style={{flex: '1 1 0', margin: 0, textAlign: 'center'}}><img src={require('@site/static/assets/ui/phone_layer_view.png').default} alt="Layer view on a phone" style={{width: '100%'}} /><figcaption>Layer view</figcaption></figure>
+</div>
+
+![Presenter view on a phone turned sideways](/assets/ui/phone_presenter_landscape.png)
 
 ## Presenter view
 
@@ -159,8 +199,10 @@ C-Play encodes with `ffmpeg.exe` next to `C-Play.exe` (otherwise the one on the 
 
 The layer view is for preparing a presentation, not for running it: it lists the master and the slides with their layers, and places the layers. Picking a slide does not trigger it in C-Play. Each change goes to C-Play at once, as if made in the layer's grid parameters, and is saved with the presentation (**Save**).
 
+![Layer view with a layer of the slide on air selected](/assets/ui/web_layer_view.png)
+
 * **Slides** — the master and every slide, with the number of layers. *On air* marks the slide shown on the output, *C-Play* the slide selected in the C-Play slide list. The view starts on the slide selected in C-Play and follows it until another slide is picked.
-* **Canvas** — the flat layers (grid mode *Plane*) of the slide, drawn where C-Play renders them. Drag a layer to move it, and scroll over the canvas to resize the selected layer. Layers that are faded out have a dashed outline.
+* **Canvas** — the flat layers (grid mode *Plane*) of the slide, drawn where C-Play renders them. Drag a layer to move it, and scroll over the canvas to resize the selected layer (on a touch screen: pinch the layer with two fingers). Layers that are faded out have a dashed outline.
 * **Selected layer** — azimuth, elevation, roll, distance, horizontal and vertical move, width and height as numbers, with move and *Smaller* / *Larger* buttons for touch screens. A size that follows the media aspect ratio (*Plane size based on* in the grid parameters) is not editable.
 * **Layers** — every layer of the slide, top first, with its grid mode and type. **On** / **Off** fades the layer in or out as double-clicking it in C-Play does (with its entrance or exit effects); a partly visible layer shows its visibility in percent. Layers with sound have a **volume** slider (0–100). Layers kept visible from an earlier slide are marked *From &lt;slide&gt;*; changing them changes them in that slide.
 
@@ -169,6 +211,8 @@ Dome and sphere layers and 2D layers have no position on the canvas; their visib
 ### What layers are moved on
 
 **Views → Layer view → Move layers on** in C-Play chooses the canvas, to match the display. The choice is saved in C-Play and the view follows it at once.
+
+![Views menu: Layer view submenu](/assets/ui/views_layer_view.png)
 
 | Canvas | Dragging sets | The canvas shows |
 | --- | --- | --- |
@@ -191,6 +235,7 @@ The views use the [HTTP API](/remote-control/api) and the [event feed](/remote-c
 
 | Method | Path | Description |
 | --- | --- | --- |
+| GET | `/clusters` | `{name, clusters: [{name, url}]}`: the name of this cluster and the other clusters, from `clusterName` and `clusters` in `data/http-server-conf.json` |
 | GET | `/presentation_state` | The presentation state: slides, notes, current and next slide |
 | GET | `/slide_thumbnail?index=N[&rev=R]` | Thumbnail JPEG of slide N |
 | POST | `/slide_notes?index=N` | Sets the notes of slide N (UTF-8 text body) |

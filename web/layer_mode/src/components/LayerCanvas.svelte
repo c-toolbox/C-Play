@@ -90,11 +90,36 @@
     return [point.x, point.y];
   }
 
+  // Touch: two fingers, the first on a layer, resize it by pinching.
+  const touches = new Map<number, [number, number]>();
+  let pinchDistance = 0;
+
+  function spread() {
+    const [a, b] = [...touches.values()];
+    return Math.hypot(a[0] - b[0], a[1] - b[1]);
+  }
+
+  function addTouch(event: PointerEvent) {
+    if (event.pointerType !== 'touch' || !drag) return;
+    touches.set(event.pointerId, [event.clientX, event.clientY]);
+    svg?.setPointerCapture(event.pointerId);
+    if (touches.size === 2) {
+      // The second finger: a pinch instead of the drag.
+      drag = null;
+      pinchDistance = spread();
+    }
+  }
+
   function startDrag(event: PointerEvent, layer: LayerInfo) {
-    if (event.button !== 0) return;
+    // A second finger, also on a layer, pinches the one being dragged (addTouch).
+    if (event.button !== 0 || (event.pointerType === 'touch' && drag)) return;
     event.preventDefault();
     onselect(layer.row);
     const point = canvasPoint(event);
+    if (event.pointerType === 'touch') {
+      touches.clear();
+      touches.set(event.pointerId, [event.clientX, event.clientY]);
+    }
     if (!point || layer.locked) return;
     const from = valuesAt(kind, point, view);
     drag = { row: layer.row, pointer: event.pointerId, start: dragValues(kind, layer.plane, view.circular), from, last: from, u: from[0] };
@@ -102,6 +127,15 @@
   }
 
   function moveDrag(event: PointerEvent) {
+    if (touches.has(event.pointerId)) {
+      touches.set(event.pointerId, [event.clientX, event.clientY]);
+      if (touches.size === 2 && pinchDistance > 0) {
+        const distance = spread();
+        if (distance > 0) onresize(distance / pinchDistance);
+        pinchDistance = distance;
+        return;
+      }
+    }
     if (!drag || event.pointerId !== drag.pointer) return;
     const point = canvasPoint(event);
     const layer = layers.find((l) => l.row === drag?.row);
@@ -116,6 +150,8 @@
 
   function endDrag(event: PointerEvent) {
     if (drag && event.pointerId === drag.pointer) drag = null;
+    touches.delete(event.pointerId);
+    if (touches.size < 2) pinchDistance = 0;
   }
 
   // Not a passive listener, so the page does not scroll while resizing.
@@ -139,6 +175,7 @@
     preserveAspectRatio="xMidYMid meet"
     role="application"
     aria-label="Layer positions"
+    onpointerdown={addTouch}
     onpointermove={moveDrag}
     onpointerup={endDrag}
     onpointercancel={endDrag}
@@ -244,7 +281,8 @@
     width: 100%;
     height: 100%;
     display: block;
-    touch-action: none;
+    /* A finger off the layers scrolls the page; on a layer it drags or pinches it. */
+    touch-action: pan-y;
     user-select: none;
   }
   .grid :is(circle, line, path, rect) {
@@ -279,6 +317,7 @@
     letter-spacing: 0.04em;
   }
   .layer {
+    touch-action: none;
     fill: var(--layer-fill);
     stroke: var(--layer-stroke);
     stroke-width: 1.5;

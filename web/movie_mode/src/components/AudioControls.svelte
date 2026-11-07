@@ -108,6 +108,19 @@
   .volume label {
     flex: 1;
   }
+  /* Phones: the volume on a row of its own, the fade buttons below it. */
+  @media (max-width: 600px) {
+    .volume {
+      flex-wrap: wrap;
+    }
+    .volume label {
+      order: -1;
+      flex-basis: 100%;
+    }
+    .volume .fade {
+      flex: 1;
+    }
+  }
   .fade {
     flex: none;
     padding: 0.6rem 0.8rem;

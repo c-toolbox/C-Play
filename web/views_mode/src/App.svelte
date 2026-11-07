@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import ViewSwitcher, { viewHref, webViews, type ViewPath } from './components/ViewSwitcher.svelte';
+  import ViewSwitcher, { clusterHref, clusters, viewHref, webViews, type ViewPath } from './components/ViewSwitcher.svelte';
   import { LiveStatus } from './lib/live.svelte';
   import { load, store } from './lib/storage';
 
@@ -14,8 +14,15 @@
   const slideCount = $derived(live.slides.filter((slide) => slide.index >= 0).length);
   const slideCountText = $derived(`${slideCount} ${slideCount === 1 ? 'slide' : 'slides'}`);
 
+  // The cluster name tells tabs and bookmarks of the start pages of several clusters apart.
+  const pageTitle = $derived(clusters.name ? `C-Play – ${clusters.name}` : 'C-Play');
+
   $effect(() => {
     document.documentElement.dataset.theme = theme;
+  });
+
+  $effect(() => {
+    document.title = pageTitle;
   });
 
   onMount(() => {
@@ -46,7 +53,7 @@
   // Qt WebView in C-Play has no window.close() signal, it watches the title instead.
   function closeInCPlay() {
     document.title = 'cplay:close';
-    setTimeout(() => (document.title = 'C-Play'), 500);
+    setTimeout(() => (document.title = pageTitle), 500);
   }
 
   function toggleFullscreen() {
@@ -73,7 +80,9 @@
   <header class="top">
     <div class="title">
       <ViewSwitcher current="views" />
-      <span class="name">C-Play</span>
+      <span class="name">
+        {#if clusters.name}<span class="product">{'C-Play · '}</span><span class="cluster-name">{clusters.name}</span>{:else}C-Play{/if}
+      </span>
     </div>
 
     <div class="tools">
@@ -101,6 +110,14 @@
         </a>
       {/each}
     </nav>
+    {#if clusters.others.length}
+      <nav class="clusters" aria-label="Other C-Play clusters">
+        <span class="label">Other clusters</span>
+        {#each clusters.others as cluster (cluster.url)}
+          <a href={clusterHref(cluster.url)}>{cluster.name}</a>
+        {/each}
+      </nav>
+    {/if}
   </main>
 </div>
 
@@ -131,6 +148,18 @@
   .title .name {
     font-weight: 600;
     font-size: 1.1rem;
+    white-space: pre;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .cluster-name {
+    color: var(--accent);
+  }
+  @media (max-width: 600px) {
+    .product {
+      display: none;
+    }
   }
   .tools {
     display: flex;
@@ -206,6 +235,34 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+  .clusters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: calc(var(--gap) * 1.5);
+  }
+  .clusters .label {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-right: 0.25rem;
+  }
+  .clusters a {
+    padding: 0.4rem 0.9rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--text);
+    text-decoration: none;
+  }
+  .clusters a:hover {
+    border-color: var(--accent);
+  }
+  .clusters a:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
   }
   .key {
     position: absolute;

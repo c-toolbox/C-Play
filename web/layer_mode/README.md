@@ -48,5 +48,8 @@ pnpm check        # svelte-check / TypeScript
 | POST | `/layerview_fade?slide=S&row=R&on=0\|1` | Fades a layer in or out, as double-clicking it in C-Play |
 | POST | `/presentation_save` | Saves the presentation to its file |
 
+Touch: drag a layer with one finger, pinch it with two to resize it; a finger off the layers scrolls
+the page.
+
 Keyboard: arrows = move the selected layer (Shift: 10x), + and − = resize, Page Up/Down = previous or
 next slide, Esc = deselect, F = fullscreen (browser).

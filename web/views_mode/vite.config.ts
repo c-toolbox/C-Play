@@ -4,7 +4,7 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 // C-Play serves the build at /views/ (data/web/views_mode), and / leads there. The API is at the root.
 // In development (pnpm dev) the API calls go to a running C-Play, CPLAY_URL or localhost:7007.
 const cplay = process.env.CPLAY_URL ?? 'http://127.0.0.1:7007';
-const api = ['/events', '/status'];
+const api = ['/events', '/clusters', '/status'];
 
 export default defineConfig({
   base: './',

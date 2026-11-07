@@ -1470,7 +1470,8 @@
   }
 
   /* Phones and portrait tablets: one column that scrolls, the cue or sections first. */
-  @media (max-width: 820px), (orientation: portrait) and (max-width: 1100px) {
+  /* Phones (also in landscape) and portrait tablets: one column that scrolls. */
+  @media (max-width: 820px), (orientation: portrait) and (max-width: 1100px), (max-height: 520px) {
     .app {
       height: auto;
       min-height: 100%;
@@ -1522,6 +1523,36 @@
     }
     .take {
       flex: 1;
+    }
+  }
+
+  /* Phones: the page scrolls, so the lists are not boxes that scroll in it; a smaller header. */
+  @media (max-width: 600px), (max-height: 520px) {
+    .side-col > :global(.playlist),
+    .side-col > :global(.cue-list) {
+      flex: none;
+      max-height: none;
+    }
+    .top {
+      gap: 0.5rem;
+    }
+    .mode button {
+      padding: 0.4rem 0.75rem;
+    }
+    .tools :global(button) {
+      white-space: nowrap;
+      padding-inline: 0.55rem;
+    }
+    .tools {
+      gap: 0.15rem;
+    }
+    /* The dot alone; its title still says it. */
+    .connection {
+      font-size: 0;
+      margin-right: 0.2rem;
+    }
+    .transition .step {
+      padding: 0.55rem 0.6rem;
     }
   }
 </style>
