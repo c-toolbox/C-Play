@@ -14,6 +14,7 @@
     wrapsAround,
     type Point,
   } from '../lib/geometry';
+  import { load, store } from '../lib/storage';
 
   interface Props {
     view: LayerViewState;
@@ -81,6 +82,26 @@
 
   // ---- Dragging ------------------------------------------------------------------------------------
 
+  // Position values a drag leaves as they are, per canvas, as [first, second] of dragValues.
+  const axisNames: Record<LayerViewState['canvas'], [string, string]> = {
+    fisheye: ['Azimuth', 'Elevation'],
+    sphere: ['Azimuth', 'Elevation'],
+    flat: ['Horizontal', 'Vertical'],
+    circular: ['Around', 'Height'],
+  };
+  let locks = $state<Record<string, [boolean, boolean]>>(load('axis-locks', {}));
+  const axisLocked = $derived(locks[kind] ?? [false, false]);
+
+  function toggleLock(axis: 0 | 1) {
+    const next: [boolean, boolean] = [...axisLocked];
+    next[axis] = !next[axis];
+    locks = { ...locks, [kind]: next };
+    store('axis-locks', locks);
+  }
+
+  // Layer outlines by row, to find whether a press is within the selected layer.
+  const paths: Record<number, SVGPathElement | null> = {};
+
   let drag: { row: number; pointer: number; start: Point; from: Point; last: Point; u: number } | null = null;
 
   function canvasPoint(event: PointerEvent | WheelEvent): Point | null {
@@ -110,12 +131,15 @@
     }
   }
 
-  function startDrag(event: PointerEvent, layer: LayerInfo) {
+  function startDrag(event: PointerEvent, pressed: LayerInfo) {
     // A second finger, also on a layer, pinches the one being dragged (addTouch).
     if (event.button !== 0 || (event.pointerType === 'touch' && drag)) return;
     event.preventDefault();
-    onselect(layer.row);
     const point = canvasPoint(event);
+    // Within the selected layer, it is the one moved, also where another layer is in front of it.
+    const current = selected === null ? undefined : planes.find((plane) => plane.layer.row === selected)?.layer;
+    const layer = point && current && paths[current.row]?.isPointInFill(new DOMPoint(...point)) ? current : pressed;
+    onselect(layer.row);
     if (event.pointerType === 'touch') {
       touches.clear();
       touches.set(event.pointerId, [event.clientX, event.clientY]);
@@ -144,7 +168,10 @@
     // Angles that go around follow the pointer past +-180 instead of jumping back.
     drag.u = wrapsAround(kind) ? drag.u + wrap180(at[0] - drag.last[0]) : at[0];
     drag.last = at;
-    const target: Point = [drag.start[0] + drag.u - drag.from[0], drag.start[1] + at[1] - drag.from[1]];
+    const target: Point = [
+      axisLocked[0] ? drag.start[0] : drag.start[0] + drag.u - drag.from[0],
+      axisLocked[1] ? drag.start[1] : drag.start[1] + at[1] - drag.from[1],
+    ];
     onmove(drag.row, positionValues(kind, target, layer.plane, view));
   }
 
@@ -254,6 +281,7 @@
           role="button"
           tabindex="-1"
           aria-label={layer.title}
+          bind:this={paths[layer.row]}
           onpointerdown={(event) => startDrag(event, layer)}
         />
       {/each}
@@ -264,6 +292,22 @@
       {/each}
     </g>
   </svg>
+
+  <div class="locks" role="group" aria-label="Lock while moving">
+    <span class="locks-label">Lock</span>
+    {#each axisNames[kind] as name, axis (axis)}
+      <button
+        type="button"
+        class:on={axisLocked[axis]}
+        aria-pressed={axisLocked[axis]}
+        title={axisLocked[axis] ? `${name} is locked: dragging leaves it as it is` : `Lock ${name.toLowerCase()} while dragging`}
+        onclick={() => toggleLock(axis as 0 | 1)}
+      >
+        <span aria-hidden="true">{axisLocked[axis] ? '🔒' : '🔓'}</span>
+        {name}
+      </button>
+    {/each}
+  </div>
 </div>
 
 <style>
@@ -341,6 +385,30 @@
   }
   .layer:active {
     cursor: grabbing;
+  }
+  .locks {
+    position: absolute;
+    top: 0.5rem;
+    left: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    flex-wrap: wrap;
+  }
+  .locks-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-right: 0.1rem;
+  }
+  .locks button {
+    font-size: 0.8rem;
+    padding: 0.25rem 0.6rem;
+    background: color-mix(in srgb, var(--button) 85%, transparent);
+  }
+  .locks button.on {
+    border-color: var(--warn);
+    color: var(--warn);
+    background: var(--warn-bg);
   }
   .name {
     fill: var(--text);
