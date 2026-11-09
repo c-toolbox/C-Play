@@ -822,6 +822,15 @@ bool BaseLayer::setTextureDuplicateCount(int count) {
     return true;
 }
 
+std::string BaseLayer::textureDuplicateName(int index) const {
+    return m_subdivision ? m_subdivision->duplicateName(index) : std::to_string(index + 1);
+}
+
+void BaseLayer::setTextureDuplicateName(int index, const std::string& name) {
+    if (m_subdivision)
+        m_subdivision->setDuplicateName(index, name);
+}
+
 int BaseLayer::textureDivisionMergeColumns() const {
     return m_subdivision ? m_subdivision->mergeColumns() : 0;
 }

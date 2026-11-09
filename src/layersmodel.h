@@ -137,7 +137,9 @@ public:
         HierarchyRole,
         VisibilityMaximumRole,
         // Duplicate mode: the visibility each duplicate shows with (the layer's times its own).
-        DuplicateVisibilitiesRole
+        DuplicateVisibilitiesRole,
+        // Duplicate mode: the name of each duplicate (its number unless renamed).
+        DuplicateNamesRole
     };
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;

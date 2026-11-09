@@ -114,6 +114,21 @@ bool TextureSubdivision::setDuplicateCount(int count) {
     return true;
 }
 
+std::string TextureSubdivision::duplicateName(int index) const {
+    if (index >= 0 && index < static_cast<int>(m_duplicateNames.size()) && !m_duplicateNames[index].empty())
+        return m_duplicateNames[index];
+    return std::to_string(index + 1);
+}
+
+void TextureSubdivision::setDuplicateName(int index, const std::string& name) {
+    if (index < 0 || index >= DivideTextureHandler::kMaxDuplicates)
+        return;
+    if (index >= static_cast<int>(m_duplicateNames.size()))
+        m_duplicateNames.resize(index + 1);
+    m_duplicateNames[index] = name;
+    applyDuplicateNames();
+}
+
 int TextureSubdivision::mergeColumns() const {
     return m_mergeCols;
 }
@@ -182,6 +197,17 @@ void TextureSubdivision::applyDuplicates() {
     if (!m_divideTexHandler)
         m_divideTexHandler = std::make_unique<DivideTextureHandler>();
     m_divideTexHandler->setDuplicates(m_duplicateCount, m_owner);
+    applyDuplicateNames();
+}
+
+void TextureSubdivision::applyDuplicateNames() {
+    if (m_mode != Duplicate || !m_divideTexHandler)
+        return;
+    auto& subs = m_divideTexHandler->subLayers();
+    for (int i = 0; i < static_cast<int>(subs.size()); ++i) {
+        if (subs[i])
+            subs[i]->setTitle(duplicateName(i));
+    }
 }
 
 bool TextureSubdivision::usesDivideHandler() const {

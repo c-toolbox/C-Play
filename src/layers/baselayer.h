@@ -288,6 +288,10 @@ public:
     // own grid parameters [2..9]. Returns false for a count out of range.
     int textureDuplicateCount() const;
     bool setTextureDuplicateCount(int count);
+    // Name of a duplicate (0-based index), its number unless renamed; an empty name restores
+    // the number. Not synced: only the master shows the names.
+    std::string textureDuplicateName(int index) const;
+    void setTextureDuplicateName(int index, const std::string& name);
 
     // Division merge layout: the cells, in reading order, placed side by side on a
     // cols x rows grid around the layer's own plane (Plane grid mode). 0x0 = custom,

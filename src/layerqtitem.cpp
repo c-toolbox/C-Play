@@ -1552,8 +1552,8 @@ QStringList LayerQtItem::layerSubLayerNames() const {
         }
     } else if (mode == TextureSubdivision::Duplicate) {
         // Duplicate mode: generate names from the count even before sublayers are created
-        for (int i = 1; i <= m_layer->textureDuplicateCount(); ++i)
-            names.append(QString::number(i));
+        for (int i = 0; i < m_layer->textureDuplicateCount(); ++i)
+            names.append(QString::fromStdString(m_layer->textureDuplicateName(i)));
     } else if (mode == 1 && m_layer->hasSubLayers()) {
         // QR/ImPres mode: use actual sublayer names
         auto& subLayers = m_layer->getSubLayers();
@@ -1564,6 +1564,24 @@ QStringList LayerQtItem::layerSubLayerNames() const {
         }
     }
     return names;
+}
+
+QString LayerQtItem::layerDuplicateName() const {
+    if (!m_layer || m_layer->textureDivisionMode() != TextureSubdivision::Duplicate || m_selectedSubLayer <= 0)
+        return QString();
+    return QString::fromStdString(m_layer->textureDuplicateName(m_selectedSubLayer - 1));
+}
+
+void LayerQtItem::setLayerDuplicateName(const QString& name) {
+    if (!m_layer || m_layer->textureDivisionMode() != TextureSubdivision::Duplicate || m_selectedSubLayer <= 0)
+        return;
+    const std::string trimmed = name.trimmed().toStdString();
+    if (trimmed == m_layer->textureDuplicateName(m_selectedSubLayer - 1))
+        return;
+    // An empty name gives the duplicate its number back.
+    m_layer->setTextureDuplicateName(m_selectedSubLayer - 1, trimmed);
+    Q_EMIT layerValueChanged();
+    Q_EMIT layerNeedsSave();
 }
 
 int LayerQtItem::layerSelectedSubLayer() const {

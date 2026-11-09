@@ -325,6 +325,14 @@ QVariant LayersModel::data(const QModelIndex &index, int role) const {
         }
         return visibilities;
     }
+    case DuplicateNamesRole: {
+        QStringList names;
+        if (layerItem->textureDivisionMode() == TextureSubdivision::Duplicate) {
+            for (int i = 0; i < static_cast<int>(layerItem->getSubLayers().size()); ++i)
+                names.append(QString::fromStdString(layerItem->textureDuplicateName(i)));
+        }
+        return names;
+    }
     case NdiOutputRole:
         // The upload icon also covers node streaming over NDI: the layer is then
         // published as an NDI source on the master too.
@@ -358,6 +366,7 @@ QHash<int, QByteArray> LayersModel::roleNames() const {
     roles[VisibilityRole] = "visibility";
     roles[VisibilityMaximumRole] = "visibilityMaximum";
     roles[DuplicateVisibilitiesRole] = "duplicateVisibilities";
+    roles[DuplicateNamesRole] = "duplicateNames";
     roles[NdiOutputRole] = "ndiOutput";
     roles[ExistOnMasterOnlyRole] = "existOnMasterOnly";
     roles[NodeStreamOutputRole] = "nodeStreamOutput";
@@ -2038,6 +2047,12 @@ int LayersModel::decodeLayerFromJSON(const QJsonObject &o, const QStringList &fo
                         QJsonObject subObj = subArray[si].toObject();
                         auto& sub = subs[si];
                         if (!sub) continue;
+                        // A duplicate's own name; the others keep their number.
+                        if (divisionMode == 3 && subObj.contains(QStringLiteral("title"))) {
+                            const std::string name = subObj.value(QStringLiteral("title")).toString().trimmed().toStdString();
+                            if (name != std::to_string(si + 1))
+                                m_layers[idx].first->setTextureDuplicateName(si, name);
+                        }
                         sub->setVisibilityMaximum(subObj.value(QStringLiteral("visibilityMax")).toInt(-1));
                         if (subObj.contains(QStringLiteral("visibility")))
                             sub->setAlpha(static_cast<float>(subObj.value(QStringLiteral("visibility")).toInt()) * 0.01f);

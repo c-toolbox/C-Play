@@ -53,6 +53,10 @@ public:
     // Number of sublayers in duplicate mode, [2..DivideTextureHandler::kMaxDuplicates].
     int duplicateCount() const;
     bool setDuplicateCount(int count);
+    // Name of a duplicate (0-based index): its number unless renamed. Names stay when the
+    // duplicates are recreated. Only the master shows them, so they are not synced.
+    std::string duplicateName(int index) const;
+    void setDuplicateName(int index, const std::string& name);
 
     // Merge layout of the division cells, see BaseLayer::setTextureDivisionMerge().
     // 0x0 = custom. A grid change resets a layout that no longer fits to the grid itself.
@@ -106,6 +110,7 @@ private:
     void applyDecoded();
     void applyDivision();
     void applyDuplicates();
+    void applyDuplicateNames();
     // Division and duplicate mode both keep their sublayers in m_divideTexHandler.
     bool usesDivideHandler() const;
     void onQRCommand(const QRCommand& command);
@@ -121,6 +126,8 @@ private:
     int m_mergeCols = 1;
     int m_mergeRows = 1;
     int m_duplicateCount = 2;
+    // By duplicate index, empty for one that is not renamed.
+    std::vector<std::string> m_duplicateNames;
 
     // QR detection is applied on the render thread (it may release sublayers).
     bool m_qrEnabledDecoded = false;

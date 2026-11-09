@@ -27,6 +27,7 @@ ItemDelegate {
     // For nested delegates, whose index is their own.
     readonly property int layerRow: index
     readonly property var duplicateVisibilities: model.duplicateVisibilities
+    readonly property var duplicateNames: model.duplicateNames
 
     // Drag state for visual feedback
     property bool dragging: false
@@ -453,6 +454,8 @@ ItemDelegate {
                     readonly property int visibility: index < root.duplicateVisibilities.length
                                                       ? root.duplicateVisibilities[index] : 0
                     readonly property int sub: index + 1
+                    readonly property string name: index < root.duplicateNames.length
+                                                   ? root.duplicateNames[index] : sub
 
                     function fade(show) {
                         if (app.slides.selected.fadeDuplicate(root.layerRow, sub, show))
@@ -478,8 +481,8 @@ ItemDelegate {
                         rightPadding: 6
                         topPadding: 0
                         bottomPadding: 0
-                        text: duplicateEntry.sub
-                        ToolTip.text: qsTr("Select duplicate %1 to move it in the 3D view or edit its grid parameters. It shows the Original's texture.").arg(duplicateEntry.sub)
+                        text: duplicateEntry.name
+                        ToolTip.text: qsTr("Select duplicate %1 to move it in the 3D view or edit its grid parameters. It shows the Original's texture.").arg(duplicateEntry.name)
                         ToolTip.visible: hovered
                         ToolTip.delay: 500
 

@@ -2923,6 +2923,29 @@ Kirigami.ApplicationWindow {
                                     layerViewItem.layerSelectedSubLayer = index;
                                 }
                             }
+                            Label {
+                                font.pointSize: 9
+                                text: qsTr("Name:")
+                                visible: textureDivisionModeComboBox.currentIndex === 3
+                            }
+                            TextField {
+                                id: duplicateNameField
+
+                                Layout.fillWidth: true
+                                visible: textureDivisionModeComboBox.currentIndex === 3
+                                text: layerViewItem.layerDuplicateName
+                                placeholderText: layerViewItem.layerSelectedSubLayer
+
+                                ToolTip.visible: hovered
+                                ToolTip.delay: 500
+                                ToolTip.text: qsTr("Name of the selected duplicate, shown in the layer list and the web layer view (for example Front or Back). Leave it empty to use its number.")
+
+                                onEditingFinished: {
+                                    layerViewItem.layerDuplicateName = text;
+                                    // An empty name shows the number again.
+                                    text = Qt.binding(function() { return layerViewItem.layerDuplicateName; });
+                                }
+                            }
                         }
                     }
                 }

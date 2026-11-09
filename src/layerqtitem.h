@@ -164,6 +164,7 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(int layerTextureDivisionMode READ layerTextureDivisionMode WRITE setLayerTextureDivisionMode NOTIFY layerValueChanged)
     Q_PROPERTY(int layerDivisionGrid READ layerDivisionGrid WRITE setLayerDivisionGrid NOTIFY layerValueChanged)
     Q_PROPERTY(int layerDuplicateCount READ layerDuplicateCount WRITE setLayerDuplicateCount NOTIFY layerValueChanged)
+    Q_PROPERTY(QString layerDuplicateName READ layerDuplicateName WRITE setLayerDuplicateName NOTIFY layerValueChanged)
     Q_PROPERTY(QStringList layerDivisionMergeOptions READ layerDivisionMergeOptions NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerDivisionMerge READ layerDivisionMerge WRITE setLayerDivisionMerge NOTIFY layerValueChanged)
     Q_PROPERTY(QStringList layerSubLayerNames READ layerSubLayerNames NOTIFY layerValueChanged)
@@ -462,6 +463,10 @@ public:
     // Duplicate mode: number of copies of the complete texture.
     int layerDuplicateCount() const;
     void setLayerDuplicateCount(int count);
+    // Duplicate mode: name of the selected duplicate (empty when none is selected). An empty
+    // name gives it its number back.
+    QString layerDuplicateName() const;
+    void setLayerDuplicateName(const QString& name);
 
     // Merge layouts as "CxR" (e.g. "4x1"), and "Custom" for independent cells.
     QStringList layerDivisionMergeOptions() const;

@@ -82,6 +82,8 @@ Duplicate Mode shows the layer's live video texture several times, for example t
 
 Each duplicate points to the *Original* layer's texture (no copy), so the feed is received and decoded only once. Otherwise the duplicates act as separate layers: each one has its own grid mode, plane parameters, rotation, translation and visibility, edited in the grid parameters panel. A new duplicate starts with the *Original* layer's parameters, so all duplicates start on top of each other until you move them. If the *Original* layer has a region of interest, the duplicates show that region.
 
+The duplicates are numbered. To name one instead, for example *Front* and *Back*, select it and type the name in the **Name** field under the **Sub-Layer** selector. Leave the field empty to show the number again. The names are saved with the presentation and kept when you change the number of copies.
+
 Only the duplicates are rendered, so only they can be selected. In the layer list, the row of a layer in Duplicate Mode shows a button and a fade control for each duplicate. Click a duplicate's button (or use the **Sub-Layer** selector in the Inspect view) to select it; selecting the layer selects its first duplicate. Ctrl/Alt/Shift+drag in the master view then moves the selected duplicate, and the grid parameters panel edits it.
 
 The duplicates' fade controls replace the layer's own: the row's fade control and the layer visibility slider in the Inspect view are hidden, and double-clicking the row does not fade it (double-clicking a duplicate's button toggles that duplicate). A duplicate shows with the layer's visibility times its own:
@@ -90,7 +92,7 @@ The duplicates' fade controls replace the layer's own: the row's fade control an
 - Fading in a duplicate of a hidden layer shows the layer with only that duplicate.
 - Fading out the only duplicate shown hides the layer, which stops the feed like hiding any layer. That duplicate shows again when the layer is faded in.
 
-In the web layer view (`/layerview/`), each duplicate is listed and drawn as a layer of its own, named after the layer with the duplicate number (for example *Camera - 2*), so you can drag, resize and fade the duplicates separately, with the same fade rules as the layer list. The volume control is on the first duplicate and sets the layer's volume.
+In the web layer view (`/layerview/`), each duplicate is listed and drawn as a layer of its own, named after the layer and the duplicate (for example *Camera - 2* or *Camera - Front*), so you can drag, resize and fade the duplicates separately, with the same fade rules as the layer list. The volume control is on the first duplicate and sets the layer's volume.
 
 Changing the number of copies recreates the duplicates from the *Original* layer's parameters.
 
