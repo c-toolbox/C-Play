@@ -61,6 +61,9 @@ void TextureSubdivision::setMode(int mode) {
     } else if (mode == Division) {
         setQrEnabled(false);
         applyDivision();
+    } else if (mode == Duplicate) {
+        setQrEnabled(false);
+        applyDuplicates();
     } else {
         setQrEnabled(false);
         if (m_divideTexHandler)
@@ -92,6 +95,23 @@ void TextureSubdivision::gridToColsRows(int grid, int& cols, int& rows) {
     case 6: cols = 3; rows = 3; break;
     default: cols = 1; rows = 1; break;
     }
+}
+
+int TextureSubdivision::duplicateCount() const {
+    return m_duplicateCount;
+}
+
+bool TextureSubdivision::setDuplicateCount(int count) {
+    if (count < 2 || count > DivideTextureHandler::kMaxDuplicates)
+        return false;
+    if (m_duplicateCount == count)
+        return true;
+
+    m_duplicateCount = count;
+
+    if (m_mode == Duplicate)
+        applyDuplicates();
+    return true;
 }
 
 int TextureSubdivision::mergeColumns() const {
@@ -158,6 +178,16 @@ void TextureSubdivision::applyDivision() {
     applyMerge();
 }
 
+void TextureSubdivision::applyDuplicates() {
+    if (!m_divideTexHandler)
+        m_divideTexHandler = std::make_unique<DivideTextureHandler>();
+    m_divideTexHandler->setDuplicates(m_duplicateCount, m_owner);
+}
+
+bool TextureSubdivision::usesDivideHandler() const {
+    return (m_mode == Division || m_mode == Duplicate) && m_divideTexHandler;
+}
+
 bool TextureSubdivision::loadQROperationConfig(const std::string& filePath) {
     return m_qrOpHandler->loadConfig(filePath);
 }
@@ -171,13 +201,13 @@ std::string TextureSubdivision::activePlaneName() const {
 }
 
 bool TextureSubdivision::hasSubLayers() const {
-    if (m_mode == Division)
+    if (m_mode == Division || m_mode == Duplicate)
         return m_divideTexHandler && m_divideTexHandler->hasSubLayers();
     return qrEnabled() && m_qrOpHandler->hasSubLayers();
 }
 
 std::vector<std::shared_ptr<BaseLayer>>& TextureSubdivision::subLayers() const {
-    if (m_mode == Division && m_divideTexHandler)
+    if (usesDivideHandler())
         return m_divideTexHandler->subLayers();
     return m_qrOpHandler->subLayers();
 }
@@ -270,11 +300,23 @@ void TextureSubdivision::updateSubLayers(unsigned int texId, int width, int heig
     if (m_qrProcessor->isEnabled() && m_qrOpHandler->isActive())
         m_qrOpHandler->updateActiveSubLayer(m_owner, texId, width, height);
 
-    if (m_mode == Division && m_divideTexHandler && m_divideTexHandler->isActive()) {
+    if (usesDivideHandler() && m_divideTexHandler->isActive()) {
         m_divideTexHandler->updateSubLayers(m_owner, texId, width, height);
+        if (m_mode == Duplicate) {
+            for (auto& sub : m_divideTexHandler->subLayers())
+                sub->setReplacementImage(false);
+        }
         // The cell size follows the texture, and the parent may have moved meanwhile.
         applyMerge();
     }
+}
+
+void TextureSubdivision::updateSubLayers(unsigned int texId, int width, int height, bool replacementFlipY) {
+    if (m_mode != Duplicate || !m_divideTexHandler || texId == 0 || width <= 0 || height <= 0)
+        return;
+    m_divideTexHandler->updateSubLayers(m_owner, texId, width, height);
+    for (auto& sub : m_divideTexHandler->subLayers())
+        sub->setReplacementImage(true, replacementFlipY);
 }
 
 void TextureSubdivision::releaseGL() {
@@ -300,7 +342,7 @@ void TextureSubdivision::onQRCommand(const QRCommand& command) {
 
 void TextureSubdivision::encodeAlways(std::vector<std::byte>& data) const {
     int count = 0;
-    if (m_mode == Division && m_divideTexHandler && m_divideTexHandler->hasSubLayers())
+    if (usesDivideHandler() && m_divideTexHandler->hasSubLayers())
         count = static_cast<int>(m_divideTexHandler->subLayers().size());
     sgct::serializeObject(data, count);
     for (int i = 0; i < count; ++i) {
@@ -321,7 +363,7 @@ void TextureSubdivision::decodeAlways(const std::vector<std::byte>& data, unsign
     std::unique_ptr<TextureLayer> scratch;
     for (int i = 0; i < count; ++i) {
         BaseLayer* target = nullptr;
-        if (m_mode == Division && m_divideTexHandler) {
+        if (usesDivideHandler()) {
             auto& subs = m_divideTexHandler->subLayers();
             if (i < static_cast<int>(subs.size()))
                 target = subs[i].get();
@@ -333,6 +375,9 @@ void TextureSubdivision::decodeAlways(const std::vector<std::byte>& data, unsign
         }
         target->decodeBaseAlways(data, pos);
         target->decodeTypeAlways(data, pos);
+        // The owner's visibility was decoded before its type data, which this is part of.
+        if (m_mode == Duplicate)
+            target->setParentAlpha(m_owner->alpha());
     }
 }
 
@@ -342,9 +387,10 @@ void TextureSubdivision::encodeProperties(std::vector<std::byte>& data) const {
     sgct::serializeObject(data, m_grid);
     sgct::serializeObject(data, m_mergeCols);
     sgct::serializeObject(data, m_mergeRows);
+    sgct::serializeObject(data, m_duplicateCount);
 
     int count = 0;
-    if (m_mode == Division && m_divideTexHandler && m_divideTexHandler->hasSubLayers())
+    if (usesDivideHandler() && m_divideTexHandler->hasSubLayers())
         count = static_cast<int>(m_divideTexHandler->subLayers().size());
     sgct::serializeObject(data, count);
     for (int i = 0; i < count; ++i) {
@@ -361,18 +407,21 @@ void TextureSubdivision::decodeProperties(const std::vector<std::byte>& data, un
     sgct::deserializeObject(data, pos, m_grid);
     sgct::deserializeObject(data, pos, m_mergeCols);
     sgct::deserializeObject(data, pos, m_mergeRows);
+    sgct::deserializeObject(data, pos, m_duplicateCount);
 
     // Create the cells right away, also when the master has none to send, so the
     // division shows on this machine as soon as frames arrive.
     if (m_mode == Division)
         applyDivision();
+    else if (m_mode == Duplicate)
+        applyDuplicates();
 
     int count = 0;
     sgct::deserializeObject(data, pos, count);
     std::unique_ptr<TextureLayer> scratch;
     for (int i = 0; i < count; ++i) {
         BaseLayer* target = nullptr;
-        if (m_mode == Division && m_divideTexHandler) {
+        if (usesDivideHandler()) {
             auto& subs = m_divideTexHandler->subLayers();
             if (i < static_cast<int>(subs.size()))
                 target = subs[i].get();
@@ -398,10 +447,12 @@ void TextureSubdivision::encodeDefaults(std::vector<std::byte>& data, bool prope
     const int grid = 0;
     const int mergeCols = 1;
     const int mergeRows = 1;
+    const int duplicateCount = 2;
     sgct::serializeObject(data, qr);
     sgct::serializeObject(data, mode);
     sgct::serializeObject(data, grid);
     sgct::serializeObject(data, mergeCols);
     sgct::serializeObject(data, mergeRows);
+    sgct::serializeObject(data, duplicateCount);
     sgct::serializeObject(data, count);
 }

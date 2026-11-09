@@ -31,6 +31,8 @@ Kirigami.ApplicationWindow {
     property var qrCodeControls: undefined
     property var flipYControls: undefined
     property var webrtcControls: undefined
+    // Duplicates have their own fade controls in the layer list, which replace the layer's.
+    readonly property bool duplicateMode: layerViewItem.layerIdx >= 0 && layerViewItem.layerTextureDivisionMode === 3
 
     // Opens the Effects pane locked to the layer shown here (also used from the layer list).
     function openEffectsPane() {
@@ -40,7 +42,7 @@ Kirigami.ApplicationWindow {
     // Plays the layer's entrance (show) or exit effects instead of fading it, when it has them.
     // A selected sublayer has no effects of its own and fades as usual.
     function playLayerAnimation(show) {
-        if (layerViewItem.layerIdx < 0 || layerViewItem.layerSelectedSubLayer > 0)
+        if (layerViewItem.layerIdx < 0 || layerViewItem.layerVisibilityOfSubLayer)
             return false;
         if (!app.slides.selected.playLayerAnimation(layerViewItem.layerIdx, show))
             return false;
@@ -274,7 +276,7 @@ Kirigami.ApplicationWindow {
         }
         // While the layer animates, the slider follows the animation instead of the opacity.
         function onLayerAnimationProgressChanged(layerIdx, progress) {
-            if (layerIdx === layerViewItem.layerIdx && layerViewItem.layerSelectedSubLayer <= 0)
+            if (layerIdx === layerViewItem.layerIdx && !layerViewItem.layerVisibilityOfSubLayer)
                 visibilitySlider.syncValue(progress);
         }
 
@@ -470,6 +472,8 @@ Kirigami.ApplicationWindow {
                 ToolButton {
                     id: fade_image_out
 
+                    // Duplicates are faded one by one in the layer list instead.
+                    visible: !layerWindow.duplicateMode
                     enabled: layerViewItem.layerVisibility !== 0
                     focusPolicy: Qt.NoFocus
                     icon.name: "view-hidden"
@@ -493,13 +497,14 @@ Kirigami.ApplicationWindow {
 
                     overlayLabel: qsTr("Layer visibility: ")
                     implicitWidth: 180
+                    visible: !layerWindow.duplicateMode
                     maximumValue: layerViewItem.layerVisibilityMaximum
                     maximumLocked: layerViewItem.layerVisibilityLocked
 
                     onMoved: {
                         if (!syncingValue && layerViewItem.layerIdx >= 0) {
                             // A layer with entrance/exit effects scrubs through them instead of fading.
-                            if (layerViewItem.layerSelectedSubLayer > 0
+                            if (layerViewItem.layerVisibilityOfSubLayer
                                     || !app.slides.selected.scrubLayerAnimation(layerViewItem.layerIdx, Math.round(value)))
                                 layerViewItem.layerVisibility = value.toFixed(0);
                             app.slides.needsSync = true;
@@ -512,6 +517,7 @@ Kirigami.ApplicationWindow {
                 ToolButton {
                     id: visibilityLockButton
 
+                    visible: !layerWindow.duplicateMode
                     enabled: layerViewItem.layerIdx >= 0
                     checkable: true
                     checked: layerViewItem.layerVisibilityLocked
@@ -531,7 +537,7 @@ Kirigami.ApplicationWindow {
                         if (!layerViewItem.layerVisibilityLocked) {
                             // The slider may currently represent entrance/exit progress.
                             // Finish that pose, then lock the percentage the user chose.
-                            if (layerViewItem.layerSelectedSubLayer <= 0)
+                            if (!layerViewItem.layerVisibilityOfSubLayer)
                                 app.slides.selected.scrubLayerAnimation(layerViewItem.layerIdx, layerViewItem.layerVisibilityMaximum);
                             layerViewItem.layerVisibility = maximum;
                         }
@@ -550,6 +556,7 @@ Kirigami.ApplicationWindow {
                 ToolButton {
                     id: fade_image_in
 
+                    visible: !layerWindow.duplicateMode
                     enabled: layerViewItem.layerVisibility < layerViewItem.layerVisibilityMaximum
                     focusPolicy: Qt.NoFocus
                     icon.name: "view-visible"
@@ -2749,6 +2756,10 @@ Kirigami.ApplicationWindow {
                                         mode: "Division Mode"
                                         value: 2
                                     }
+                                    ListElement {
+                                        mode: "Duplicate Mode"
+                                        value: 3
+                                    }
                                 }
 
                                 delegate: ItemDelegate {
@@ -2779,6 +2790,7 @@ Kirigami.ApplicationWindow {
                                 font.pointSize: 9
                                 text: qsTr("Division:")
                                 enabled: textureDivisionModeComboBox.currentIndex === 2
+                                visible: textureDivisionModeComboBox.currentIndex !== 3
                             }
                             ComboBox {
                                 id: divisionGridComboBox
@@ -2787,6 +2799,7 @@ Kirigami.ApplicationWindow {
                                 focusPolicy: Qt.NoFocus
                                 textRole: "mode"
                                 enabled: textureDivisionModeComboBox.currentIndex === 2
+                                visible: textureDivisionModeComboBox.currentIndex !== 3
 
                                 model: ListModel {
                                     id: divisionGridList
@@ -2837,6 +2850,7 @@ Kirigami.ApplicationWindow {
                                 font.pointSize: 9
                                 text: qsTr("Merge:")
                                 enabled: textureDivisionModeComboBox.currentIndex === 2
+                                visible: textureDivisionModeComboBox.currentIndex !== 3
                             }
                             ComboBox {
                                 id: divisionMergeComboBox
@@ -2844,6 +2858,7 @@ Kirigami.ApplicationWindow {
                                 Layout.fillWidth: true
                                 focusPolicy: Qt.NoFocus
                                 enabled: textureDivisionModeComboBox.currentIndex === 2
+                                visible: textureDivisionModeComboBox.currentIndex !== 3
                                 model: layerViewItem.layerDivisionMergeOptions
                                 currentIndex: layerViewItem.layerDivisionMergeOptions.indexOf(layerViewItem.layerDivisionMerge)
 
@@ -2853,6 +2868,28 @@ Kirigami.ApplicationWindow {
 
                                 onActivated: {
                                     layerViewItem.layerDivisionMerge = model[index];
+                                }
+                            }
+                            Label {
+                                font.pointSize: 9
+                                text: qsTr("Copies:")
+                                visible: textureDivisionModeComboBox.currentIndex === 3
+                            }
+                            ComboBox {
+                                id: duplicateCountComboBox
+
+                                Layout.fillWidth: true
+                                focusPolicy: Qt.NoFocus
+                                visible: textureDivisionModeComboBox.currentIndex === 3
+                                model: [2, 3, 4, 5, 6, 7, 8, 9]
+                                currentIndex: model.indexOf(layerViewItem.layerDuplicateCount)
+
+                                ToolTip.visible: hovered
+                                ToolTip.delay: 500
+                                ToolTip.text: qsTr("Shows the layer this many times. Each duplicate uses the Original's texture and has its own grid parameters, selected through Sub-Layer or the layer list.")
+
+                                onActivated: {
+                                    layerViewItem.layerDuplicateCount = model[index];
                                 }
                             }
                             Label {
@@ -2869,6 +2906,18 @@ Kirigami.ApplicationWindow {
                                 enabled: textureDivisionModeComboBox.currentIndex !== 0
                                 model: layerViewItem.layerSubLayerNames
                                 currentIndex: layerViewItem.layerSelectedSubLayer
+
+                                // The Original is not rendered in duplicate mode.
+                                delegate: ItemDelegate {
+                                    required property int index
+                                    required property string modelData
+
+                                    width: subLayerComboBox.width
+                                    text: modelData
+                                    visible: !(index === 0 && layerViewItem.layerTextureDivisionMode === 3)
+                                    height: visible ? implicitHeight : 0
+                                    highlighted: subLayerComboBox.highlightedIndex === index
+                                }
 
                                 onActivated: {
                                     layerViewItem.layerSelectedSubLayer = index;
@@ -2893,6 +2942,7 @@ Kirigami.ApplicationWindow {
                                 }
                             }
                             divisionMergeComboBox.currentIndex = layerViewItem.layerDivisionMergeOptions.indexOf(layerViewItem.layerDivisionMerge);
+                            duplicateCountComboBox.currentIndex = duplicateCountComboBox.model.indexOf(layerViewItem.layerDuplicateCount);
                             subLayerComboBox.currentIndex = layerViewItem.layerSelectedSubLayer;
                         }
                     }
@@ -2910,6 +2960,7 @@ Kirigami.ApplicationWindow {
                             }
                         }
                         divisionMergeComboBox.currentIndex = layerViewItem.layerDivisionMergeOptions.indexOf(layerViewItem.layerDivisionMerge);
+                        duplicateCountComboBox.currentIndex = duplicateCountComboBox.model.indexOf(layerViewItem.layerDuplicateCount);
                         subLayerComboBox.currentIndex = layerViewItem.layerSelectedSubLayer;
                     }
 

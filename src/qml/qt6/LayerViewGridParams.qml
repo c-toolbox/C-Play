@@ -144,10 +144,11 @@ Kirigami.ApplicationWindow {
             width: parent.width
             spacing: 10
 
-            // Sub-layer selection combobox (visible only in division mode)
+            // Sub-layer selection combobox (visible only in division and duplicate mode)
             RowLayout {
                 Layout.fillWidth: true
-                visible: layerView.layerItem.layerTextureDivisionMode === 2
+                visible: (layerView.layerItem.layerTextureDivisionMode === 2
+                          || layerView.layerItem.layerTextureDivisionMode === 3)
                          && layerView.layerItem.layerSubLayerCount > 0
 
                 Label {
@@ -161,6 +162,18 @@ Kirigami.ApplicationWindow {
                     focusPolicy: Qt.NoFocus
                     model: layerView.layerItem.layerSubLayerNames
                     currentIndex: layerView.layerItem.layerSelectedSubLayer
+
+                    // The Original is not rendered in duplicate mode.
+                    delegate: ItemDelegate {
+                        required property int index
+                        required property string modelData
+
+                        width: gridParamsSubLayerComboBox.width
+                        text: modelData
+                        visible: !(index === 0 && layerView.layerItem.layerTextureDivisionMode === 3)
+                        height: visible ? implicitHeight : 0
+                        highlighted: gridParamsSubLayerComboBox.highlightedIndex === index
+                    }
 
                     onActivated: {
                         layerView.layerItem.layerSelectedSubLayer = index;

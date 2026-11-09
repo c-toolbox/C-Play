@@ -35,14 +35,18 @@ public:
     QJsonObject state() const;
     // Sets the values in the query of row in slide (-1 is the master): plane azimuth, elevation,
     // roll, distance, horizontal, vertical, width, height, centreDegrees, widthDegrees (numbers)
-    // and volume (0-100). Returns the layer as in state(), or an error in "error".
-    QJsonObject setLayerValues(int slideIdx, int row, const QJsonObject &values);
-    // Fades the layer in row of slide up or down, as double-clicking it in C-Play does.
-    bool fadeLayer(int slideIdx, int row, bool show);
+    // and volume (0-100). sub > 0 addresses that duplicate of a layer in duplicate mode (1-based)
+    // instead, whose volume is the layer's. Returns the layer as in state(), or an error in "error".
+    QJsonObject setLayerValues(int slideIdx, int row, int sub, const QJsonObject &values);
+    // Fades the layer in row of slide (or its duplicate sub) up or down, as double-clicking it in
+    // C-Play does.
+    bool fadeLayer(int slideIdx, int row, int sub, bool show);
 
 private:
     LayersModel *slideAt(int idx) const;
-    QJsonObject layerState(LayersModel *slide, int row) const;
+    // The layer in row, or its duplicate sub (1-based) when sub > 0.
+    std::shared_ptr<BaseLayer> layerAt(LayersModel *slide, int row, int sub) const;
+    QJsonObject layerState(LayersModel *slide, int row, int sub = 0) const;
 
     QPointer<SlidesModel> m_slides;
 };

@@ -23,6 +23,9 @@ class TextureLayer;
 // texture using ROI (region of interest). Each sublayer can have its own
 // grid mode, plane parameters, rotation, translation, alpha, etc.
 //
+// Duplicate mode (setDuplicates()) instead creates copies showing the complete
+// texture, each with its own grid parameters, as separate layers.
+//
 // The parent layer (NdiLayer, StreamLayer, SpoutLayer, OmtLayer) owns
 // an instance of this handler and calls updateSubLayers() each frame
 // after producing a new texture.
@@ -36,7 +39,13 @@ public:
     // Returns true if the division was applied successfully.
     bool setDivision(int cols, int rows, BaseLayer* parent = nullptr);
 
-    // Current division.
+    // Duplicates of the complete texture instead of a division, count [2..kMaxDuplicates].
+    // Recreates all sublayers. Returns true if the count was applied.
+    static constexpr int kMaxDuplicates = 9;
+    bool setDuplicates(int count, BaseLayer* parent = nullptr);
+    bool isDuplicate() const;
+
+    // Current division (count x 1 for duplicates).
     int columns() const;
     int rows() const;
 
@@ -105,6 +114,7 @@ private:
 
     int m_cols = 1;
     int m_rows = 1;
+    bool m_duplicate = false;
     mutable std::vector<std::shared_ptr<BaseLayer>> m_subLayers;
 
     // applyMerge() runs on the render thread every frame and on the GUI thread after edits.

@@ -24,6 +24,13 @@ export interface PlaneValues {
 export interface LayerInfo {
   /** Row in the slide's layer list, top of the render order first. */
   row: number;
+  /**
+   * 0 for the layer itself. A layer in duplicate mode is listed as its duplicates instead,
+   * which share its row and are numbered from 1.
+   */
+  sub: number;
+  /** Unique within the slide, from row and sub (see layerKey). */
+  key: number;
   id: string;
   title: string;
   type: string;
@@ -90,6 +97,20 @@ export interface EventsResponse {
   reset: boolean;
 }
 
+/** Identifies a layer or duplicate within its slide. */
+export const layerKey = (row: number, sub: number) => row * 16 + sub;
+
+/** Adds the layer keys to a state from C-Play. */
+export function withLayerKeys(state: LayerViewState): LayerViewState {
+  for (const slide of state.slides) {
+    for (const layer of slide.layers) {
+      layer.sub ??= 0;
+      layer.key = layerKey(layer.row, layer.sub);
+    }
+  }
+  return state;
+}
+
 export class ApiError extends Error {
   constructor(
     message: string,
@@ -108,17 +129,18 @@ async function request(method: 'GET' | 'POST', path: string, params: Record<stri
 }
 
 export const api = {
-  state: async () => (await (await request('GET', '/layerview_state')).json()) as LayerViewState,
+  state: async () => withLayerKeys((await (await request('GET', '/layerview_state')).json()) as LayerViewState),
   events: async (since: string, signal?: AbortSignal) => {
     const query = since ? `&since=${since}&wait=20000` : '';
     const response = await fetch(`/events?topics=layerview${query}`, { cache: 'no-store', signal });
     if (!response.ok) throw new ApiError(response.statusText, response.status);
     return (await response.json()) as EventsResponse;
   },
-  /** Sets values of the layer in row of slide, and answers the layer as C-Play has it then. */
-  setLayer: async (slide: number, row: number, values: LayerValues) =>
-    (await (await request('POST', '/layerview_layer', { slide, row, ...values })).json()) as LayerInfo,
-  /** Fades the layer up or down, as double-clicking it in C-Play does. */
-  fade: (slide: number, row: number, on: boolean) => request('POST', '/layerview_fade', { slide, row, on: on ? 1 : 0 }),
+  /** Sets values of the layer (or duplicate sub) in row of slide, and answers it as C-Play has it then. */
+  setLayer: async (slide: number, row: number, sub: number, values: LayerValues) =>
+    (await (await request('POST', '/layerview_layer', { slide, row, sub, ...values })).json()) as LayerInfo,
+  /** Fades the layer (or duplicate sub) up or down, as double-clicking it in C-Play does. */
+  fade: (slide: number, row: number, sub: number, on: boolean) =>
+    request('POST', '/layerview_fade', { slide, row, sub, on: on ? 1 : 0 }),
   save: () => request('POST', '/presentation_save'),
 };

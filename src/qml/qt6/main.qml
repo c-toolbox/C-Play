@@ -939,11 +939,31 @@ Kirigami.ApplicationWindow {
     // The Layers panel is the single source of truth for which flat layer the 3D view can
     // move with Ctrl+left-drag. The C++ side validates the index against the current slide
     // and clears it for non-plane rows, so selecting a dome/sphere row disables the movement.
+    // A sublayer selected in the layer view (e.g. a duplicate) is moved instead of its row.
+    function syncPlaneSelection() {
+        const row = layers.layersView.currentIndex;
+        const li = layerView.layerItem;
+        viewLayersIn3DRenderItem.setPlaneSelectionByIndex(row, li && li.layerIdx === row ? li.layerSelectedSubLayer : 0);
+    }
     Connections {
         target: layers.layersView
 
         function onCurrentIndexChanged() {
-            viewLayersIn3DRenderItem.setPlaneSelectionByIndex(layers.layersView.currentIndex);
+            window.syncPlaneSelection();
+        }
+    }
+    Connections {
+        target: layerView.layerItem
+
+        function onLayerChanged() {
+            window.syncPlaneSelection();
+        }
+        function onSelectedSubLayerChanged() {
+            window.syncPlaneSelection();
+        }
+        // The grid mode decides whether the selection can be moved at all.
+        function onLayerValueChanged() {
+            window.syncPlaneSelection();
         }
     }
 

@@ -5,9 +5,10 @@
     layers: LayerInfo[];
     selected: number | null;
     disabled: boolean;
-    onselect: (row: number) => void;
-    onvolume: (row: number, volume: number) => void;
-    onvisible: (row: number, on: boolean) => void;
+    /** By layer key (see layerKey). */
+    onselect: (key: number) => void;
+    onvolume: (key: number, volume: number) => void;
+    onvisible: (key: number, on: boolean) => void;
   }
 
   let { layers, selected, disabled, onselect, onvolume, onvisible }: Props = $props();
@@ -16,10 +17,10 @@
 </script>
 
 <ul class="layers" aria-label="Layers, top first">
-  {#each layers as layer (layer.row)}
+  {#each layers as layer (layer.key)}
     {@const on = layer.visibility > 0}
-    <li class="layer" class:selected={layer.row === selected}>
-      <button type="button" class="pick" onclick={() => onselect(layer.row)} aria-pressed={layer.row === selected}>
+    <li class="layer" class:selected={layer.key === selected}>
+      <button type="button" class="pick" onclick={() => onselect(layer.key)} aria-pressed={layer.key === selected}>
         <span class="title">{layer.title}</span>
         <span class="tags">
           <span class="tag" class:flat={layer.gridMode === 1}>{gridNames[layer.gridMode] ?? 'Grid'}</span>
@@ -33,7 +34,7 @@
           type="button"
           class="toggle"
           class:on
-          onclick={() => onvisible(layer.row, !on)}
+          onclick={() => onvisible(layer.key, !on)}
           {disabled}
           aria-pressed={on}
           title={on ? 'Fade the layer out' : 'Fade the layer in'}
@@ -52,7 +53,7 @@
               value={layer.volume}
               {disabled}
               aria-label={`Volume of ${layer.title}`}
-              oninput={(event) => onvolume(layer.row, Number(event.currentTarget.value))}
+              oninput={(event) => onvolume(layer.key, Number(event.currentTarget.value))}
             />
             <span class="value">{layer.volume}</span>
           </label>

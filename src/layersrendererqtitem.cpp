@@ -1181,16 +1181,18 @@ bool LayersRendererQtItem::domeAnglesAtScreenPoint(float x, float y, double radi
     return true;
 }
 
-void LayersRendererQtItem::setSelectedPlaneLayer(std::shared_ptr<BaseLayer> layer, int index) {
-    if (m_selectedPlaneLayer == layer && m_selectedPlaneIndex == index)
+void LayersRendererQtItem::setSelectedPlaneLayer(std::shared_ptr<BaseLayer> layer, int index, std::shared_ptr<BaseLayer> owner) {
+    if (m_selectedPlaneLayer == layer && m_selectedPlaneIndex == index && m_selectedPlaneOwner == owner)
         return;
     m_selectedPlaneLayer = std::move(layer);
+    m_selectedPlaneOwner = std::move(owner);
     m_selectedPlaneIndex = index;
     Q_EMIT planeSelectionChanged();
 }
 
-void LayersRendererQtItem::setPlaneSelectionByIndex(int index) {
+void LayersRendererQtItem::setPlaneSelectionByIndex(int index, int subLayer) {
     std::shared_ptr<BaseLayer> layer;
+    std::shared_ptr<BaseLayer> owner;
     int resolved = -1;
     {
         std::lock_guard<std::mutex> lock(LayersRendererQtItem::layerAccessMutex());
@@ -1202,14 +1204,26 @@ void LayersRendererQtItem::setPlaneSelectionByIndex(int index) {
                                                                        : std::vector<std::shared_ptr<BaseLayer>>();
             if (index >= 0 && index < static_cast<int>(rows.size())) {
                 std::shared_ptr<BaseLayer> candidate = rows[index];
+                // A selected sublayer (e.g. a duplicate) is moved instead of its parent.
+                if (candidate && subLayer > 0) {
+                    auto& subs = candidate->getSubLayers();
+                    if (subLayer <= static_cast<int>(subs.size())) {
+                        owner = candidate;
+                        candidate = subs[subLayer - 1];
+                    } else {
+                        candidate = nullptr;
+                    }
+                }
                 if (candidate && candidate->gridMode() != static_cast<uint8_t>(BaseLayer::None)) {
                     layer = std::move(candidate);
                     resolved = index;
+                } else {
+                    owner = nullptr;
                 }
             }
         }
     }
-    setSelectedPlaneLayer(std::move(layer), resolved);
+    setSelectedPlaneLayer(std::move(layer), resolved, std::move(owner));
 }
 
 bool LayersRendererQtItem::selectedLayerStillValidLocked() {
@@ -1219,7 +1233,17 @@ bool LayersRendererQtItem::selectedLayerStillValidLocked() {
     // The layer may have been removed or the slide switched since it was selected.
     auto* slides = Application::isCreated() ? Application::instance().slidesModel() : nullptr;
     LayersModel* slide = slides ? slides->selectedSlide() : nullptr;
-    const bool valid = slide && slide->containsLayer(m_selectedPlaneLayer.get());
+    bool valid = false;
+    if (slide && m_selectedPlaneOwner) {
+        // A sublayer stays valid while its parent is in the slide and still owns it
+        // (a new division or duplicate count recreates the sublayers).
+        if (slide->containsLayer(m_selectedPlaneOwner.get())) {
+            const auto& subs = m_selectedPlaneOwner->getSubLayers();
+            valid = std::find(subs.begin(), subs.end(), m_selectedPlaneLayer) != subs.end();
+        }
+    } else if (slide) {
+        valid = slide->containsLayer(m_selectedPlaneLayer.get());
+    }
     if (!valid)
         setSelectedPlaneLayer(nullptr, -1);   // stale selection: clear it
     return valid;
@@ -1560,8 +1584,12 @@ bool LayersRendererQtItem::beginLayerDrag(int action, float x, float y) {
             mode = m_selectedPlaneLayer->gridMode();
             startRotate = m_selectedPlaneLayer->rotate();
             if (mode == static_cast<uint8_t>(BaseLayer::GridMode::Plane)) {
-                m_selectedPlaneLayer->beginPoseEdit();
-                m_poseEditLayer = m_selectedPlaneLayer;
+                // A sublayer's animation state is its parent's, which would replace an edited
+                // pose, so a sublayer moves its own grid parameters instead.
+                if (!m_selectedPlaneOwner) {
+                    m_selectedPlaneLayer->beginPoseEdit();
+                    m_poseEditLayer = m_selectedPlaneLayer;
+                }
                 // Flat layer: no hit testing, wherever the pointer is it aims at the layer.
                 ok = aimAtScreenPointLocked(m_selectedPlaneLayer.get(), x, y, hitAz, hitEl);
                 startWidthCm = m_selectedPlaneLayer->circularPlaneActive()

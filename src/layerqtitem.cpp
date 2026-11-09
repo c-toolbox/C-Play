@@ -142,6 +142,8 @@ void LayerQtItem::setLayerIdx(int idx) {
             m_layer->setShouldUpdateFrame(false);
         }
         setCurrentLayer(nl, false);
+        // A sub-layer selection belongs to the previous layer.
+        resetSelectedSubLayer();
         // Removing the layer from its slide must not leave it alive (or playing) here.
         m_layerSlide = slide;
         m_layerRemovedConnection = connect(slide, &QAbstractItemModel::rowsRemoved, this,
@@ -221,19 +223,26 @@ void LayerQtItem::setLayerGridMode(int mode) {
     }
 }
 
+BaseLayer* LayerQtItem::visibilityTarget() const {
+    // Duplicates are faded from the layer list, so the visibility here is the layer's.
+    if (layerVisibilityOfSubLayer())
+        return selectedSubLayerPtr();
+    return m_layer;
+}
+
+bool LayerQtItem::layerVisibilityOfSubLayer() const {
+    return selectedSubLayerPtr() && m_layer->textureDivisionMode() != TextureSubdivision::Duplicate;
+}
+
 int LayerQtItem::layerVisibility() const{
-    BaseLayer* sub = selectedSubLayerPtr();
-    if (sub)
-        return static_cast<int>(sub->alpha() * 100.f);
-    if (m_layer)
-        return static_cast<int>(m_layer->alpha() * 100.f);
+    if (BaseLayer* target = visibilityTarget())
+        return static_cast<int>(target->alpha() * 100.f);
     else
         return PresentationSettings::defaultLayerVisibility();
 }
 
 void LayerQtItem::setLayerVisibility(int value) {
-    BaseLayer* target = selectedSubLayerPtr();
-    if (!target) target = m_layer;
+    BaseLayer* target = visibilityTarget();
     if (target && target->isEnabled()) {
         target->setAlpha(static_cast<float>(value) * 0.01f);
         applyDivisionMerge();
@@ -242,20 +251,17 @@ void LayerQtItem::setLayerVisibility(int value) {
 }
 
 int LayerQtItem::layerVisibilityMaximum() const {
-    BaseLayer *target = selectedSubLayerPtr();
-    if (!target) target = m_layer;
+    BaseLayer *target = visibilityTarget();
     return target ? target->visibilityMaximum() : 100;
 }
 
 bool LayerQtItem::layerVisibilityLocked() const {
-    BaseLayer *target = selectedSubLayerPtr();
-    if (!target) target = m_layer;
+    BaseLayer *target = visibilityTarget();
     return target && target->visibilityLocked();
 }
 
 void LayerQtItem::setLayerVisibilityLocked(bool locked) {
-    BaseLayer *target = selectedSubLayerPtr();
-    if (!target) target = m_layer;
+    BaseLayer *target = visibilityTarget();
     if (!target || !target->isEnabled() || target->visibilityLocked() == locked)
         return;
     target->setVisibilityMaximum(locked ? qRound(target->alpha() * 100.f) : -1);
@@ -1438,6 +1444,7 @@ void LayerQtItem::setLayerTextureDivisionMode(int mode) {
     if (m_layer && m_layer->isEnabled()) {
         if (m_layer->textureDivisionMode() != mode) {
             m_layer->setTextureDivisionMode(mode);
+            resetSelectedSubLayer();
             Q_EMIT layerValueChanged();
             Q_EMIT layerNeedsSave();
         }
@@ -1454,10 +1461,28 @@ void LayerQtItem::setLayerDivisionGrid(int grid) {
     if (m_layer && m_layer->isEnabled()) {
         if (m_layer->textureDivisionGrid() != grid) {
             m_layer->setTextureDivisionGrid(grid);
-            m_selectedSubLayer = 0; // Reset selection when grid changes
+            resetSelectedSubLayer(); // Reset selection when grid changes
             Q_EMIT layerValueChanged();
             Q_EMIT layerNeedsSave();
         }
+    }
+}
+
+int LayerQtItem::layerDuplicateCount() const {
+    if (m_layer)
+        return m_layer->textureDuplicateCount();
+    return 0;
+}
+
+void LayerQtItem::setLayerDuplicateCount(int count) {
+    if (!m_layer || !m_layer->isEnabled() || m_layer->textureDuplicateCount() == count)
+        return;
+    if (m_layer->setTextureDuplicateCount(count)) {
+        // The duplicates are recreated, so a selected one may no longer exist.
+        if (m_layer->textureDivisionMode() == TextureSubdivision::Duplicate)
+            resetSelectedSubLayer();
+        Q_EMIT layerValueChanged();
+        Q_EMIT layerNeedsSave();
     }
 }
 
@@ -1525,6 +1550,10 @@ QStringList LayerQtItem::layerSubLayerNames() const {
                 names.append(QStringLiteral("Div_%1_%2").arg(col).arg(row));
             }
         }
+    } else if (mode == TextureSubdivision::Duplicate) {
+        // Duplicate mode: generate names from the count even before sublayers are created
+        for (int i = 1; i <= m_layer->textureDuplicateCount(); ++i)
+            names.append(QString::number(i));
     } else if (mode == 1 && m_layer->hasSubLayers()) {
         // QR/ImPres mode: use actual sublayer names
         auto& subLayers = m_layer->getSubLayers();
@@ -1542,10 +1571,20 @@ int LayerQtItem::layerSelectedSubLayer() const {
 }
 
 void LayerQtItem::setLayerSelectedSubLayer(int index) {
+    // The Original is not rendered in duplicate mode, so it cannot be selected.
+    if (m_layer && m_layer->textureDivisionMode() == TextureSubdivision::Duplicate)
+        index = std::max(index, 1);
     if (m_selectedSubLayer != index) {
         m_selectedSubLayer = index;
+        Q_EMIT selectedSubLayerChanged();
         Q_EMIT layerValueChanged();
     }
+}
+
+void LayerQtItem::resetSelectedSubLayer() {
+    m_selectedSubLayer = m_layer && m_layer->textureDivisionMode() == TextureSubdivision::Duplicate ? 1 : 0;
+    // Also when unchanged: the sublayers may have been recreated.
+    Q_EMIT selectedSubLayerChanged();
 }
 
 int LayerQtItem::layerSubLayerCount() const {
@@ -1567,6 +1606,8 @@ int LayerQtItem::layerSubLayerCount() const {
         case 6: return 9;  // 3x3
         default: return 1;
         }
+    } else if (mode == TextureSubdivision::Duplicate) {
+        return m_layer->textureDuplicateCount();
     } else if (mode == 1) {
         // QR/ImPres mode: count from actual sublayers
         if (m_layer->hasSubLayers())
@@ -1601,6 +1642,15 @@ QRectF LayerQtItem::layerSelectedSubLayerRoi() const {
         double cellW = 1.0 / static_cast<double>(cols);
         double cellH = 1.0 / static_cast<double>(rows);
         return QRectF(col * cellW, row * cellH, cellW, cellH);
+    } else if (mode == TextureSubdivision::Duplicate) {
+        // Duplicate mode: every duplicate shows what the Original shows
+        if (m_selectedSubLayer > m_layer->textureDuplicateCount())
+            return QRectF();
+        if (m_layer->roiEnabled()) {
+            glm::vec4 r = m_layer->roi();
+            return QRectF(r.x, r.y, r.z, r.w);
+        }
+        return QRectF(0.0, 0.0, 1.0, 1.0);
     } else if (mode == 1 && m_layer->hasSubLayers()) {
         // QR mode: read ROI from the actual sublayer
         int subIdx = m_selectedSubLayer - 1;

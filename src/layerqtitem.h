@@ -100,6 +100,9 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(int layerVisibility READ layerVisibility WRITE setLayerVisibility NOTIFY layerValueChanged)
     Q_PROPERTY(int layerVisibilityMaximum READ layerVisibilityMaximum NOTIFY layerValueChanged)
     Q_PROPERTY(bool layerVisibilityLocked READ layerVisibilityLocked WRITE setLayerVisibilityLocked NOTIFY layerValueChanged)
+    // True when the visibility above is the selected sub-layer's rather than the layer's
+    // (not for duplicates, which are faded from the layer list).
+    Q_PROPERTY(bool layerVisibilityOfSubLayer READ layerVisibilityOfSubLayer NOTIFY layerValueChanged)
     Q_PROPERTY(bool layerHasAudio READ layerHasAudio NOTIFY layerHasAudioChanged)
     // True when the layer reports live audio levels from its decoded audio path (NDI, OMT, DirectShow and WebRTC).
     Q_PROPERTY(bool layerHasAudioLevels READ layerHasAudioLevels NOTIFY layerChanged)
@@ -160,6 +163,7 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(bool layerQRCodeDetectionEnabled READ layerQRCodeDetectionEnabled WRITE setLayerQRCodeDetectionEnabled NOTIFY layerValueChanged)
     Q_PROPERTY(int layerTextureDivisionMode READ layerTextureDivisionMode WRITE setLayerTextureDivisionMode NOTIFY layerValueChanged)
     Q_PROPERTY(int layerDivisionGrid READ layerDivisionGrid WRITE setLayerDivisionGrid NOTIFY layerValueChanged)
+    Q_PROPERTY(int layerDuplicateCount READ layerDuplicateCount WRITE setLayerDuplicateCount NOTIFY layerValueChanged)
     Q_PROPERTY(QStringList layerDivisionMergeOptions READ layerDivisionMergeOptions NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerDivisionMerge READ layerDivisionMerge WRITE setLayerDivisionMerge NOTIFY layerValueChanged)
     Q_PROPERTY(QStringList layerSubLayerNames READ layerSubLayerNames NOTIFY layerValueChanged)
@@ -259,6 +263,7 @@ public:
     int layerVisibility() const;
     int layerVisibilityMaximum() const;
     bool layerVisibilityLocked() const;
+    bool layerVisibilityOfSubLayer() const;
     void setLayerVisibilityLocked(bool locked);
     void setLayerVisibility(int value);
 
@@ -454,6 +459,10 @@ public:
     int layerDivisionGrid() const;
     void setLayerDivisionGrid(int grid);
 
+    // Duplicate mode: number of copies of the complete texture.
+    int layerDuplicateCount() const;
+    void setLayerDuplicateCount(int count);
+
     // Merge layouts as "CxR" (e.g. "4x1"), and "Custom" for independent cells.
     QStringList layerDivisionMergeOptions() const;
     QString layerDivisionMerge() const;
@@ -469,6 +478,8 @@ public:
 
     // Get the BaseLayer* for the currently selected sublayer (nullptr if Original/index 0)
     BaseLayer* selectedSubLayerPtr() const;
+    // The layer the visibility properties read and set (see layerVisibilityOfSubLayer).
+    BaseLayer* visibilityTarget() const;
 
     bool layerFlipY() const;
     void setLayerFlipY(bool flip);
@@ -543,6 +554,8 @@ Q_SIGNALS:
     void layerChanged();
     void layerPositionChanged();
     void layerValueChanged();
+    // Also covered by layerValueChanged; lets the 3D view follow the selected sublayer.
+    void selectedSubLayerChanged();
     void layerNeedsSave();
     void viewChanged();
     void roiChanged();
@@ -610,6 +623,10 @@ private:
     QPoint m_roiOffset;
     QSize m_roiSize;
     int m_selectedSubLayer = 0;
+
+    // Selects the first duplicate in duplicate mode (only the duplicates render), otherwise
+    // the layer itself.
+    void resetSelectedSubLayer();
 
     // Re-aligns merged division cells after a grid parameter edit.
     void applyDivisionMerge();

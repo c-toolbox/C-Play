@@ -806,6 +806,22 @@ void BaseLayer::setTextureDivisionGrid(int grid) {
         setNeedSync();
 }
 
+int BaseLayer::textureDuplicateCount() const {
+    return m_subdivision ? m_subdivision->duplicateCount() : 0;
+}
+
+bool BaseLayer::setTextureDuplicateCount(int count) {
+    if (!m_subdivision)
+        return false;
+    if (m_subdivision->duplicateCount() == count)
+        return true;
+    if (!m_subdivision->setDuplicateCount(count))
+        return false;
+    if (isMaster())
+        setNeedSync();
+    return true;
+}
+
 int BaseLayer::textureDivisionMergeColumns() const {
     return m_subdivision ? m_subdivision->mergeColumns() : 0;
 }
@@ -865,8 +881,12 @@ void BaseLayer::decodeTypeProperties(const std::vector<std::byte>&, unsigned int
 }
 
 bool BaseLayer::hasSubLayers() const {
-    // While a placeholder or the no-signal image shows, the layer renders that as a whole.
-    if (!m_subdivision || masterPlaceholderEnabled() || noSignalImageEnabled())
+    if (!m_subdivision)
+        return false;
+    // While a placeholder or the no-signal image shows, the layer renders that as a whole,
+    // except duplicates: each of them shows it (see updateDuplicatesWithReplacementImage()).
+    if ((masterPlaceholderEnabled() || noSignalImageEnabled())
+        && m_subdivision->mode() != TextureSubdivision::Duplicate)
         return false;
     return m_subdivision->hasSubLayers();
 }
@@ -1378,6 +1398,7 @@ bool BaseLayer::updateMasterPlaceholder() {
         m_masterPlaceholder->update();
     if (gridMode() == GridMode::Plane)
         updatePlane();
+    updateDuplicatesWithReplacementImage();
 #endif
     clearLoadError();
     return true;
@@ -1405,6 +1426,8 @@ bool BaseLayer::updateNoSignalImage(bool noSignal, const std::string& file) {
     if (m_noSignalImage->ready())
         m_noSignalImage->updateFrame();
     m_noSignalImageEnabled = noSignal && m_noSignalImage->ready();
+    if (m_noSignalImageEnabled)
+        updateDuplicatesWithReplacementImage();
     return m_noSignalImageEnabled;
 }
 
@@ -1585,10 +1608,15 @@ void BaseLayer::setAlpha(float a) {
     renderData.alpha = a;
 
     // Propagate to stored cells even while the master renders a capture placeholder.
+    // Duplicates keep their own visibility, which the layer's scales.
+    const bool duplicates = textureDivisionMode() == TextureSubdivision::Duplicate;
     for (const auto& sublayer : getSubLayers()) {
-        if (sublayer) {
+        if (!sublayer)
+            continue;
+        if (duplicates)
+            sublayer->setParentAlpha(a);
+        else
             sublayer->setAlpha(a);
-        }
     }
 
     // Is handled always right now anyway.
@@ -1629,6 +1657,9 @@ bool BaseLayer::flipY() const {
 }
 
 bool BaseLayer::renderFlipY() const {
+    const int replacementFlip = m_replacementImageFlip;
+    if (replacementFlip >= 0)
+        return replacementFlip == 1;
     if (masterPlaceholderEnabled())
         return false;
     if (noSignalImageEnabled())
@@ -1664,7 +1695,26 @@ uint8_t BaseLayer::stereoMode() const {
 }
 
 uint8_t BaseLayer::renderStereoMode() const {
-    return masterPlaceholderEnabled() || noSignalImageEnabled() ? static_cast<uint8_t>(No_2D) : stereoMode();
+    return masterPlaceholderEnabled() || noSignalImageEnabled() || m_replacementImageFlip >= 0
+        ? static_cast<uint8_t>(No_2D) : stereoMode();
+}
+
+void BaseLayer::setReplacementImage(bool active, bool flipY) {
+    m_replacementImageFlip = active ? (flipY ? 1 : 0) : -1;
+}
+
+float BaseLayer::parentAlpha() const {
+    return m_parentAlpha;
+}
+
+void BaseLayer::setParentAlpha(float a) {
+    m_parentAlpha = std::clamp(a, 0.f, 1.f);
+}
+
+void BaseLayer::updateDuplicatesWithReplacementImage() {
+    if (textureDivisionMode() != TextureSubdivision::Duplicate)
+        return;
+    m_subdivision->updateSubLayers(textureId(), width(), height(), renderFlipY());
 }
 
 void BaseLayer::setStereoMode(uint8_t s) {
@@ -1988,7 +2038,8 @@ void BaseLayer::endPoseEdit() {
 }
 
 float BaseLayer::renderAlpha() const {
-    return m_animActive ? renderData.alpha * m_animState.alphaMul : renderData.alpha;
+    const float alpha = renderData.alpha * m_parentAlpha;
+    return m_animActive ? alpha * m_animState.alphaMul : alpha;
 }
 
 glm::vec3 BaseLayer::renderRotate() const {

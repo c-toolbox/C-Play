@@ -20,8 +20,9 @@
     view: LayerViewState;
     layers: LayerInfo[];
     selected: number | null;
-    onselect: (row: number) => void;
-    onmove: (row: number, values: LayerValues) => void;
+    /** By layer key (see layerKey). */
+    onselect: (key: number) => void;
+    onmove: (key: number, values: LayerValues) => void;
     /** Resizes the selected layer by factor (wheel). */
     onresize: (factor: number) => void;
   }
@@ -99,10 +100,10 @@
     store('axis-locks', locks);
   }
 
-  // Layer outlines by row, to find whether a press is within the selected layer.
+  // Layer outlines by key, to find whether a press is within the selected layer.
   const paths: Record<number, SVGPathElement | null> = {};
 
-  let drag: { row: number; pointer: number; start: Point; from: Point; last: Point; u: number } | null = null;
+  let drag: { key: number; pointer: number; start: Point; from: Point; last: Point; u: number } | null = null;
 
   function canvasPoint(event: PointerEvent | WheelEvent): Point | null {
     const matrix = svg?.getScreenCTM();
@@ -137,16 +138,16 @@
     event.preventDefault();
     const point = canvasPoint(event);
     // Within the selected layer, it is the one moved, also where another layer is in front of it.
-    const current = selected === null ? undefined : planes.find((plane) => plane.layer.row === selected)?.layer;
-    const layer = point && current && paths[current.row]?.isPointInFill(new DOMPoint(...point)) ? current : pressed;
-    onselect(layer.row);
+    const current = selected === null ? undefined : planes.find((plane) => plane.layer.key === selected)?.layer;
+    const layer = point && current && paths[current.key]?.isPointInFill(new DOMPoint(...point)) ? current : pressed;
+    onselect(layer.key);
     if (event.pointerType === 'touch') {
       touches.clear();
       touches.set(event.pointerId, [event.clientX, event.clientY]);
     }
     if (!point || layer.locked) return;
     const from = valuesAt(kind, point, view);
-    drag = { row: layer.row, pointer: event.pointerId, start: dragValues(kind, layer.plane, view.circular), from, last: from, u: from[0] };
+    drag = { key: layer.key, pointer: event.pointerId, start: dragValues(kind, layer.plane, view.circular), from, last: from, u: from[0] };
     svg?.setPointerCapture(event.pointerId);
   }
 
@@ -162,7 +163,7 @@
     }
     if (!drag || event.pointerId !== drag.pointer) return;
     const point = canvasPoint(event);
-    const layer = layers.find((l) => l.row === drag?.row);
+    const layer = layers.find((l) => l.key === drag?.key);
     if (!point || !layer) return;
     const at = valuesAt(kind, point, view);
     // Angles that go around follow the pointer past +-180 instead of jumping back.
@@ -172,7 +173,7 @@
       axisLocked[0] ? drag.start[0] : drag.start[0] + drag.u - drag.from[0],
       axisLocked[1] ? drag.start[1] : drag.start[1] + at[1] - drag.from[1],
     ];
-    onmove(drag.row, positionValues(kind, target, layer.plane, view));
+    onmove(drag.key, positionValues(kind, target, layer.plane, view));
   }
 
   function endDrag(event: PointerEvent) {
@@ -186,7 +187,7 @@
     const element = svg;
     if (!element) return;
     const onwheel = (event: WheelEvent) => {
-      if (selected === null || !layers.some((l) => l.row === selected && l.gridMode === 1 && !l.locked)) return;
+      if (selected === null || !layers.some((l) => l.key === selected && l.gridMode === 1 && !l.locked)) return;
       event.preventDefault();
       onresize(Math.exp(-event.deltaY * (event.deltaMode === 1 ? 0.05 : 0.0015)));
     };
@@ -270,10 +271,10 @@
     </g>
 
     <g clip-path={kind === 'fisheye' ? 'url(#dome-clip)' : 'url(#map-clip)'}>
-      {#each planes as { layer, path } (layer.row)}
+      {#each planes as { layer, path } (layer.key)}
         <path
           class="layer"
-          class:selected={layer.row === selected}
+          class:selected={layer.key === selected}
           class:hidden={layer.visibility <= 0}
           class:locked={layer.locked}
           fill-rule="evenodd"
@@ -281,13 +282,13 @@
           role="button"
           tabindex="-1"
           aria-label={layer.title}
-          bind:this={paths[layer.row]}
+          bind:this={paths[layer.key]}
           onpointerdown={(event) => startDrag(event, layer)}
         />
       {/each}
-      {#each planes as { layer, centre } (layer.row)}
+      {#each planes as { layer, centre } (layer.key)}
         {#if onCanvas(centre)}
-          <text class="name" class:selected={layer.row === selected} x={centre[0]} y={centre[1]} font-size={unit * 2.6} stroke-width={unit * 0.6} style:text-anchor={anchorAt(centre[0])}>{layer.title}</text>
+          <text class="name" class:selected={layer.key === selected} x={centre[0]} y={centre[1]} font-size={unit * 2.6} stroke-width={unit * 0.6} style:text-anchor={anchorAt(centre[0])}>{layer.title}</text>
         {/if}
       {/each}
     </g>

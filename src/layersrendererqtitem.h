@@ -450,13 +450,14 @@ public:
     int selectedPlaneLayerIndex() const;
 
     // Moving of 3D-grid layers in the view. The selected layer comes from the Layers panel
-    // (setPlaneSelectionByIndex); no hit testing is done in the 3D view.
+    // (setPlaneSelectionByIndex); no hit testing is done in the 3D view. subLayer > 0 selects
+    // that sublayer (1-based, e.g. a duplicate) of the row instead of the row's own layer.
     // Ctrl/Alt/Shift+drag all manipulate the selected layer with an operation chosen per
     // modifier combo in the Presentation settings: flat layers (GridMode::Plane) support
     // aiming, horizontal/vertical moving, resizing and distance moving; spheres rotate with
     // the pointer delta since press (X -> yaw, Y -> pitch), domes in yaw only (X).
     // Coordinates are logical pixels in this item's space, origin top-left, y pointing down.
-    Q_INVOKABLE void setPlaneSelectionByIndex(int index);    // sync selection from the Layers panel; -1 clears (2D rows clear too)
+    Q_INVOKABLE void setPlaneSelectionByIndex(int index, int subLayer = 0);    // sync selection from the Layers panel; -1 clears (2D rows clear too)
     Q_INVOKABLE bool beginLayerDrag(int action, float x, float y);   // start a modifier+drag layer operation (see kDrag* values in the .cpp); true if it can run from this point
     Q_INVOKABLE bool dragPlaneTo(float x, float y);          // continue an active layer drag; returns true when parameters changed
     Q_INVOKABLE void endPlaneDrag();                         // finish an active layer drag
@@ -531,7 +532,7 @@ private:
     QVariantMap projectDomePoint(const QVector3D& point) const;
     cplay::circular::Mapping circularScreenMapping() const;
     double circularScreenDistanceCm() const;
-    void setSelectedPlaneLayer(std::shared_ptr<BaseLayer> layer, int index);
+    void setSelectedPlaneLayer(std::shared_ptr<BaseLayer> layer, int index, std::shared_ptr<BaseLayer> owner = nullptr);
     // True when the selected layer still exists in the current slide; clears a stale selection
     // (slide switched or layer removed) so the next drag starts clean. Caller holds the lock.
     bool selectedLayerStillValidLocked();
@@ -547,6 +548,8 @@ private:
 
     // 3D-grid layer selection and drag state (GUI thread only).
     std::shared_ptr<BaseLayer> m_selectedPlaneLayer;
+    // The row's layer owning m_selectedPlaneLayer when a sublayer is selected, otherwise null.
+    std::shared_ptr<BaseLayer> m_selectedPlaneOwner;
     std::weak_ptr<BaseLayer> m_poseEditLayer;
     int m_selectedPlaneIndex = -1;
     bool m_planeDragActive = false;

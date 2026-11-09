@@ -83,14 +83,16 @@
     if (next) pickSlide(next.index);
   }
 
-  const layerAt = (row: number) => layers.find((layer) => layer.row === row);
+  // Layers and duplicates by their key (see layerKey), which the components use.
+  const layerAt = (key: number) => layers.find((layer) => layer.key === key);
 
-  function selectRow(row: number) {
-    selectedId = layerAt(row)?.id ?? null;
+  function selectLayer(key: number) {
+    selectedId = layerAt(key)?.id ?? null;
   }
 
-  function change(row: number, values: LayerValues) {
-    if (slide) edits.set(slide.index, row, values);
+  function change(key: number, values: LayerValues) {
+    const layer = layerAt(key);
+    if (slide && layer) edits.set(slide.index, layer.row, layer.sub, values);
   }
 
   /** Resizes the selected layer, keeping its aspect ratio; sizes that follow the media are left. */
@@ -104,7 +106,7 @@
       else values.width = Math.max(1, Math.round(p.width * factor));
     }
     if (p.aspectRatio !== 2) values.height = Math.max(1, Math.round(p.height * factor));
-    change(layer.row, values);
+    change(layer.key, values);
   }
 
   /** Moves the selected layer by steps: degrees on the dome and sphere, cm on flat and circular heights. */
@@ -116,12 +118,12 @@
     const [u, v] = dragValues(kind, layer.plane, s.circular);
     const stepU = kind === 'flat' ? 10 : 1;
     const stepV = kind === 'flat' || kind === 'circular' ? 10 : 1;
-    change(layer.row, positionValues(kind, [u + dx * stepU * scale, v + dy * stepV * scale], layer.plane, s));
+    change(layer.key, positionValues(kind, [u + dx * stepU * scale, v + dy * stepV * scale], layer.plane, s));
   }
 
-  function setVisible(row: number, on: boolean) {
-    const layer = layerAt(row);
-    if (slide && layer) void run(() => api.fade(slide.index, row, on), on ? `Could not fade ${layer.title} in` : `Could not fade ${layer.title} out`);
+  function setVisible(key: number, on: boolean) {
+    const layer = layerAt(key);
+    if (slide && layer) void run(() => api.fade(slide.index, layer.row, layer.sub, on), on ? `Could not fade ${layer.title} in` : `Could not fade ${layer.title} out`);
   }
 
   async function save() {
@@ -208,7 +210,7 @@
         {#if s.canvas === 'circular' && !s.circular.enabled}
           <p class="notice">Circular surface mapping is off in the C-Play Grid settings: layers are placed by their horizontal position, and C-Play renders them flat.</p>
         {/if}
-        <LayerCanvas view={s} {layers} selected={selectedLayer?.row ?? null} onselect={selectRow} onmove={change} onresize={resize} />
+        <LayerCanvas view={s} {layers} selected={selectedLayer?.key ?? null} onselect={selectLayer} onmove={change} onresize={resize} />
       </div>
 
       <div class="side-col">
@@ -216,16 +218,16 @@
           layer={selectedLayer}
           circular={s.circular}
           disabled={!live.connected}
-          onchange={(values) => selectedLayer && change(selectedLayer.row, values)}
+          onchange={(values) => selectedLayer && change(selectedLayer.key, values)}
           onresize={resize}
           onnudge={(dx, dy) => nudge(dx, dy)}
         />
         <LayerList
           {layers}
-          selected={selectedLayer?.row ?? null}
+          selected={selectedLayer?.key ?? null}
           disabled={!live.connected}
-          onselect={selectRow}
-          onvolume={(row, volume) => change(row, { volume })}
+          onselect={selectLayer}
+          onvolume={(key, volume) => change(key, { volume })}
           onvisible={setVisible}
         />
       </div>

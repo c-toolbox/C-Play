@@ -13,6 +13,7 @@
 #include "presentationsettings.h"
 #include "slidesmodel.h"
 #include "subtitlesettings.h"
+#include "utils/texturesubdivision.h"
 #ifdef NDI_SUPPORT
 #include <ndi/ndilayer.h>
 #endif
@@ -316,6 +317,14 @@ QVariant LayersModel::data(const QModelIndex &index, int role) const {
     }
     case VisibilityMaximumRole:
         return QVariant(layerItem->visibilityMaximum());
+    case DuplicateVisibilitiesRole: {
+        QVariantList visibilities;
+        if (layerItem->textureDivisionMode() == TextureSubdivision::Duplicate) {
+            for (const auto &sub : layerItem->getSubLayers())
+                visibilities.append(sub ? qRound(layerItem->alpha() * sub->alpha() * 100.f) : 0);
+        }
+        return visibilities;
+    }
     case NdiOutputRole:
         // The upload icon also covers node streaming over NDI: the layer is then
         // published as an NDI source on the master too.
@@ -348,6 +357,7 @@ QHash<int, QByteArray> LayersModel::roleNames() const {
     roles[StatusRole] = "status";
     roles[VisibilityRole] = "visibility";
     roles[VisibilityMaximumRole] = "visibilityMaximum";
+    roles[DuplicateVisibilitiesRole] = "duplicateVisibilities";
     roles[NdiOutputRole] = "ndiOutput";
     roles[ExistOnMasterOnlyRole] = "existOnMasterOnly";
     roles[NodeStreamOutputRole] = "nodeStreamOutput";
@@ -1991,6 +2001,11 @@ int LayersModel::decodeLayerFromJSON(const QJsonObject &o, const QStringList &fo
                 m_layers[idx].first->setQRCodeDetectionEnabled(qrEnabled);
             }
 
+            // Before the mode, which creates the duplicates right away.
+            if (o.contains(QStringLiteral("textureDuplicateCount"))) {
+                m_layers[idx].first->setTextureDuplicateCount(o.value(QStringLiteral("textureDuplicateCount")).toInt());
+            }
+
             if (o.contains(QStringLiteral("textureDivisionMode"))) {
                 int divMode = o.value(QStringLiteral("textureDivisionMode")).toInt();
                 m_layers[idx].first->setTextureDivisionMode(divMode);
@@ -2006,14 +2021,16 @@ int LayersModel::decodeLayerFromJSON(const QJsonObject &o, const QStringList &fo
                 m_layers[idx].first->setTextureDivisionMerge(
                     o.value(QStringLiteral("textureDivisionMergeColumns")).toInt(),
                     o.value(QStringLiteral("textureDivisionMergeRows")).toInt());
-            } else if (o.contains(QStringLiteral("divisionSubLayers"))) {
+            } else if (o.contains(QStringLiteral("divisionSubLayers")) && m_layers[idx].first->textureDivisionMode() == 2) {
                 m_layers[idx].first->setTextureDivisionMerge(0, 0);
             }
             // Merged cells take their grid parameters from this layer.
-            const bool divisionMerged = m_layers[idx].first->textureDivisionMergeColumns() > 0;
+            const bool divisionMerged = m_layers[idx].first->textureDivisionMode() == 2
+                && m_layers[idx].first->textureDivisionMergeColumns() > 0;
 
-            // Restore sublayer properties for division mode
-            if (o.contains(QStringLiteral("divisionSubLayers")) && m_layers[idx].first->textureDivisionMode() == 2) {
+            // Restore sublayer properties for division and duplicate mode
+            const int divisionMode = m_layers[idx].first->textureDivisionMode();
+            if (o.contains(QStringLiteral("divisionSubLayers")) && (divisionMode == 2 || divisionMode == 3)) {
                 if (!m_layers[idx].first->getSubLayers().empty()) {
                     QJsonArray subArray = o.value(QStringLiteral("divisionSubLayers")).toArray();
                     auto& subs = m_layers[idx].first->getSubLayers();
@@ -2500,8 +2517,11 @@ QJsonObject LayersModel::encodeLayerToJSON(const std::shared_ptr<BaseLayer> &lay
             layerData.insert(QStringLiteral("textureDivisionMergeColumns"), QJsonValue(layer->textureDivisionMergeColumns()));
             layerData.insert(QStringLiteral("textureDivisionMergeRows"), QJsonValue(layer->textureDivisionMergeRows()));
         }
+        if (layer->textureDivisionMode() == 3) {
+            layerData.insert(QStringLiteral("textureDuplicateCount"), QJsonValue(layer->textureDuplicateCount()));
+        }
         // Not hasSubLayers(): that is false while a placeholder or no-signal image shows.
-        if (layer->textureDivisionMode() == 2 && !layer->getSubLayers().empty()) {
+        if ((layer->textureDivisionMode() == 2 || layer->textureDivisionMode() == 3) && !layer->getSubLayers().empty()) {
             QJsonArray subLayersArray;
             auto& subs = layer->getSubLayers();
             for (int si = 0; si < static_cast<int>(subs.size()); ++si) {
@@ -4769,6 +4789,31 @@ bool LayersModel::fadeLayer(const BaseLayer *layer, bool show, int subLayerIdx) 
     if (subLayerIdx < 0 && playLayerAnimation(row, show))
         return true;
 
+    // A duplicate shows with the layer's visibility times its own.
+    if (subLayerIdx >= 0 && layer->textureDivisionMode() == TextureSubdivision::Duplicate) {
+        const auto &duplicates = layer->getSubLayers();
+        if (subLayerIdx >= static_cast<int>(duplicates.size()) || !duplicates[subLayerIdx])
+            return false;
+        BaseLayer *duplicate = duplicates[subLayerIdx].get();
+        bool othersShown = false;
+        for (int i = 0; i < static_cast<int>(duplicates.size()); ++i)
+            othersShown = othersShown || (i != subLayerIdx && duplicates[i] && duplicates[i]->alpha() > 0.f);
+        if (show && layer->alpha() <= 0.f) {
+            // Showing a duplicate of a hidden layer shows the layer with only that duplicate.
+            m_layerFades.removeIf([layer](const LayerFade &f) { return f.layer == layer && f.subLayerIdx >= 0; });
+            for (int i = 0; i < static_cast<int>(duplicates.size()); ++i) {
+                if (duplicates[i])
+                    duplicates[i]->setAlpha(i == subLayerIdx ? duplicates[i]->maximumAlpha() : 0.f);
+            }
+            return fadeLayer(layer, true);
+        }
+        if (!show && layer->alpha() > 0.f && duplicate->alpha() > 0.f && !othersShown) {
+            // Hiding the only duplicate shown hides the layer, which stops it. The duplicate
+            // keeps its visibility, so showing the layer shows it again.
+            return fadeLayer(layer, false);
+        }
+    }
+
     LayerFade fade;
     fade.layer = layer;
     fade.subLayerIdx = subLayerIdx;
@@ -4794,6 +4839,13 @@ bool LayersModel::fadeLayer(const BaseLayer *layer, bool show, int subLayerIdx) 
     advanceLayerFades();
     ensureTimerRunning();
     return true;
+}
+
+bool LayersModel::fadeDuplicate(int row, int sub, bool show) {
+    const BaseLayer *layer = rowLayer(row);
+    if (!layer || layer->textureDivisionMode() != TextureSubdivision::Duplicate || sub < 1)
+        return false;
+    return fadeLayer(layer, show, sub - 1);
 }
 
 static bool layerHasVisibility(const BaseLayer *layer) {

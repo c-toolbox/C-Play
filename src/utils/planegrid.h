@@ -27,6 +27,8 @@ public:
     void draw();
 
 private:
+    void setupVertexState() const;
+
     unsigned int _vao = 0;
     unsigned int _vbo = 0;
     unsigned int _ibo = 0;

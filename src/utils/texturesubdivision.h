@@ -23,8 +23,9 @@ struct QRCommand;
 
 // Layer operations for layers that receive a live texture (NDI, OMT, Stream, DirectShow,
 // Capture, Spout, WebRTC): ImPres mode (QR control frames driving TextureLayer sublayers,
-// see QROperationHandler) or division mode (the texture split into a grid of sublayers,
-// see DivideTextureHandler).
+// see QROperationHandler), division mode (the texture split into a grid of sublayers,
+// see DivideTextureHandler) or duplicate mode (sublayers showing the complete texture, each
+// with its own grid parameters).
 //
 // A layer enables it through BaseLayer::enableTextureSubdivision(); BaseLayer's division/QR
 // virtuals then delegate here. Per frame the layer either scans the CPU pixels before upload
@@ -33,7 +34,7 @@ struct QRCommand;
 // encode/decodeAlways() and encode/decodeProperties().
 class TextureSubdivision {
 public:
-    enum Mode { None = 0, ImPres = 1, Division = 2 };
+    enum Mode { None = 0, ImPres = 1, Division = 2, Duplicate = 3 };
 
     explicit TextureSubdivision(BaseLayer* owner);
     ~TextureSubdivision();
@@ -48,6 +49,10 @@ public:
     int grid() const;
     void setGrid(int grid);
     static void gridToColsRows(int grid, int& cols, int& rows);
+
+    // Number of sublayers in duplicate mode, [2..DivideTextureHandler::kMaxDuplicates].
+    int duplicateCount() const;
+    bool setDuplicateCount(int count);
 
     // Merge layout of the division cells, see BaseLayer::setTextureDivisionMerge().
     // 0x0 = custom. A grid change resets a layout that no longer fits to the grid itself.
@@ -82,6 +87,9 @@ public:
 
     // Called with the texture the layer shows: feeds the active QR plane or the division cells.
     void updateSubLayers(unsigned int texId, int width, int height);
+    // Duplicate mode: shows a placeholder or no-signal image texture on the duplicates,
+    // rendered in 2D with the given flip (see BaseLayer::setReplacementImage()).
+    void updateSubLayers(unsigned int texId, int width, int height, bool replacementFlipY);
 
     // Releases the OpenGL resources. Requires a current context.
     void releaseGL();
@@ -97,6 +105,9 @@ public:
 private:
     void applyDecoded();
     void applyDivision();
+    void applyDuplicates();
+    // Division and duplicate mode both keep their sublayers in m_divideTexHandler.
+    bool usesDivideHandler() const;
     void onQRCommand(const QRCommand& command);
     void copyToBackup(unsigned int texId, int width, int height);
 
@@ -109,6 +120,7 @@ private:
     // Starts as the 1x1 grid itself, so a new division is merged like the source.
     int m_mergeCols = 1;
     int m_mergeRows = 1;
+    int m_duplicateCount = 2;
 
     // QR detection is applied on the render thread (it may release sublayers).
     bool m_qrEnabledDecoded = false;

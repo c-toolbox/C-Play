@@ -32,6 +32,7 @@ Layers that receive a live video feed (NDI, OMT, Stream, DirectShow, Capture, Sp
 | **None** | No subdivision — the layer displays normally. | All layers |
 | **ImPres Mode (QR)** | QR code-driven sublayer control (see below). | NDI, OMT, Stream, DirectShow, Capture, Spout, WebRTC |
 | **Division Mode** | Static grid-based texture division (see below). | NDI, OMT, Stream, DirectShow, Capture, Spout, WebRTC |
+| **Duplicate Mode** | Several copies of the complete texture, each placed on its own (see below). | NDI, OMT, Stream, DirectShow, Capture, Spout, WebRTC |
 
 When a sublayer mode is active, the Inspect view shows a **Sub-Layer** selector and highlights the selected sublayer's region in yellow on the preview.
 
@@ -72,6 +73,26 @@ The *Original* layer sets the position, orientation, distance and size of the wh
 On a circular plane, the cells are placed by centre angle. With a plane roll they are not rotated around the layout centre.
 
 Choose **Custom** to give each sublayer **independent** grid mode, plane parameters, rotation and translation, all editable in the grid parameters panel. Presentations saved before merge layouts existed open as *Custom*.
+
+---
+
+### Duplicate Mode
+
+Duplicate Mode shows the layer's live video texture several times, for example to show the same feed in different directions of the dome. When it is selected, a **Copies** combo box sets the number of duplicates (2 to 9).
+
+Each duplicate points to the *Original* layer's texture (no copy), so the feed is received and decoded only once. Otherwise the duplicates act as separate layers: each one has its own grid mode, plane parameters, rotation, translation and visibility, edited in the grid parameters panel. A new duplicate starts with the *Original* layer's parameters, so all duplicates start on top of each other until you move them. If the *Original* layer has a region of interest, the duplicates show that region.
+
+Only the duplicates are rendered, so only they can be selected. In the layer list, the row of a layer in Duplicate Mode shows a button and a fade control for each duplicate. Click a duplicate's button (or use the **Sub-Layer** selector in the Inspect view) to select it; selecting the layer selects its first duplicate. Ctrl/Alt/Shift+drag in the master view then moves the selected duplicate, and the grid parameters panel edits it.
+
+The duplicates' fade controls replace the layer's own: the row's fade control and the layer visibility slider in the Inspect view are hidden, and double-clicking the row does not fade it (double-clicking a duplicate's button toggles that duplicate). A duplicate shows with the layer's visibility times its own:
+
+- Slide changes and the layer's entrance/exit effects still fade all of its duplicates together, and each duplicate keeps its own visibility.
+- Fading in a duplicate of a hidden layer shows the layer with only that duplicate.
+- Fading out the only duplicate shown hides the layer, which stops the feed like hiding any layer. That duplicate shows again when the layer is faded in.
+
+In the web layer view (`/layerview/`), each duplicate is listed and drawn as a layer of its own, named after the layer with the duplicate number (for example *Camera - 2*), so you can drag, resize and fade the duplicates separately, with the same fade rules as the layer list. The volume control is on the first duplicate and sets the layer's volume.
+
+Changing the number of copies recreates the duplicates from the *Original* layer's parameters.
 
 ---
 

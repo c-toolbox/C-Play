@@ -65,22 +65,11 @@ PlaneGrid::PlaneGrid(float width, float height, unsigned int steps) {
     glGenVertexArrays(1, &_vao);
     glBindVertexArray(_vao);
 
+    static_assert(sizeof(VertexData) == 32, "PlaneGrid vertex layout must match setupVertexState");
+
     glGenBuffers(1, &_vbo);
     glBindBuffer(GL_ARRAY_BUFFER, _vbo);
-    const GLsizei size = sizeof(VertexData);
-    glBufferData(GL_ARRAY_BUFFER, verts.size() * size, verts.data(), GL_STATIC_DRAW);
-
-    // texcoords
-    glEnableVertexAttribArray(0);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, size, nullptr);
-
-    // normals
-    glEnableVertexAttribArray(1);
-    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, size, reinterpret_cast<void*>(8));
-
-    // vert positions
-    glEnableVertexAttribArray(2);
-    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, size, reinterpret_cast<void*>(20));
+    glBufferData(GL_ARRAY_BUFFER, verts.size() * sizeof(VertexData), verts.data(), GL_STATIC_DRAW);
 
     glGenBuffers(1, &_ibo);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _ibo);
@@ -90,7 +79,29 @@ PlaneGrid::PlaneGrid(float width, float height, unsigned int steps) {
         indices.data(),
         GL_STATIC_DRAW);
 
+    setupVertexState();
+
     glBindVertexArray(0);
+}
+
+// Binds the (context-shared) buffers and attribute layout into the currently bound VAO.
+void PlaneGrid::setupVertexState() const {
+    constexpr GLsizei stride = 32;
+    glBindBuffer(GL_ARRAY_BUFFER, _vbo);
+
+    // texcoords
+    glEnableVertexAttribArray(0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, stride, nullptr);
+
+    // normals
+    glEnableVertexAttribArray(1);
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(8));
+
+    // vert positions
+    glEnableVertexAttribArray(2);
+    glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, stride, reinterpret_cast<void*>(20));
+
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, _ibo);
 }
 
 PlaneGrid::~PlaneGrid() {
@@ -100,7 +111,23 @@ PlaneGrid::~PlaneGrid() {
 }
 
 void PlaneGrid::draw() {
+    // VAOs are not shared between GL contexts. The mesh may have been built in another
+    // context than the one drawing it (e.g. a sublayer plane drawn by the Qt renderer),
+    // in which case _vao names a different (or no) object here without our index buffer.
     glBindVertexArray(_vao);
+    GLint boundIbo = 0;
+    glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &boundIbo);
+    if (static_cast<GLuint>(boundIbo) == _ibo && _ibo != 0) {
+        glDrawElements(GL_TRIANGLES, _indexCount, GL_UNSIGNED_INT, nullptr);
+        glBindVertexArray(0);
+        return;
+    }
+
+    GLuint tmpVao = 0;
+    glGenVertexArrays(1, &tmpVao);
+    glBindVertexArray(tmpVao);
+    setupVertexState();
     glDrawElements(GL_TRIANGLES, _indexCount, GL_UNSIGNED_INT, nullptr);
     glBindVertexArray(0);
+    glDeleteVertexArrays(1, &tmpVao);
 }

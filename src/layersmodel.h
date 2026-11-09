@@ -135,7 +135,9 @@ public:
         IsReferenceRole,
         ReferenceSourceRole,
         HierarchyRole,
-        VisibilityMaximumRole
+        VisibilityMaximumRole,
+        // Duplicate mode: the visibility each duplicate shows with (the layer's times its own).
+        DuplicateVisibilitiesRole
     };
 
     int rowCount(const QModelIndex &parent = QModelIndex()) const override;
@@ -494,7 +496,11 @@ public:
     // entrance or exit effects when it has them, otherwise fades its opacity over the fade
     // duration. subLayerIdx >= 0 fades that sublayer's opacity instead. Returns false when
     // the layer is not in this slide.
+    // A duplicate (duplicate mode) shows as a layer of its own: showing one of a hidden layer
+    // shows the layer with only that duplicate, and hiding the only one shown hides the layer.
     bool fadeLayer(const BaseLayer *layer, bool show, int subLayerIdx = -1);
+    // fadeLayer() for duplicate sub (1-based) of the layer in row.
+    Q_INVOKABLE bool fadeDuplicate(int row, int sub, bool show);
     // fadeLayer() for each of the rows that has a visibility. Returns true when any fade started.
     Q_INVOKABLE bool fadeLayers(const QList<int> &rows, bool show);
     // True when any of the rows with a visibility can be faded in (show) or out.

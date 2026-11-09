@@ -25,12 +25,13 @@ bool DivideTextureHandler::setDivision(int cols, int rows, BaseLayer* parent) {
         return false;
     }
 
-    if (cols == m_cols && rows == m_rows && !m_subLayers.empty()) {
+    if (cols == m_cols && rows == m_rows && !m_duplicate && !m_subLayers.empty()) {
         return true; // No change needed
     }
 
     m_cols = cols;
     m_rows = rows;
+    m_duplicate = false;
     m_subLayers.clear();
 
     if(m_cols + m_rows > 2) {
@@ -41,6 +42,30 @@ bool DivideTextureHandler::setDivision(int cols, int rows, BaseLayer* parent) {
     sgct::Log::Info(std::format("DivideTextureHandler::setDivision: Set to {}x{} ({} cells)",
         m_cols, m_rows, cellCount()));
     return true;
+}
+
+bool DivideTextureHandler::setDuplicates(int count, BaseLayer* parent) {
+    if (count < 2 || count > kMaxDuplicates) {
+        sgct::Log::Error(std::format("DivideTextureHandler::setDuplicates: Invalid count {}", count));
+        return false;
+    }
+
+    if (m_duplicate && count == m_cols && !m_subLayers.empty())
+        return true;
+
+    m_cols = count;
+    m_rows = 1;
+    m_duplicate = true;
+    m_subLayers.clear();
+    if (parent)
+        createSubLayers(parent);
+
+    sgct::Log::Info(std::format("DivideTextureHandler::setDuplicates: Set to {} duplicates", count));
+    return true;
+}
+
+bool DivideTextureHandler::isDuplicate() const {
+    return m_duplicate;
 }
 
 int DivideTextureHandler::columns() const {
@@ -101,7 +126,9 @@ void DivideTextureHandler::updateSubLayers(BaseLayer* parentLayer,
             // independently via the UI. Alpha is set on creation and can
             // be changed per-sublayer through the LayerViewGridParams.
 
-            if (parentLayer->gridMode() == BaseLayer::GridMode::Plane) {
+            // Duplicates choose their grid mode on their own.
+            const uint8_t gridMode = m_duplicate ? texSub->gridMode() : parentLayer->gridMode();
+            if (gridMode == BaseLayer::GridMode::Plane) {
                 texSub->updatePlane();
             }
         }
@@ -112,6 +139,7 @@ void DivideTextureHandler::clearAll() {
     m_subLayers.clear();
     m_cols = 1;
     m_rows = 1;
+    m_duplicate = false;
     sgct::Log::Info("DivideTextureHandler::clearAll: All sublayers removed, reset to 1x1");
 }
 
@@ -129,7 +157,9 @@ void DivideTextureHandler::createSubLayers(BaseLayer* parentLayer) {
     for (int row = 0; row < m_rows; ++row) {
         for (int col = 0; col < m_cols; ++col) {
             int index = row * m_cols + col;
-            std::string name = std::string("Div_") + std::to_string(col) + "_" + std::to_string(row);
+            std::string name = m_duplicate
+                ? std::to_string(index + 1)
+                : std::string("Div_") + std::to_string(col) + "_" + std::to_string(row);
 
             auto sub = std::make_shared<TextureLayer>(name);
             sub->initialize();
@@ -139,14 +169,27 @@ void DivideTextureHandler::createSubLayers(BaseLayer* parentLayer) {
             sub->setStereoMode(parentLayer->stereoMode());
             sub->setRotate(const_cast<glm::vec3&>(parentLayer->rotate()));
             sub->setTranslate(const_cast<glm::vec3&>(parentLayer->translate()));
-            sub->setAlpha(parentLayer->alpha());
+            if (m_duplicate) {
+                // A duplicate's own visibility, which the parent's scales.
+                sub->setAlpha(1.f);
+                sub->setParentAlpha(parentLayer->alpha());
+            } else {
+                sub->setAlpha(parentLayer->alpha());
+            }
             sub->setFlipY(parentLayer->flipY());
 
-            // Set ROI to select this cell's portion of the texture
-            applyRoiForCell(sub, col, row);
+            if (m_duplicate) {
+                // A duplicate shows what the parent shows, including its own ROI.
+                sub->setRoiEnabled(parentLayer->roiEnabled());
+                sub->setRoi(parentLayer->roi());
+            } else {
+                // Set ROI to select this cell's portion of the texture
+                applyRoiForCell(sub, col, row);
+            }
 
-            // Copy plane properties from parent if in Plane grid mode
-            if (parentLayer->gridMode() == BaseLayer::GridMode::Plane) {
+            // Copy plane properties from parent if in Plane grid mode. Duplicates always
+            // take them, so switching a duplicate to Plane starts where the parent is.
+            if (m_duplicate || parentLayer->gridMode() == BaseLayer::GridMode::Plane) {
                 sub->setPlaneAzimuth(parentLayer->planeAzimuth());
                 sub->setPlaneElevation(parentLayer->planeElevation());
                 sub->setPlaneRoll(parentLayer->planeRoll());

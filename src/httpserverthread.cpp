@@ -1679,10 +1679,13 @@ void HttpServerThread::setupMovieRoutes() {
 
 // The layer view (web/layer_mode) and the API it uses, through runOnThreadOf like the presenter view.
 void HttpServerThread::setupLayerViewRoutes() {
-    // The slide (-1 is the master) and row of the layer a request is about.
-    const auto layerOf = [this](const httplib::Request &req, int &slide, int &row) {
+    // The slide (-1 is the master), row and duplicate (optional "sub", 0 = the layer itself)
+    // of the layer a request is about.
+    const auto layerOf = [this](const httplib::Request &req, int &slide, int &row, int &sub) {
+        sub = 0;
         return req.has_param("slide") && stringToInt(req.get_param_value("slide"), slide)
-            && req.has_param("row") && stringToInt(req.get_param_value("row"), row);
+            && req.has_param("row") && stringToInt(req.get_param_value("row"), row)
+            && (!req.has_param("sub") || (stringToInt(req.get_param_value("sub"), sub) && sub >= 0));
     };
 
     svr.Get("/layerview_state", [this](const httplib::Request &, httplib::Response &res) {
@@ -1693,20 +1696,20 @@ void HttpServerThread::setupLayerViewRoutes() {
     // Sets plane values (azimuth, elevation, roll, distance, horizontal, vertical, width, height,
     // centreDegrees, widthDegrees) and/or the volume of a layer. Answers the layer as in the state.
     registerPost("/layerview_layer", [this, layerOf](const httplib::Request &req, httplib::Response &res) {
-        int slide = -2, row = -1;
-        if (!layerOf(req, slide, row)) {
+        int slide = -2, row = -1, sub = 0;
+        if (!layerOf(req, slide, row, sub)) {
             res.status = 400;
-            res.set_content("Invalid slide or row parameter", "text/plain");
+            res.set_content("Invalid slide, row or sub parameter", "text/plain");
             return;
         }
         QJsonObject values;
         for (const auto &[key, value] : req.params) {
-            if (key != "slide" && key != "row")
+            if (key != "slide" && key != "row" && key != "sub")
                 values.insert(QString::fromStdString(key), QString::fromStdString(value));
         }
         QPointer<LayerViewController> layerView(m_layerView);
-        const auto layer = runOnThreadOf<QJsonObject>(m_layerView, [layerView, slide, row, values]() {
-            return layerView ? layerView->setLayerValues(slide, row, values) : QJsonObject();
+        const auto layer = runOnThreadOf<QJsonObject>(m_layerView, [layerView, slide, row, sub, values]() {
+            return layerView ? layerView->setLayerValues(slide, row, sub, values) : QJsonObject();
         });
         if (layer && layer->contains(QStringLiteral("error"))) {
             res.status = 400;
@@ -1718,15 +1721,15 @@ void HttpServerThread::setupLayerViewRoutes() {
 
     // Fades a layer up (on=1) or down (on=0), as double-clicking it in C-Play does.
     registerPost("/layerview_fade", [this, layerOf](const httplib::Request &req, httplib::Response &res) {
-        int slide = -2, row = -1, on = -1;
-        if (!layerOf(req, slide, row) || !req.has_param("on") || !stringToInt(req.get_param_value("on"), on) || (on != 0 && on != 1)) {
+        int slide = -2, row = -1, sub = 0, on = -1;
+        if (!layerOf(req, slide, row, sub) || !req.has_param("on") || !stringToInt(req.get_param_value("on"), on) || (on != 0 && on != 1)) {
             res.status = 400;
-            res.set_content("Invalid slide, row or on parameter", "text/plain");
+            res.set_content("Invalid slide, row, sub or on parameter", "text/plain");
             return;
         }
         QPointer<LayerViewController> layerView(m_layerView);
-        const auto ok = runOnThreadOf<bool>(m_layerView, [layerView, slide, row, on]() {
-            return layerView && layerView->fadeLayer(slide, row, on == 1);
+        const auto ok = runOnThreadOf<bool>(m_layerView, [layerView, slide, row, sub, on]() {
+            return layerView && layerView->fadeLayer(slide, row, sub, on == 1);
         });
         if (ok && !*ok) res.status = 400;
         sendJson(res, ok ? std::optional<QJsonObject>(QJsonObject{{QStringLiteral("ok"), *ok}}) : std::nullopt);

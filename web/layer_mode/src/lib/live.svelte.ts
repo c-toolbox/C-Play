@@ -1,4 +1,4 @@
-import { api, type LayerViewState } from './api';
+import { api, withLayerKeys, type LayerViewState } from './api';
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -55,11 +55,11 @@ export class LiveLayers {
         if (response.type === 'snapshot') {
           const value = response.values.layerview;
           feedRunning = isState(value);
-          if (isState(value)) this.state = value;
+          if (isState(value)) this.state = withLayerKeys(value);
           else await this.refresh();
         }
         for (const event of response.events) {
-          if (event.topic === 'layerview' && isState(event.value)) this.state = event.value;
+          if (event.topic === 'layerview' && isState(event.value)) this.state = withLayerKeys(event.value);
         }
         since = response.sequence;
         // The feed answers at once without events when it stops (C-Play quits).

@@ -24,6 +24,9 @@ ItemDelegate {
     // Read by the master Front/Back buttons in Layers.qml through layersView.currentItem.
     readonly property int layerHierarchy: model.hierarchy
     readonly property bool layerIsReference: model.isReference
+    // For nested delegates, whose index is their own.
+    readonly property int layerRow: index
+    readonly property var duplicateVisibilities: model.duplicateVisibilities
 
     // Drag state for visual feedback
     property bool dragging: false
@@ -125,6 +128,7 @@ ItemDelegate {
     contentItem: Rectangle {
         color: "transparent"
         implicitHeight: 50 + (volumeControl.visible ? volumeControl.height + 4 : 0)
+                        + (duplicateSelector.visible ? duplicateSelector.height + 4 : 0)
         implicitWidth: root.width
 
         MouseArea {
@@ -273,7 +277,9 @@ ItemDelegate {
                 anchors.right: its.right
                 value: visibilitySlider.visible ? visibilitySlider.value : model.visibility
                 canFadeIn: value < model.visibilityMaximum
+                // Duplicates are faded one by one with the controls below the row instead.
                 visible: model.type !== "Control" && model.type !== "REST" && model.type !== "TCP"
+                         && root.duplicateVisibilities.length === 0
 
                 onFadeInRequested: root.fadeLayer(true)
                 onFadeOutRequested: root.fadeLayer(false)
@@ -309,7 +315,7 @@ ItemDelegate {
                     if (!syncingValue && layerView.layerItem.layerIdx === index && !layersView.enabled) {
                         if (visibilitySlider.visible && (value.toFixed(0) !== layerView.layerItem.layerVisibility)) {
                             // A layer with entrance/exit effects scrubs through them instead of fading.
-                            if (layerView.layerItem.layerSelectedSubLayer > 0
+                            if (layerView.layerItem.layerVisibilityOfSubLayer
                                     || !app.slides.selected.scrubLayerAnimation(index, Math.round(value)))
                                 layerView.layerItem.layerVisibility = value.toFixed(0);
                             app.slides.needsSync = true;
@@ -411,6 +417,83 @@ ItemDelegate {
                         samples: 17
                         spread: 0.3
                         verticalOffset: 1
+                    }
+                }
+            }
+        }
+
+        // Duplicates of a layer in duplicate mode, each with its own fade control, which replace
+        // the layer's (only the duplicates render). Their buttons pick which duplicate the layer
+        // view and the 3D view edit.
+        Flow {
+            id: duplicateSelector
+
+            readonly property bool active: root.duplicateVisibilities.length > 0 && !root.dragging
+            readonly property bool rowSelected: layersView.currentIndex === index
+                                                && layerView.layerItem.layerIdx === index
+
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.top: volumeControl.visible ? volumeControl.bottom : layerIC_MA.bottom
+            anchors.topMargin: volumeControl.visible ? 4 : 0
+            anchors.leftMargin: 14
+            anchors.rightMargin: 6
+            spacing: 4
+            visible: active
+
+            Repeater {
+                // A count, so the entries stay while the visibilities change during fades.
+                model: duplicateSelector.active ? root.duplicateVisibilities.length : 0
+
+                delegate: Row {
+                    id: duplicateEntry
+
+                    required property int index
+                    // The layer's visibility times the duplicate's own.
+                    readonly property int visibility: index < root.duplicateVisibilities.length
+                                                      ? root.duplicateVisibilities[index] : 0
+                    readonly property int sub: index + 1
+
+                    function fade(show) {
+                        if (app.slides.selected.fadeDuplicate(root.layerRow, sub, show))
+                            app.slides.needsSync = true;
+                    }
+                    function select() {
+                        if (!duplicateSelector.rowSelected) {
+                            layersView.currentIndex = root.layerRow;
+                            layerView.layerItem.layerIdx = root.layerRow;
+                        }
+                        layerView.layerItem.layerSelectedSubLayer = sub;
+                    }
+
+                    spacing: 2
+
+                    Button {
+                        highlighted: duplicateSelector.rowSelected
+                                     && layerView.layerItem.layerSelectedSubLayer === duplicateEntry.sub
+                        focusPolicy: Qt.NoFocus
+                        font.pointSize: 8
+                        implicitHeight: 20
+                        leftPadding: 6
+                        rightPadding: 6
+                        topPadding: 0
+                        bottomPadding: 0
+                        text: duplicateEntry.sub
+                        ToolTip.text: qsTr("Select duplicate %1 to move it in the 3D view or edit its grid parameters. It shows the Original's texture.").arg(duplicateEntry.sub)
+                        ToolTip.visible: hovered
+                        ToolTip.delay: 500
+
+                        onClicked: duplicateEntry.select()
+                        onDoubleClicked: duplicateEntry.fade(duplicateEntry.visibility <= 0)
+                    }
+                    VisibilityToggle {
+                        implicitHeight: 20
+                        implicitWidth: 64
+                        value: duplicateEntry.visibility
+
+                        onFadeInRequested: duplicateEntry.fade(true)
+                        onFadeOutRequested: duplicateEntry.fade(false)
+                        onToggleRequested: duplicateEntry.fade(duplicateEntry.visibility <= 0)
                     }
                 }
             }
@@ -707,7 +790,7 @@ ItemDelegate {
         layerView.layerItem.layerIdx = index;
         if (model.type === "Control" || model.type === "REST" || model.type === "TCP")
             layerView.layerItem.start();
-        else
+        else if (root.duplicateVisibilities.length === 0)
             fadeLayer(layerView.layerItem.layerVisibility < layerView.layerItem.layerVisibilityMaximum);
     }
 
@@ -729,7 +812,7 @@ ItemDelegate {
 
     // Plays the layer's entrance (show) or exit effects instead of fading it, when it has them.
     function playLayerAnimation(show) {
-        if (layerView.layerItem.layerSelectedSubLayer > 0)
+        if (layerView.layerItem.layerVisibilityOfSubLayer)
             return false;
         if (!app.slides.selected.playLayerAnimation(index, show))
             return false;

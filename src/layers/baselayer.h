@@ -276,13 +276,18 @@ public:
     virtual bool isQRCodeDetectionEnabled() const;
     virtual void setQRCodeDetectionEnabled(bool enabled);
 
-    // Texture division mode: 0=None, 1=ImPres(QR), 2=Division
+    // Texture division mode: 0=None, 1=ImPres(QR), 2=Division, 3=Duplicate
     virtual int textureDivisionMode() const;
     virtual void setTextureDivisionMode(int mode);
 
     // Texture division grid index: 0=1x1, 1=1x2, 2=2x1, 3=2x2, 4=2x3, 5=3x2, 6=3x3
     virtual int textureDivisionGrid() const;
     virtual void setTextureDivisionGrid(int grid);
+
+    // Duplicate mode: the number of sublayers showing the complete texture, each with its
+    // own grid parameters [2..9]. Returns false for a count out of range.
+    int textureDuplicateCount() const;
+    bool setTextureDuplicateCount(int count);
 
     // Division merge layout: the cells, in reading order, placed side by side on a
     // cols x rows grid around the layer's own plane (Plane grid mode). 0x0 = custom,
@@ -406,6 +411,15 @@ public:
     uint8_t stereoMode() const;
     uint8_t renderStereoMode() const;
     void setStereoMode(uint8_t s);
+
+    // A sublayer showing its parent's placeholder or no-signal image renders it the way the
+    // parent would: in 2D and with the image's own flip, instead of its own settings.
+    void setReplacementImage(bool active, bool flipY = false);
+
+    // A duplicate renders with its parent's visibility times its own, so the layer fades all
+    // of its duplicates while each one can also be faded on its own.
+    float parentAlpha() const;
+    void setParentAlpha(float a);
 
     uint8_t eyeMode() const;
     void setEyeMode(uint8_t e);
@@ -618,6 +632,12 @@ protected:
     std::atomic_bool m_noSignalImageEnabled{false};
     std::atomic_bool m_noSignal{false};
     std::atomic_bool m_useNoSignalImage{false};
+    // See setReplacementImage(): -1 = inactive, otherwise the flip to render with.
+    std::atomic<int> m_replacementImageFlip{-1};
+    // See setParentAlpha().
+    std::atomic<float> m_parentAlpha{1.f};
+    // Duplicate mode: shows the placeholder or no-signal image on every duplicate.
+    void updateDuplicatesWithReplacementImage();
 
     void setNeedSync();
     void encodeNodeStreamTypeAlways(std::vector<std::byte>& data) const;
