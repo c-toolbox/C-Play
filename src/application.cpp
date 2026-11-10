@@ -1344,6 +1344,12 @@ void Application::updateAboutOtherText(const QString &mpvVersion, const QString 
 #ifdef CAPTURE_DATAPATH
     otherText += QStringLiteral("Datapath RGBEasy for direct capture card input.\n");
 #endif
+#ifdef CAPTURE_BLACKMAGIC
+    otherText += QStringLiteral("Blackmagic DeckLink SDK for direct capture card input.\n");
+#endif
+#ifdef CAPTURE_BLACKMAGIC_GPUDIRECT
+    otherText += QStringLiteral("NVIDIA GPUDirect for Video (DVP) for GPU direct capture.\n");
+#endif
 #if defined(WUFFS_SUPPORT) && defined(SAIL_SUPPORT)
     otherText += QStringLiteral("Wuffs and Sail ") + QStringLiteral(SAIL_VERSION_STRING) + QStringLiteral(" for extended image format decoding.\n");
 #elif WUFFS_SUPPORT

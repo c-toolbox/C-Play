@@ -232,7 +232,10 @@ bool CaptureLayer::hasTexture() const {
 }
 
 unsigned int CaptureLayer::textureInternalFormat() const {
-    return masterPlaceholderEnabled() || noSignalImageEnabled() ? GL_RGBA8 : GL_RGB8;
+    if (masterPlaceholderEnabled() || noSignalImageEnabled())
+        return GL_RGBA8;
+    std::lock_guard<std::mutex> lock(m_backendMutex);
+    return m_backend ? m_backend->textureInternalFormat() : GL_RGB8;
 }
 
 void CaptureLayer::processPendingGLCleanup() {

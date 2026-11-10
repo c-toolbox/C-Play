@@ -23,10 +23,16 @@ public:
     bool upload(GLuint rgbaTexture, int width, int height,
                 const unsigned char* data, unsigned int stride, Format format = Format::UYVY,
                 Field field = Field::Progressive);
+    // Same conversion from raw planes already in a GL buffer (e.g. DMA'd by GPU direct transfer).
+    bool convert(GLuint rgbaTexture, int width, int height, GLuint buffer, size_t bufferBytes,
+                 unsigned int stride, Format format = Format::UYVY, Field field = Field::Progressive);
     GLuint pack(GLuint rgbaTexture, int width, int height, bool invertY);
     void cleanup();
 
 private:
+    static size_t inputBytes(int width, int height, unsigned int stride, Format format, Field field);
+    bool unpack(GLuint buffer, GLuint rgbaTexture, int width, int height,
+                unsigned int stride, Format format, Field field);
     bool allocate(int width, int height);
     void dispatch(GLuint program, GLuint input, GLuint output,
                   int width, int height, bool invertY);

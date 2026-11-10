@@ -235,45 +235,71 @@ GLuint NdiGpuConversion::pack(GLuint rgbaTexture, int width, int height, bool in
     return m_texture;
 }
 
-bool NdiGpuConversion::upload(GLuint rgbaTexture, int width, int height,
-                              const unsigned char* data, unsigned int stride, Format format, Field field) {
+size_t NdiGpuConversion::inputBytes(int width, int height, unsigned int stride, Format format, Field field) {
     const int type = static_cast<int>(format);
-    if (!rgbaTexture || !data || width <= 0 || height <= 0 || type < 0 || type > 10) return false;
-    if (field != Field::Progressive && field != Field::Upper && field != Field::Lower) return false;
+    if (width <= 0 || height <= 0 || type < 0 || type > 10) return 0;
+    if (field != Field::Progressive && field != Field::Upper && field != Field::Lower) return 0;
     const bool rgb = type >= static_cast<int>(Format::BGRA);
     const bool planar420 = format == Format::NV12 || format == Format::I420 || format == Format::YV12;
-    if ((!rgb && width%2) || (planar420 && height%2)) return false;
+    if ((!rgb && width%2) || (planar420 && height%2)) return 0;
     const unsigned int bytesPerPixel = rgb ? 4 : planar420 ? 1 : 2;
-    if (stride < static_cast<size_t>(width)*bytesPerPixel) return false;
-    if ((format == Format::UYVA || format == Format::I420 || format == Format::YV12) && stride%2) return false;
-    if (!initialize()) return false;
-    GLint limit = 0;
-    glGetIntegerv(GL_MAX_TEXTURE_SIZE, &limit);
-    const bool fielded = field != Field::Progressive;
-    if (width > limit || height > limit/(fielded ? 2 : 1)) return false;
-    const int outputHeight = height*(fielded ? 2 : 1);
+    if (stride < static_cast<size_t>(width)*bytesPerPixel) return 0;
+    if ((format == Format::UYVA || format == Format::I420 || format == Format::YV12) && stride%2) return 0;
     size_t bytes = static_cast<size_t>(stride)*height;
     if (format == Format::UYVA || planar420) bytes += bytes/2;
     else if (format == Format::P216) bytes *= 2;
     else if (format == Format::PA16) bytes *= 3;
+    return bytes;
+}
+
+bool NdiGpuConversion::upload(GLuint rgbaTexture, int width, int height,
+                              const unsigned char* data, unsigned int stride, Format format, Field field) {
+    const size_t bytes = inputBytes(width, height, stride, format, field);
+    if (!rgbaTexture || !data || !bytes || !initialize()) return false;
     const size_t bufferBytes = (bytes+3)&~size_t(3);
     GLint64 storageLimit = 0;
     glGetInteger64v(GL_MAX_SHADER_STORAGE_BLOCK_SIZE, &storageLimit);
     if (bufferBytes > static_cast<size_t>(storageLimit)) return false;
 
-    State state;
-    GLint binding = 0, indexedBinding = 0;
-    GLint64 start = 0, length = 0;
+    GLint binding = 0;
     glGetIntegerv(GL_SHADER_STORAGE_BUFFER_BINDING, &binding);
-    glGetIntegeri_v(GL_SHADER_STORAGE_BUFFER_BINDING, 0, &indexedBinding);
-    glGetInteger64i_v(GL_SHADER_STORAGE_BUFFER_START, 0, &start);
-    glGetInteger64i_v(GL_SHADER_STORAGE_BUFFER_SIZE, 0, &length);
     if (!m_uploadBuffer) glGenBuffers(1, &m_uploadBuffer);
     glBindBuffer(GL_SHADER_STORAGE_BUFFER, m_uploadBuffer);
     // Orphaning lets the driver retain the previous allocation until dispatch completes.
     glBufferData(GL_SHADER_STORAGE_BUFFER, bufferBytes, nullptr, GL_STREAM_DRAW);
     glBufferSubData(GL_SHADER_STORAGE_BUFFER, 0, bytes, data);
-    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, m_uploadBuffer);
+    glBindBuffer(GL_SHADER_STORAGE_BUFFER, binding);
+    return unpack(m_uploadBuffer, rgbaTexture, width, height, stride, format, field);
+}
+
+bool NdiGpuConversion::convert(GLuint rgbaTexture, int width, int height, GLuint buffer, size_t bufferBytes,
+                               unsigned int stride, Format format, Field field) {
+    const size_t bytes = inputBytes(width, height, stride, format, field);
+    if (!rgbaTexture || !buffer || !bytes || bytes > bufferBytes || !initialize()) return false;
+    GLint64 storageLimit = 0;
+    glGetInteger64v(GL_MAX_SHADER_STORAGE_BLOCK_SIZE, &storageLimit);
+    if (((bytes+3)&~size_t(3)) > static_cast<size_t>(storageLimit)) return false;
+    return unpack(buffer, rgbaTexture, width, height, stride, format, field);
+}
+
+bool NdiGpuConversion::unpack(GLuint buffer, GLuint rgbaTexture, int width, int height,
+                              unsigned int stride, Format format, Field field) {
+    GLint limit = 0;
+    glGetIntegerv(GL_MAX_TEXTURE_SIZE, &limit);
+    const bool fielded = field != Field::Progressive;
+    if (width > limit || height > limit/(fielded ? 2 : 1)) return false;
+    const int outputHeight = height*(fielded ? 2 : 1);
+    const int type = static_cast<int>(format);
+
+    State state;
+    GLint indexedBinding = 0;
+    GLint64 start = 0, length = 0;
+    glGetIntegeri_v(GL_SHADER_STORAGE_BUFFER_BINDING, 0, &indexedBinding);
+    glGetInteger64i_v(GL_SHADER_STORAGE_BUFFER_START, 0, &start);
+    glGetInteger64i_v(GL_SHADER_STORAGE_BUFFER_SIZE, 0, &length);
+    GLint binding = 0;
+    glGetIntegerv(GL_SHADER_STORAGE_BUFFER_BINDING, &binding);
+    glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, buffer);
     glUseProgram(m_unpackProgram);
     glUniform1i(glGetUniformLocation(m_unpackProgram, "receiveFormat"), type);
     glUniform1ui(glGetUniformLocation(m_unpackProgram, "stride"), stride);

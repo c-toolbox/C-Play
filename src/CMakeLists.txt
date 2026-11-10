@@ -8,7 +8,7 @@ set(CPLAY_VERSION_MAJOR 2)
 set(CPLAY_VERSION_MINOR 4)
 set(CPLAY_VERSION_PATCH 0)
 set(CPLAY_VERSION_PR_NAME "Beta")
-set(CPLAY_VERSION_PR_VERS 55)
+set(CPLAY_VERSION_PR_VERS 56)
 
 qt_add_executable(${TARGET_NAME})
 set_compile_options(${TARGET_NAME})
@@ -249,6 +249,14 @@ if(BUILD_CPLAY_WITH_CAPTURE)
     if(BUILD_CPLAY_WITH_CAPTURE_DATAPATH)
         list(APPEND SOURCE_FILES capture/datapathcapture.cpp)
         list(APPEND SOURCE_FILES capture/datapathcapture.h)
+    endif()
+    if(BUILD_CPLAY_WITH_CAPTURE_BLACKMAGIC)
+        list(APPEND SOURCE_FILES capture/blackmagiccapture.cpp)
+        list(APPEND SOURCE_FILES capture/blackmagiccapture.h)
+        # YCbCr 4:2:2 frames are converted to RGB on the GPU by the NDI layer's compute shaders.
+        if(NOT BUILD_CPLAY_WITH_NDI)
+            list(APPEND SOURCE_FILES ndi/ndigpuconversion.cpp ndi/ndigpuconversion.h)
+        endif()
     endif()
 endif()
 
@@ -640,6 +648,21 @@ if(BUILD_CPLAY_WITH_CAPTURE)
         list(APPEND TARGET_LIBRARIES RGBEasy::RGBEasy delayimp PortAudio::PortAudio)
         # RGBEasy.dll comes with the Datapath driver; delay-load it so machines without it still start.
         target_link_options(${TARGET_NAME} PRIVATE "/DELAYLOAD:RGBEasy.dll")
+    endif()
+    if(BUILD_CPLAY_WITH_CAPTURE_BLACKMAGIC)
+        target_compile_definitions(${TARGET_NAME} PUBLIC CAPTURE_BLACKMAGIC)
+        # COM only: DeckLinkAPI64.dll is registered by the Blackmagic Desktop Video driver.
+        list(APPEND TARGET_LIBRARIES DeckLink::DeckLink PortAudio::PortAudio)
+        if(BUILD_CPLAY_WITH_CAPTURE_BLACKMAGIC_GPUDIRECT)
+            target_compile_definitions(${TARGET_NAME} PUBLIC CAPTURE_BLACKMAGIC_GPUDIRECT)
+            # DVP headers for this one source only (the folder also holds GL/glew headers).
+            set_property(SOURCE capture/blackmagiccapture.cpp APPEND PROPERTY INCLUDE_DIRECTORIES "${DeckLink_DVP_INCLUDE_DIR}")
+            # dvp.dll is delay-loaded and only loaded on NVIDIA GPUs; copy it next to the executable.
+            list(APPEND TARGET_LIBRARIES DeckLink::DVP)
+            add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
+                COMMAND ${CMAKE_COMMAND} -E copy_if_different "${DeckLink_DVP_DLL}" "$<TARGET_FILE_DIR:${TARGET_NAME}>")
+            install(FILES "${DeckLink_DVP_DLL}" DESTINATION "${CMAKE_INSTALL_PREFIX}/bin")
+        endif()
     endif()
 endif()
 

@@ -32,6 +32,13 @@ QStringList CaptureModel::availableSdks() const {
     return m_availableSdks;
 }
 
+QStringList CaptureModel::backends() const {
+    QStringList backends;
+    for (const std::string &backend : CaptureBackend::compiledBackends())
+        backends.append(QString::fromStdString(backend));
+    return backends;
+}
+
 QString CaptureModel::gpuName() const {
     return m_gpuName;
 }

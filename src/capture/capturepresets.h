@@ -32,9 +32,9 @@
 //   "captures": [
 //     {
 //       "title": "Datapath Input 1",
-//       "backend": "datapath",
-//       "input": 1,                 // 1-based, as in the Datapath Vision utility
-//       "ganging": "",              // optional: 2x1, 1x2, 2x2, 3x1, 1x3, 4x1, 1x4 or off
+//       "backend": "datapath",      // "datapath" (RGBEasy) or "blackmagic" (DeckLink)
+//       "input": 1,                 // 1-based, as in the Datapath Vision utility / Desktop Video Setup
+//       "ganging": "",              // optional, Datapath: 2x1, 1x2, 2x2, 3x1, 1x3, 4x1, 1x4 or off
 //       "directGpu": true,          // optional: GPU direct transfer when a professional GPU is present
 //       "audio": false,             // optional: capture the input's audio and play it on that machine
 //       "enabled": true,

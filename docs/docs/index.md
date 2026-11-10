@@ -49,7 +49,7 @@ An additional powerful feature in C-Play is the [presentation tool](/playback/pr
 
 - [*DirectShow*](/media/layers#directshow) (Windows cameras, capture devices, or media played through system decoders)
 
-- [*Capture*](/media/layers#capture) (Capture card inputs through supported vendor SDKs, such as Datapath)
+- [*Capture*](/media/layers#capture) (Capture card inputs through supported vendor SDKs: Datapath and Blackmagic)
 
 - [*Streams*](/media/layers#stream) (Live streaming over SRT (UDP) or RTSP — camera feeds, capture cards, encoders, and other MPV-compatible live inputs)
 

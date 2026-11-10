@@ -28,6 +28,14 @@
             "enabled": false
         },
         {
+            "title": "Blackmagic Input 1",
+            "backend": "blackmagic",
+            "input": 1,
+            "directGpu": true,
+            "audio": false,
+            "enabled": false
+        },
+        {
             "title": "Datapath Capture (nodes only)",
             "backend": "datapath",
             "input": 1,

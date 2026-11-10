@@ -139,11 +139,13 @@ When a DirectShow layer is created from a predefined setup, its parameter string
 
 ### Capture
 
-A Capture layer receives a capture card's input through a supported manufacturer's SDK, such as Datapath's. Use it to bring an external computer's display or a camera signal into the presentation with hardware-specific options such as combining several inputs into one image.
+A Capture layer receives a capture card's input through a supported manufacturer's SDK: Datapath (RGBEasy) or Blackmagic Design (DeckLink). Use it to bring an external computer's display or a camera signal into the presentation with hardware-specific options such as combining several inputs into one image.
 
-Choose **Capture** for a supported capture card SDK backend, such as Datapath. Select a predefined setup from `data/predefined-captures.json`, or switch to a custom input. Input numbers are **1-based**, matching the Datapath Vision utility; the selected input can exist only on the nodes.
+Choose **Capture** for a supported capture card SDK backend, Datapath or Blackmagic. Select a predefined setup from `data/predefined-captures.json`, or switch to a custom input. Input numbers are **1-based**: for Datapath they match the Datapath Vision utility, for Blackmagic they count the capture devices (sub-devices of multi-channel cards) in Blackmagic Desktop Video Setup order. The selected input can exist only on the nodes.
 
-For custom inputs, configure **ganging** when several inputs form one image, choose whether to use **direct GPU** transfer, and enable source audio when needed. Direct GPU transfer depends on suitable hardware and backend support. Inspect view shows the capture status, so check it for missing sources, missing signal, or backend errors.
+For custom inputs, configure **ganging** (Datapath only) when several inputs form one image, choose whether to use **direct GPU** transfer, and enable source audio when needed. Direct GPU transfer depends on suitable hardware and backend support.
+
+Blackmagic inputs detect the incoming video format automatically on cards that support it; on other cards the signal must be present when the capture starts. YCbCr signals are converted to RGB on the GPU, RGB signals are captured directly. Audio is the input's embedded audio (48 kHz, first two channels). Ganging does not apply to Blackmagic inputs. With direct GPU transfer on, frames are DMA'd from the card into GPU memory: NVIDIA GPUDirect for Video on NVIDIA professional GPUs (`dvp.dll`, shipped with C-Play) or pinned memory on AMD GPUs. Otherwise, or if the setup fails, frames are copied through system memory; the capture status shows which transfer is in use. The Blackmagic Desktop Video driver must be installed on each machine that captures. Inspect view shows the capture status, so check it for missing sources, missing signal, or backend errors.
 
 A capture preset contains `title`, `backend`, `input`, and optional `ganging`, `directGpu`, `audio`, and `enabled` fields. Its `sources` object overrides fields for each machine. A role entry inherits the default fields it does not specify. Set a role to `null` or an input of zero to leave capture disabled there. See [per-node resolution](/media/layer-operations#per-node-resolution-in-clusters) and the [master placeholder example](/media/layer-operations#master-placeholders-for-node-sources).
 

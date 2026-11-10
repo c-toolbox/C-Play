@@ -17,6 +17,7 @@
 
 // One capture card input, stored as the Capture layer's file path:
 //   "<backend>:<input>[?ganging=<CxR>&directgpu=<0|1>&audio=<0|1>]"     e.g. "datapath:1?ganging=2x1&audio=1"
+// Backends: "datapath" (RGBEasy) and "blackmagic" (DeckLink; ganging does not apply).
 // The input number is 1-based, as in the vendor tools. input <= 0 means "no capture on this machine".
 struct CaptureSource {
     std::string backend = "datapath";
@@ -45,7 +46,7 @@ struct CaptureGpuInfo {
     bool professional = false;
 };
 
-// GPU direct transfer (AMD DirectGMA / NVIDIA GPUDirect for Video) is only offered on the
+// GPU direct transfer (AMD DirectGMA or pinned memory / NVIDIA GPUDirect for Video) is only offered on the
 // professional product lines. Name based heuristic, also applied to GL_RENDERER strings.
 bool isProfessionalGpuName(const std::string& name);
 // The professional adapter when one is installed, otherwise the first hardware adapter.
@@ -87,6 +88,8 @@ public:
     int width() const { return m_width; }
     int height() const { return m_height; }
     bool flipY() const { return m_flipY; }
+    // Sized OpenGL internal format of textureId(), e.g. GL_RGB8.
+    unsigned int textureInternalFormat() const { return m_internalFormat; }
     Transfer transfer() const { return m_transfer.load(); }
     bool hasSignal() const { return m_hasSignal.load(); }
     // Non-empty when the source cannot be captured on this machine (no SDK, invalid input).
@@ -104,6 +107,8 @@ public:
     static std::vector<CaptureInputInfo> activeCaptures();
     // Names of the compiled-in backends whose SDK runtime is present on this machine.
     static std::vector<std::string> availableSdks();
+    // Source string prefixes of the compiled-in backends, e.g. "datapath".
+    static std::vector<std::string> compiledBackends();
 
 protected:
     explicit CaptureBackend(const CaptureSource& src);
@@ -115,6 +120,7 @@ protected:
     int m_width = 0;
     int m_height = 0;
     bool m_flipY = true;
+    unsigned int m_internalFormat = 0x8051; // GL_RGB8
     std::atomic<Transfer> m_transfer{Transfer::None};
     std::atomic<bool> m_hasSignal{false};
 

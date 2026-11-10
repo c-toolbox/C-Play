@@ -27,6 +27,9 @@
 #ifdef CAPTURE_DATAPATH
 #include <capture/datapathcapture.h>
 #endif
+#ifdef CAPTURE_BLACKMAGIC
+#include <capture/blackmagiccapture.h>
+#endif
 
 namespace {
 
@@ -56,6 +59,10 @@ CaptureBackend* createBackend(const CaptureSource& src) {
 #ifdef CAPTURE_DATAPATH
     if (src.backend == "datapath")
         return new DatapathCaptureBackend(src);
+#endif
+#ifdef CAPTURE_BLACKMAGIC
+    if (src.backend == "blackmagic")
+        return new BlackmagicCaptureBackend(src);
 #endif
     (void)src;
     return nullptr;
@@ -245,6 +252,10 @@ std::vector<CaptureInputInfo> CaptureBackend::listInputs() {
     const auto datapath = DatapathCaptureBackend::listInputs();
     inputs.insert(inputs.end(), datapath.begin(), datapath.end());
 #endif
+#ifdef CAPTURE_BLACKMAGIC
+    const auto blackmagic = BlackmagicCaptureBackend::listInputs();
+    inputs.insert(inputs.end(), blackmagic.begin(), blackmagic.end());
+#endif
     return inputs;
 }
 
@@ -270,5 +281,20 @@ std::vector<std::string> CaptureBackend::availableSdks() {
     if (DatapathCaptureBackend::sdkAvailable())
         sdks.push_back("Datapath RGBEasy");
 #endif
+#ifdef CAPTURE_BLACKMAGIC
+    if (BlackmagicCaptureBackend::sdkAvailable())
+        sdks.push_back("Blackmagic Desktop Video");
+#endif
     return sdks;
+}
+
+std::vector<std::string> CaptureBackend::compiledBackends() {
+    std::vector<std::string> backends;
+#ifdef CAPTURE_DATAPATH
+    backends.push_back("datapath");
+#endif
+#ifdef CAPTURE_BLACKMAGIC
+    backends.push_back("blackmagic");
+#endif
+    return backends;
 }

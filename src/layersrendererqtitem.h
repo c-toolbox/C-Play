@@ -370,7 +370,7 @@ class LayersRendererQtItem : public QQuickItem {
 #ifdef CLUX_SUPPORT
     // C-Lux preview overlay toggle + live frame (driven from the CLux UI / client).
     Q_PROPERTY(bool cluxPreviewVisible MEMBER m_cluxPreviewVisible READ cluxPreviewVisible WRITE setCluxPreviewVisible NOTIFY cluxPreviewVisibleChanged)
-    Q_PROPERTY(QVariantList cluxPreviewFrame WRITE setCluxPreviewFrame)
+    Q_PROPERTY(QVariantList cluxPreviewFrame MEMBER m_cluxPreviewFrame WRITE setCluxPreviewFrame)
 #endif
 
 public:

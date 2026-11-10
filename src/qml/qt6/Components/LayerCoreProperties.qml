@@ -119,6 +119,11 @@ GridLayout {
     // True when data/predefined-captures.json provides at least one enabled capture setup.
     property bool capturePresetAvailable: !!app.capturePresetsModel && app.capturePresetsModel.numberOfPresets > 0
     readonly property var captureGangingValues: ["", "off", "2x1", "1x2", "2x2", "3x1", "1x3", "4x1", "1x4"]
+    // Capture backends compiled into this build ("datapath", "blackmagic"); ganging is Datapath only.
+    readonly property var captureBackends: app.captureModel && app.captureModel.backends.length > 0 ? app.captureModel.backends : ["datapath"]
+    readonly property string captureBackend: captureBackendComboBox.currentIndex >= 0 && captureBackendComboBox.currentIndex < captureBackends.length
+                                             ? captureBackends[captureBackendComboBox.currentIndex] : "datapath"
+    readonly property bool captureDatapathOptions: captureBackend === "datapath"
 
     // True when data/predefined-directshows.json provides at least one enabled capture setup.
     property bool directShowPresetAvailable: app.directShowPresetsModel && app.directShowPresetsModel.numberOfPresets > 0
@@ -219,9 +224,13 @@ GridLayout {
             return;
         var idx = captureNodeInputComboBox.currentIndex;
         if (idx >= 0 && idx < row.inputSources.length) {
-            var m = /:(\d+)/.exec(row.inputSources[idx]);
-            if (m)
-                captureInputSpinBox.value = parseInt(m[1]);
+            var m = /^(\w+):(\d+)/.exec(row.inputSources[idx]);
+            if (m) {
+                var backendIndex = root.captureBackends.indexOf(m[1].toLowerCase());
+                if (backendIndex >= 0)
+                    captureBackendComboBox.currentIndex = backendIndex;
+                captureInputSpinBox.value = parseInt(m[2]);
+            }
         }
         if (layerTitle.text === "" || layerTitle.text.startsWith("Capture:") || layerTitle.text === capturePresetsComboBox.currentText)
             layerTitle.text = "Capture:" + row.role + ":" + captureInputSpinBox.value;
@@ -235,8 +244,9 @@ GridLayout {
             var m = app.capturePresetsModel;
             return m.data(m.index(capturePresetsComboBox.currentIndex, 0), Qt.UserRole + 1);
         }
-        return app.captureModel.sourceString("datapath", captureInputSpinBox.value,
-                                             captureGangingValues[captureGangingComboBox.currentIndex],
+        var datapath = root.captureDatapathOptions;
+        return app.captureModel.sourceString(root.captureBackend, captureInputSpinBox.value,
+                                             datapath ? captureGangingValues[captureGangingComboBox.currentIndex] : "",
                                              captureDirectGpuCheckBox.checked, captureAudioCheckBox.checked);
     }
 
@@ -1440,8 +1450,17 @@ GridLayout {
         Layout.fillWidth: true
         visible: typeComboBox.currentText === "Capture" && (!root.capturePresetAvailable || capturePresetsLayout.customEntry)
 
-        Label {
-            text: qsTr("Datapath")
+        ComboBox {
+            id: captureBackendComboBox
+
+            model: root.captureBackends.map(function (backend) {
+                return backend === "datapath" ? "Datapath" : backend === "blackmagic" ? "Blackmagic" : backend;
+            })
+            currentIndex: 0
+
+            ToolTip {
+                text: qsTr("Capture card SDK: Datapath (RGBEasy) or Blackmagic (DeckLink / Desktop Video)")
+            }
         }
         DeferredSpinBox {
             id: captureInputSpinBox
@@ -1461,7 +1480,7 @@ GridLayout {
             }
 
             ToolTip {
-                text: qsTr("Capture input number (1 = first input, as in the Datapath Vision utility). The input does not need to exist on this machine - nodes open their own.")
+                text: qsTr("Capture input number (1 = first input; Datapath: as in the Datapath Vision utility, Blackmagic: the order of the capture devices in Blackmagic Desktop Video Setup). The input does not need to exist on this machine - nodes open their own.")
             }
         }
         ToolButton {
@@ -1488,7 +1507,7 @@ GridLayout {
     Label {
         Layout.alignment: Qt.AlignRight
         text: qsTr("Ganging:")
-        visible: typeComboBox.currentText === "Capture" && (!root.capturePresetAvailable || capturePresetsLayout.customEntry)
+        visible: typeComboBox.currentText === "Capture" && (!root.capturePresetAvailable || capturePresetsLayout.customEntry) && root.captureDatapathOptions
     }
     ComboBox {
         id: captureGangingComboBox
@@ -1496,14 +1515,14 @@ GridLayout {
         Layout.fillWidth: true
         model: [qsTr("Leave as configured"), qsTr("Off"), "2x1", "1x2", "2x2", "3x1", "1x3", "4x1", "1x4"]
         currentIndex: 0
-        visible: typeComboBox.currentText === "Capture" && (!root.capturePresetAvailable || capturePresetsLayout.customEntry)
+        visible: typeComboBox.currentText === "Capture" && (!root.capturePresetAvailable || capturePresetsLayout.customEntry) && root.captureDatapathOptions
 
         ToolTip {
             text: qsTr("Combine several inputs of the card into one larger image (columns x rows)")
         }
     }
     Item {
-        visible: root.showSpacers && typeComboBox.currentText === "Capture" && (!root.capturePresetAvailable || capturePresetsLayout.customEntry)
+        visible: root.showSpacers && typeComboBox.currentText === "Capture" && (!root.capturePresetAvailable || capturePresetsLayout.customEntry) && root.captureDatapathOptions
         Layout.fillWidth: true
     }
 
@@ -1520,7 +1539,7 @@ GridLayout {
         visible: typeComboBox.currentText === "Capture" && (!root.capturePresetAvailable || capturePresetsLayout.customEntry)
 
         ToolTip {
-            text: qsTr("DMA frames straight into GPU memory (AMD DirectGMA / NVIDIA GPUDirect for Video). Falls back to a copy through system memory when the GPU does not support it.")
+            text: qsTr("DMA frames straight into GPU memory (NVIDIA GPUDirect for Video; AMD DirectGMA for Datapath, AMD pinned memory for Blackmagic). Falls back to a copy through system memory when the GPU does not support it.")
         }
     }
     Item {
@@ -1580,9 +1599,9 @@ GridLayout {
                 return "";
             var lines = [];
             if (app.captureModel.availableSdks.length === 0)
-                lines.push(qsTr("! No capture card driver (e.g. Datapath RGBEasy) found on this machine - only machines with the driver capture."));
+                lines.push(qsTr("! No capture card driver (Datapath RGBEasy or Blackmagic Desktop Video) found on this machine - only machines with the driver capture."));
             if (!app.captureModel.professionalGpu)
-                lines.push(qsTr("! No professional GPU detected (%1). Frames are copied through system memory; GPU direct capture needs an NVIDIA Quadro/RTX professional GPU (GPUDirect for Video) or an AMD Radeon Pro/FirePro GPU (DirectGMA).")
+                lines.push(qsTr("! No professional GPU detected (%1). Frames are copied through system memory; GPU direct capture needs an NVIDIA Quadro/RTX professional GPU (GPUDirect for Video) or an AMD Radeon Pro/FirePro GPU (DirectGMA for Datapath, pinned memory for Blackmagic).")
                            .arg(app.captureModel.gpuName !== "" ? app.captureModel.gpuName : qsTr("unknown GPU")));
             return lines.join("\n");
         }

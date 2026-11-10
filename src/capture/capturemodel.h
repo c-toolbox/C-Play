@@ -31,6 +31,10 @@ public:
     Q_PROPERTY(QStringList availableSdks READ availableSdks NOTIFY inputsChanged)
     QStringList availableSdks() const;
 
+    // Source string prefixes of the backends compiled into this build, e.g. "datapath", "blackmagic".
+    Q_PROPERTY(QStringList backends READ backends CONSTANT)
+    QStringList backends() const;
+
     Q_PROPERTY(QString gpuName READ gpuName CONSTANT)
     QString gpuName() const;
     Q_PROPERTY(bool professionalGpu READ professionalGpu CONSTANT)
