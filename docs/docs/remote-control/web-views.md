@@ -57,13 +57,12 @@ In every view, the C-Play logo top left is a menu with the name of the view: it 
 
 ### Several clusters
 
-With more than one cluster running C-Play (for example two domes), name each cluster and list the others in `data/http-server-conf.json` of each master:
+With more than one cluster running C-Play (for example two domes), list all clusters in `data/http-server-conf.json` of each master:
 
 ```json
 {
     "run": "yes",
     "port": 7007,
-    "clusterName": "Dome A",
     "clusters": [
         { "name": "Dome A", "url": "http://10.0.1.10:7007/" },
         { "name": "Dome B", "url": "http://10.0.2.10:7007/" },
@@ -72,7 +71,7 @@ With more than one cluster running C-Play (for example two domes), name each clu
 }
 ```
 
-The start page then shows the cluster name in its header and in the tab title (*C-Play – Dome A*), so tabs and bookmarks of several clusters can be told apart, and links to the start pages of the other clusters below the cards. The menu under the logo in every view has the name of the cluster on top and the other clusters at the bottom. The list can be the same on every master: the entry with the name of the cluster itself is left out. A `url` without a path opens the start page (`/views/`) of that cluster. Restart C-Play after changing the file.
+The start page then shows the cluster name in its header and in the tab title (*C-Play – Dome A*), so tabs and bookmarks of several clusters can be told apart, and links to the start pages of the other clusters below the cards. The menu under the logo in every view has the name of the cluster on top and the other clusters at the bottom. The list can be the same on every master: each master finds its own entry by its address, as the entry whose `url` host is one of the IP addresses or the host name of that computer (and whose port, if given, is the port of its server), and leaves it out. To name the cluster explicitly instead, add `"clusterName": "Dome A"`; then the entry with that name is left out. A `url` without a path opens the start page (`/views/`) of that cluster. Restart C-Play after changing the file.
 
 ## On phones
 
@@ -235,7 +234,7 @@ The views use the [HTTP API](/remote-control/api) and the [event feed](/remote-c
 
 | Method | Path | Description |
 | --- | --- | --- |
-| GET | `/clusters` | `{name, clusters: [{name, url}]}`: the name of this cluster and the other clusters, from `clusterName` and `clusters` in `data/http-server-conf.json` |
+| GET | `/clusters` | `{name, clusters: [{name, url}]}`: the name of this cluster and the other clusters, from `clusters` (the entry pointing at this computer is this cluster) and the optional `clusterName` in `data/http-server-conf.json` |
 | GET | `/presentation_state` | The presentation state: slides, notes, current and next slide |
 | GET | `/slide_thumbnail?index=N[&rev=R]` | Thumbnail JPEG of slide N |
 | POST | `/slide_notes?index=N` | Sets the notes of slide N (UTF-8 text body) |

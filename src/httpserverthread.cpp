@@ -26,12 +26,16 @@
 
 #include <QColor>
 #include <QFile>
+#include <QHostAddress>
+#include <QHostInfo>
+#include <QNetworkInterface>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QDir>
 #include <QPointer>
 #include <QThread>
 #include <QUrl>
+#include <algorithm>
 #include <chrono>
 #include <future>
 #include <optional>
@@ -1367,17 +1371,44 @@ void HttpServerThread::setupHttpServer() {
         // The start page with links to the views (web/views_mode), also the page at the root.
         mountWebApp("/views", QStringLiteral("views_mode"));
         svr.Get("/", [](const httplib::Request &, httplib::Response &res) { res.set_redirect("/views/"); });
-        // The name of this cluster and the other C-Play clusters to link to, from "clusterName" and
-        // "clusters" ([{"name", "url"}]) in http-server-conf.json. The same list can be on every
-        // master, the entry with the name of this cluster is left out.
+        // The name of this cluster and the other C-Play clusters to link to, from "clusters"
+        // ([{"name", "url"}]) in http-server-conf.json. The same list can be on every master: the
+        // entry whose url points at this computer (one of its IP addresses or its host name, and
+        // the port of this server if the url has one) is this cluster and is left out. An optional
+        // "clusterName" names this cluster explicitly instead.
         {
-            const QString clusterName = httpServerConf.value(QStringLiteral("clusterName")).toString().trimmed();
+            QString clusterName = httpServerConf.value(QStringLiteral("clusterName")).toString().trimmed();
+            const bool namedInConf = !clusterName.isEmpty();
+            const QList<QHostAddress> localAddresses = QNetworkInterface::allAddresses();
+            const QString localHostName = QHostInfo::localHostName();
+            const auto isLocal = [&](const QHostAddress &address) {
+                if (address.isLoopback()) return true;
+                for (const QHostAddress &local : localAddresses) {
+                    if (local.isEqual(address, QHostAddress::TolerantConversion)) return true;
+                }
+                return false;
+            };
+            const auto pointsAtThisServer = [&](const QUrl &url) {
+                if (url.port() != -1 && url.port() != portServer) return false;
+                const QString host = url.host();
+                const QHostAddress address(host);
+                if (!address.isNull()) return isLocal(address);
+                if (host.compare(localHostName, Qt::CaseInsensitive) == 0 || host.compare(QStringLiteral("localhost"), Qt::CaseInsensitive) == 0)
+                    return true;
+                const QList<QHostAddress> resolved = QHostInfo::fromName(host).addresses();
+                return std::any_of(resolved.cbegin(), resolved.cend(), isLocal);
+            };
             QJsonArray otherClusters;
             for (const auto &value : httpServerConf.value(QStringLiteral("clusters")).toArray()) {
                 const QString name = value[QStringLiteral("name")].toString().trimmed();
                 const QUrl url(value[QStringLiteral("url")].toString().trimmed());
                 if (!url.isValid() || (url.scheme() != QStringLiteral("http") && url.scheme() != QStringLiteral("https"))) continue;
-                if (!clusterName.isEmpty() && name == clusterName) continue;
+                if (namedInConf) {
+                    if (name == clusterName) continue;
+                } else if (pointsAtThisServer(url)) {
+                    if (clusterName.isEmpty()) clusterName = name.isEmpty() ? url.host() : name;
+                    continue;
+                }
                 otherClusters.append(QJsonObject{{QStringLiteral("name"), name.isEmpty() ? url.host() : name},
                     {QStringLiteral("url"), url.toString()}});
             }
