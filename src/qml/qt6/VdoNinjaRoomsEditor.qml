@@ -85,9 +85,9 @@ Kirigami.ApplicationWindow {
 
     function clearRoomFields() {
         roomName.text = "";
-        roomTitle.text = "Decision Arena";
-        roomOrg.text = "LIU";
-        roomRoom.text = "DecisionArena";
+        roomTitle.text = "";
+        roomOrg.text = "";
+        roomRoom.text = "";
         roomKey.text = "";
         roomSlots.value = 8;
         roomArenaUrl.text = "";
@@ -365,7 +365,7 @@ Kirigami.ApplicationWindow {
             TextField {
                 id: roomOrg
                 Layout.fillWidth: true
-                placeholderText: "LIU"
+                placeholderText: qsTr("Organisation, e.g. MyOrg")
                 ToolTip.visible: hovered
                 ToolTip.text: qsTr("Globally unique organisation name, part of the VDO.Ninja room id")
             }
@@ -373,7 +373,7 @@ Kirigami.ApplicationWindow {
             TextField {
                 id: roomRoom
                 Layout.fillWidth: true
-                placeholderText: "DecisionArena"
+                placeholderText: qsTr("Room, e.g. MyRoom")
                 ToolTip.visible: hovered
                 ToolTip.text: qsTr("Room name, unique per organisation")
             }

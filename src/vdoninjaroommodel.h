@@ -98,9 +98,9 @@ Q_SIGNALS:
 private:
     struct Room {
         QString name;
-        QString title = QStringLiteral("Decision Arena");
-        QString org = QStringLiteral("LIU");
-        QString room = QStringLiteral("DecisionArena");
+        QString title;
+        QString org;
+        QString room;
         QString key;
         int slots = 8;
         QString arenaUrl;

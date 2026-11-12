@@ -307,7 +307,9 @@ QString VdoNinjaRoomsModel::mediaMtxPublicBase(const QString &hostOrUrl) {
     const int slash = hostPort.indexOf(QLatin1Char('/'));
     if (slash >= 0)
         hostPort.truncate(slash);
-    if (!hostPort.contains(QLatin1Char(':'))) {
+    // A bare host means MediaMTX itself (port 8889); a full URL keeps the default port of its
+    // scheme, e.g. a TLS reverse proxy on 443 in front of MediaMTX.
+    if (!hasScheme && !hostPort.contains(QLatin1Char(':'))) {
         const int at = base.indexOf(hostPort);
         if (at >= 0)
             base.insert(at + hostPort.size(), QStringLiteral(":8889"));

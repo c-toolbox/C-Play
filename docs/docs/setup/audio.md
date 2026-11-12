@@ -37,9 +37,40 @@ When C-Play loads an audio file, you should see how many channels it has by how 
 
 Normally mpv connects straight to these playback ports. Video, Audio, Stream and YouTube layers can instead have their JACK output go through C-Play's [audio mapping](/settings/audio_mapping) (up/down mix and spatial mapping), turned on per layer with *Audio mapping via JACK*. Those layers are then connected to a C-Play input (`cplay-mix-…`) in the graph instead of to `playback_**`. See [mpv layers via JACK](/settings/audio_mapping#mpv-layers-via-jack).
 
+## Audio on nodes: which media the master needs
+
+With *Enable audio on nodes* turned on in the [audio settings](/settings/audio), the sound is played by the cluster nodes instead of by the master. Whether the master still needs the media depends on where the audio comes from.
+
+### File-based media: the master needs the file too
+
+This applies to the main video and to Video and Audio layers.
+
+The master's player is the clock for the whole cluster. The master opens the file, plays it, and sends its playback position and pause state to the nodes every frame. The nodes follow that position. If the master cannot open the file, nothing drives playback, and the nodes do not play either, even though they have their own copy.
+
+When audio is enabled on the nodes but not on the master, the master still plays the file but keeps it muted. The master sends only the timing, the selected audio track, the volume and the mute state. Each node decodes the audio from its own local copy of the file.
+
+So for file-based media with audio on nodes:
+
+* The media file must exist on the **master** and on **every node that plays audio**, at the same path, or a path that C-Play's [file locations](/settings/location) resolve on each machine.
+* Separate audio tracks that are *side-loaded* from the video's folder (see [Naming of external files](#naming-of-external-files)) should be present on both the master and the nodes. The master selects the audio track by its number, so the track list must be the same on all machines.
+* **`_NODE` files:** the master can play a lighter file while the nodes play a separate version named `<name>_NODE.<ext>`, for example `Show.mp4` on the master and `Show_NODE.mp4` on the nodes. The master decides whether to send the `_NODE` name by checking whether that file exists on the master's **own** disk. So the `_NODE` file must also be present on the master, next to the original file, for the nodes to use it.
+
+### Live sources: the master does not need the source
+
+This applies to NDI, OMT, DirectShow and capture card layers.
+
+Each machine receives a live source on its own, so there is no shared playback clock. The master sends only the volume and the mute state. A node can play the audio of a source that the master does not have:
+
+* **DirectShow** presets can name a different video and audio device for each machine in `data/predefined-directshows.json`, under `"master"` and under each node's name. The master's audio device can be left empty.
+* **Capture card** presets choose per machine whether that machine plays the audio.
+
+### Multi-video compositions
+
+In a [`.cplaymulti`](/media/cplaymulti) composition, the `master` file is only an optional preview on the master. Each node plays its own file, so the master does not need the nodes' media.
+
 ## Naming of external files
 
-In a show environment, it is beneficial not to have different video files for every movie. Since C-Play supports loading audio files that sit next to the video file, that is, *side-loading*, it is useful to add additional tracks as separate files next to the main video file on the master machine, or on the node if C-Play is configured to run audio from nodes.
+In a show environment, it is beneficial not to have different video files for every movie. Since C-Play supports loading audio files that sit next to the video file, that is, *side-loading*, it is useful to add additional tracks as separate files next to the main video file on the master machine. If C-Play is configured to run audio from nodes, add them on the nodes as well (see [Audio on nodes](#audio-on-nodes-which-media-the-master-needs)).
 
 C-Play also has a [Web API](/remote-control/api) that supports retrieval of the audio tracks that are embedded or *side-loaded*, so the user can trigger a change to a different audio track if desired. To avoid mixing up audio files for different video files, it is good practice to name the audio file with at least the start of the same filename, followed by the specific language or track name.
 

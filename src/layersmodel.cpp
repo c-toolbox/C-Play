@@ -41,6 +41,7 @@
 #ifdef MULTI_VIDEO_LAYER
 #include <layers/multivideolayer.h>
 #include <QColor>
+#include <QCoreApplication>
 #include <QFile>
 #endif
 #include "httpclientmodel.h"
@@ -1114,9 +1115,10 @@ RemovedLayer LayersModel::takeLayer(int i) {
     // No relative paths, so the snapshot does not depend on where the presentation is saved.
     removed.data = encodeLayerToJSON(m_layers[own].first, QStringList());
 
-    m_layers[own].first->setEnabled(false);
-    m_draggedLayersAwaitingGridGuess.remove(m_layers[own].first.get());
-    m_layerTimelines.erase(m_layers[own].first.get());
+    const std::shared_ptr<BaseLayer> layer = m_layers[own].first;
+    layer->setEnabled(false);
+    m_draggedLayersAwaitingGridGuess.remove(layer.get());
+    m_layerTimelines.erase(layer.get());
 
     beginRemoveRows(QModelIndex(), i, i);
     m_order.removeAt(i);
@@ -1125,6 +1127,13 @@ RemovedLayer LayersModel::takeLayer(int i) {
     rebuildEffectSchedule();
     setLayersNeedsSave(true);
     setNeedSync();
+
+    // Stop playback now: views (e.g. the selected plane in the 3D view) may still hold the
+    // layer for a while, and a live stream (WebRTC, NDI, ...) would keep playing its audio
+    // until the last reference is gone. Undo restores a new layer from removed.data.
+    // Queued, so a stop() that joins worker threads does not run under m_layersMutex,
+    // and on the main thread, which owns the WebRTC source.
+    QMetaObject::invokeMethod(qApp, [layer] { layer->stop(); }, Qt::QueuedConnection);
 
     Q_EMIT layersModelChanged();
     return removed;
