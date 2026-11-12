@@ -15,6 +15,7 @@
 #include "mpvobject.h"
 #include "userinterfacesettings.h"
 #include <animation/maskglsl.h>
+#include <utils/texturesubdivision.h>
 #include <ndi/ndisendermodel.h>
 #include <QDebug>
 #include <QOpenGLContext>
@@ -1450,7 +1451,10 @@ QVariantList LayersRendererQtItem::audioSharesForSelectedLayer() const {
         std::lock_guard<std::mutex> lock(LayersRendererQtItem::layerAccessMutex());
         if (LayersRendererQtItem::isShuttingDown() || !m_selectedPlaneLayer)
             return shares;
-        source = m_selectedPlaneLayer->audioSpatialSource();
+        // A selected duplicate: the layer plays from all of its duplicates.
+        const bool duplicate = m_selectedPlaneOwner
+            && m_selectedPlaneOwner->textureDivisionMode() == TextureSubdivision::Duplicate;
+        source = (duplicate ? m_selectedPlaneOwner : m_selectedPlaneLayer)->audioSpatialSource();
     }
     const cplay::audio::SpeakerSetup setup = cplay::audio::speakerSetup();
     float gains[cplay::audio::kMaxArraySpeakers];

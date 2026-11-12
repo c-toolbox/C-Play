@@ -9,6 +9,7 @@
 #define CPLAY_AUDIOMIXER_H
 
 #include <glm/glm.hpp>
+#include <algorithm>
 #include <array>
 #include <atomic>
 #include <cstddef>
@@ -67,15 +68,18 @@ struct MixMatrix {
     float at(int out, int in) const { return gains[static_cast<std::size_t>(out * kMaxChannels + in)]; }
 };
 
-// Where a layer's sound comes from, in the dome frame (metres).
-struct SpatialSource {
+// Places a layer can be shown at once: duplicate mode shows the texture up to 9 times
+// (DivideTextureHandler::kMaxDuplicates).
+constexpr int kMaxSpatialPlacements = 9;
+
+// Where one copy of a layer is shown, in the dome frame (metres).
+struct SpatialPlacement {
     enum Kind : int32_t {
         None = 0,  // no position (2D layers): standard mapping, or every array speaker alike
         Plane = 1, // flat layer: the channels spread across the plane
         Field = 2  // dome/sphere layer: the channels' nominal directions rotate with the content
     };
     int32_t kind = None;
-    int32_t useSpatial = 1;           // 0: the layer opted out of the spatial mapping (standard mapping)
     glm::vec3 centre{0.f, 0.f, -1.f}; // Plane: centre of the plane
     glm::vec3 halfRight{0.f};         // Plane: from the centre to the right edge of the plane
     glm::vec3 halfUp{0.f};            // Plane: from the centre to the top edge of the plane
@@ -90,6 +94,30 @@ struct SpatialSource {
     float circleRadiusCm = 0.f;       // circular surface width / 2pi: 360 degrees around the screen
     glm::vec2 circularHalfRight{0.f}; // Plane footprint in (radians, height / circle radius)
     glm::vec2 circularHalfUp{0.f};
+
+    bool operator==(const SpatialPlacement &o) const;
+};
+
+// Where a layer's sound comes from: one placement (the layer itself, the base class part), or
+// in duplicate mode one per visible duplicate (the first one in the base class part, the
+// others in extras). The sound comes from all of them at once:
+//  - surround panning: each channel is panned toward every placement, with equal power each
+//    and constant total power;
+//  - speaker array: a speaker's distance is the one to the closest placement, so every
+//    duplicate's covered area plays at full share.
+// Placements without a position (None, or no circular position for the circular layout) are
+// left out, as long as another placement has one.
+struct SpatialSource : SpatialPlacement {
+    int32_t useSpatial = 1;           // 0: the layer opted out of the spatial mapping (standard mapping)
+    int32_t extraCount = 0;           // placements in extras, [0..kMaxSpatialPlacements - 1]
+    std::array<SpatialPlacement, kMaxSpatialPlacements - 1> extras{};
+
+    int placementCount() const { return 1 + std::clamp<int32_t>(extraCount, 0, kMaxSpatialPlacements - 1); }
+    const SpatialPlacement &placement(int i) const { return i == 0 ? *this : extras[static_cast<std::size_t>(i - 1)]; }
+    // Adds a placement after the first one; false when all slots are taken.
+    bool addPlacement(const SpatialPlacement &p);
+    // True when any placement has a position (not None).
+    bool hasPosition() const;
 
     bool operator==(const SpatialSource &o) const;
 };

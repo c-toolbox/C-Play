@@ -146,10 +146,10 @@ void normalizeRows(MixMatrix &m) {
 }
 
 // Direction a source channel is heard from, before panning onto the speakers.
-glm::vec3 virtualDirection(const SpatialSource &src, const SpeakerSetup &setup, int inChannels, int ic) {
+glm::vec3 virtualDirection(const SpatialPlacement &src, const SpeakerSetup &setup, int inChannels, int ic) {
     float az = 0.f, el = 0.f;
     nominalDirection(inChannels, ic, az, el);
-    if (src.kind == SpatialSource::Field) {
+    if (src.kind == SpatialPlacement::Field) {
         const glm::vec3 d = src.rotation * directionFromAngles(az, el);
         const float len = glm::length(d);
         return len > 1e-6f ? d / len : glm::vec3(0.f, 0.f, -1.f);
@@ -192,6 +192,30 @@ void panGains(const glm::vec3 &dir, const SpeakerSetup &setup, int outChannels, 
     const float norm = 1.f / std::sqrt(sumSquares);
     for (int oc = 0; oc < outChannels; ++oc)
         gains[oc] *= norm;
+}
+
+// Panning gains of one source channel toward every positioned placement of the source: equal
+// power per placement, constant total power (each placement's gains already have unit power).
+// centred: from the placement's centre instead of the channel's part of the plane.
+void sourcePanGains(const SpatialSource &source, const SpeakerSetup &setup, int inChannels, int ic, bool centred,
+                    int outChannels, float *gains) {
+    float sumSquares[kMaxChannels] = {};
+    float placementGains[kMaxChannels];
+    int positioned = 0;
+    for (int p = 0; p < source.placementCount(); ++p) {
+        SpatialPlacement place = source.placement(p);
+        if (place.kind == SpatialPlacement::None)
+            continue;
+        if (centred)
+            place.halfRight = glm::vec3(0.f);
+        panGains(virtualDirection(place, setup, inChannels, ic), setup, outChannels, placementGains);
+        for (int oc = 0; oc < outChannels; ++oc)
+            sumSquares[oc] += placementGains[oc] * placementGains[oc];
+        ++positioned;
+    }
+    const float share = positioned > 0 ? 1.f / static_cast<float>(positioned) : 0.f;
+    for (int oc = 0; oc < outChannels; ++oc)
+        gains[oc] = std::sqrt(sumSquares[oc] * share);
 }
 
 std::mutex &setupWriteMutex() {
@@ -263,12 +287,37 @@ void anglesFromDirection(const glm::vec3 &dir, float &azimuthDeg, float &elevati
     elevationDeg = std::atan2(dir.y, std::hypot(dir.x, dir.z)) * 180.f / kPi;
 }
 
-bool SpatialSource::operator==(const SpatialSource &o) const {
-    return kind == o.kind && useSpatial == o.useSpatial && centre == o.centre && halfRight == o.halfRight && halfUp == o.halfUp
+bool SpatialPlacement::operator==(const SpatialPlacement &o) const {
+    return kind == o.kind && centre == o.centre && halfRight == o.halfRight && halfUp == o.halfUp
         && forward == o.forward && rotation == o.rotation && fieldHalfAngle == o.fieldHalfAngle
         && circularValid == o.circularValid && circularDegrees == o.circularDegrees
         && circularHeightCm == o.circularHeightCm && circleRadiusCm == o.circleRadiusCm
         && circularHalfRight == o.circularHalfRight && circularHalfUp == o.circularHalfUp;
+}
+
+bool SpatialSource::addPlacement(const SpatialPlacement &p) {
+    const int extra = std::clamp<int32_t>(extraCount, 0, kMaxSpatialPlacements - 1);
+    if (extra >= kMaxSpatialPlacements - 1)
+        return false;
+    extras[static_cast<std::size_t>(extra)] = p;
+    extraCount = extra + 1;
+    return true;
+}
+
+bool SpatialSource::hasPosition() const {
+    for (int i = 0; i < placementCount(); ++i)
+        if (placement(i).kind != SpatialPlacement::None)
+            return true;
+    return false;
+}
+
+bool SpatialSource::operator==(const SpatialSource &o) const {
+    if (useSpatial != o.useSpatial || placementCount() != o.placementCount())
+        return false;
+    for (int i = 0; i < placementCount(); ++i)
+        if (!(placement(i) == o.placement(i)))
+            return false;
+    return true;
 }
 
 MixMatrix standardMix(int inChannels, int outChannels) {
@@ -296,7 +345,7 @@ struct DomeFootprint {
     glm::vec3 centre;
     bool hasArea;
 
-    explicit DomeFootprint(const SpatialSource &source) {
+    explicit DomeFootprint(const SpatialPlacement &source) {
         const glm::vec3 c = glm::length(source.centre) > 0.01f ? source.centre : source.forward;
         const float len = glm::length(c);
         centre = len > 1e-6f ? c / len : glm::vec3(0.f, 0.f, -1.f);
@@ -350,7 +399,7 @@ struct CircularFootprint {
     int count = 4;
     bool hasArea = false;
 
-    explicit CircularFootprint(const SpatialSource &source) {
+    explicit CircularFootprint(const SpatialPlacement &source) {
         const glm::vec2 r = source.circularHalfRight, u = source.circularHalfUp;
         corners[0] = -r - u; corners[1] = r - u;
         corners[2] = r + u; corners[3] = -r + u;
@@ -406,31 +455,40 @@ bool arraySpeakerGains(const SpatialSource &source, const SpeakerSetup &setup, f
 
     // Distances relative to the dome (unit sphere) or the circular screen (radius 1), so the
     // blur and the rolloff behave the same in both layouts.
+    // Several placements (duplicate mode): each speaker is as close as its closest placement.
     float distances[kMaxArraySpeakers];
+    for (int i = 0; i < count; ++i)
+        distances[i] = 1e30f;
     bool positioned = false;
-    if (setup.arrayLayout == static_cast<int32_t>(ArrayLayout::Circular)) {
-        if (source.circularValid && source.circleRadiusCm > 0.f) {
+    const bool circular = setup.arrayLayout == static_cast<int32_t>(ArrayLayout::Circular);
+    for (int p = 0; p < source.placementCount(); ++p) {
+        const SpatialPlacement &place = source.placement(p);
+        if (circular) {
+            if (!place.circularValid || place.circleRadiusCm <= 0.f)
+                continue;
             positioned = true;
-            const CircularFootprint footprint(source);
+            const CircularFootprint footprint(place);
             for (int i = 0; i < count; ++i) {
                 const ArraySpeaker &spk = setup.speakers[static_cast<std::size_t>(i)];
-                const float delta = std::remainder(spk.degrees - source.circularDegrees, 360.f) * kPi / 180.f;
-                const float dh = (spk.heightCm - source.circularHeightCm) / source.circleRadiusCm;
-                distances[i] = footprint.distance(glm::vec2(delta, dh));
+                const float delta = std::remainder(spk.degrees - place.circularDegrees, 360.f) * kPi / 180.f;
+                const float dh = (spk.heightCm - place.circularHeightCm) / place.circleRadiusCm;
+                distances[i] = std::min(distances[i], footprint.distance(glm::vec2(delta, dh)));
             }
-        }
-    } else if (source.kind != SpatialSource::None) {
-        positioned = true;
-        const DomeFootprint footprint(source);
-        for (int i = 0; i < count; ++i) {
-            const glm::vec3 &speaker = setup.speakers[static_cast<std::size_t>(i)].direction;
-            if (source.kind == SpatialSource::Field) {
-                const glm::vec3 axis = source.rotation * glm::vec3(0.f, 1.f, 0.f);
-                const float angle = std::acos(std::clamp(glm::dot(axis, speaker), -1.f, 1.f));
-                const float outside = std::max(0.f, angle - std::clamp(source.fieldHalfAngle, 0.f, kPi));
-                distances[i] = 2.f * std::sin(outside * 0.5f);
-            } else {
-                distances[i] = footprint.distance(speaker);
+        } else if (place.kind != SpatialPlacement::None) {
+            positioned = true;
+            const DomeFootprint footprint(place);
+            for (int i = 0; i < count; ++i) {
+                const glm::vec3 &speaker = setup.speakers[static_cast<std::size_t>(i)].direction;
+                float d = 0.f;
+                if (place.kind == SpatialPlacement::Field) {
+                    const glm::vec3 axis = place.rotation * glm::vec3(0.f, 1.f, 0.f);
+                    const float angle = std::acos(std::clamp(glm::dot(axis, speaker), -1.f, 1.f));
+                    const float outside = std::max(0.f, angle - std::clamp(place.fieldHalfAngle, 0.f, kPi));
+                    d = 2.f * std::sin(outside * 0.5f);
+                } else {
+                    d = footprint.distance(speaker);
+                }
+                distances[i] = std::min(distances[i], d);
             }
         }
     }
@@ -489,7 +547,7 @@ MixMatrix spatialMix(int inChannels, int outChannels, const SpatialSource &sourc
         return standardMix(inChannels, outChannels);
     if (setup.mode == static_cast<int32_t>(SpatialMode::SpeakerArray) && setup.arrayCount > 0)
         return arrayMix(inChannels, outChannels, source, setup);
-    if (setup.mode != static_cast<int32_t>(SpatialMode::Surround) || source.kind == SpatialSource::None
+    if (setup.mode != static_cast<int32_t>(SpatialMode::Surround) || !source.hasPosition()
         || outChannels < 2 || outChannels != setup.channelCount || outChannels > kMaxChannels)
         return standardMix(inChannels, outChannels);
 
@@ -519,14 +577,12 @@ MixMatrix spatialMix(int inChannels, int outChannels, const SpatialSource &sourc
                 continue;
             }
             // No subwoofer: the low end is played from where the layer is.
-            SpatialSource centred = source;
-            centred.halfRight = glm::vec3(0.f);
-            panGains(virtualDirection(centred, setup, 1, 0), setup, outChannels, gains);
+            sourcePanGains(source, setup, 1, 0, true, outChannels, gains);
             for (int oc = 0; oc < outChannels; ++oc)
                 m.at(oc, ic) = 0.5f * gains[oc];
             continue;
         }
-        panGains(virtualDirection(source, setup, inChannels, ic), setup, outChannels, gains);
+        sourcePanGains(source, setup, inChannels, ic, false, outChannels, gains);
         for (int oc = 0; oc < outChannels; ++oc)
             m.at(oc, ic) = gains[oc];
     }

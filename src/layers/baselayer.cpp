@@ -590,11 +590,38 @@ bool BaseLayer::audioLevelsEnabled() const {
 }
 
 cplay::audio::SpatialSource BaseLayer::audioSpatialSource() const {
-    // Same transforms as LayersRendererQtItem::renderLayer(), without the dome tilt (the
-    // speaker positions are in the dome frame too).
     cplay::audio::SpatialSource source;
+    // Duplicate mode: the layer is shown by its duplicates, each with its own placement, and
+    // the sound comes from every visible one (all of them while none is visible).
+    bool fromDuplicates = false;
+    if (textureDivisionMode() == TextureSubdivision::Duplicate) {
+        const auto& duplicates = getSubLayers();
+        for (bool visibleOnly : {true, false}) {
+            for (const auto& duplicate : duplicates) {
+                if (!duplicate || (visibleOnly && duplicate->alpha() <= 0.f))
+                    continue;
+                const cplay::audio::SpatialPlacement place = duplicate->audioPlacement();
+                if (!fromDuplicates)
+                    static_cast<cplay::audio::SpatialPlacement&>(source) = place;
+                else
+                    source.addPlacement(place);
+                fromDuplicates = true;
+            }
+            if (fromDuplicates)
+                break;
+        }
+    }
+    if (!fromDuplicates)
+        static_cast<cplay::audio::SpatialPlacement&>(source) = audioPlacement();
     // Without the up/down mix the output has the source's own channels: no spatial mapping either.
     source.useSpatial = m_spatialAudioEnabled.load() && audioMixingEnabled() ? 1 : 0;
+    return source;
+}
+
+cplay::audio::SpatialPlacement BaseLayer::audioPlacement() const {
+    // Same transforms as LayersRendererQtItem::renderLayer(), without the dome tilt (the
+    // speaker positions are in the dome frame too).
+    cplay::audio::SpatialPlacement source;
     const uint8_t grid = gridMode();
     if (grid == GridMode::Plane) {
         glm::mat4 model(1.f);
@@ -612,7 +639,7 @@ cplay::audio::SpatialSource BaseLayer::audioSpatialSource() const {
         }
         const float widthCm = planeData.actualSize.x > 0.f ? planeData.actualSize.x : planeData.specifiedSize.x;
         const float heightCm = planeData.actualSize.y > 0.f ? planeData.actualSize.y : planeData.specifiedSize.y;
-        source.kind = cplay::audio::SpatialSource::Plane;
+        source.kind = cplay::audio::SpatialPlacement::Plane;
         source.centre = glm::vec3(model * glm::vec4(0.f, 0.f, 0.f, 1.f));
         source.halfRight = glm::vec3(model * glm::vec4(widthCm / 200.f, 0.f, 0.f, 0.f));
         source.halfUp = glm::vec3(model * glm::vec4(0.f, heightCm / 200.f, 0.f, 0.f));
@@ -636,7 +663,7 @@ cplay::audio::SpatialSource BaseLayer::audioSpatialSource() const {
         model = glm::rotate(model, glm::radians(rot.z), glm::vec3(0, 0, 1)); // roll
         model = glm::rotate(model, glm::radians(rot.x), glm::vec3(1, 0, 0)); // pitch
         model = glm::rotate(model, glm::radians(rot.y), glm::vec3(0, 1, 0)); // yaw
-        source.kind = cplay::audio::SpatialSource::Field;
+        source.kind = cplay::audio::SpatialPlacement::Field;
         source.rotation = glm::mat3(model);
         if (grid == GridMode::Dome) {
             const double fov = SyncHelper::instance().variables.fov;

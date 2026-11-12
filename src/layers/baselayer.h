@@ -231,7 +231,10 @@ public:
     // and the optional spatial mapping toward the speakers closest to the layer.
     cplay::audio::ChannelMixer& audioMixer() { return m_audioMixer; }
     // Where the layer is shown, as seen from the dome centre (render pose, animations included).
+    // In duplicate mode: where each visible duplicate is shown (see SpatialSource).
     cplay::audio::SpatialSource audioSpatialSource() const;
+    // Where this layer itself is shown, ignoring its duplicates.
+    cplay::audio::SpatialPlacement audioPlacement() const;
     // Pushes audioSpatialSource() to the mixer and applies synced audio mapping changes.
     // Called every frame from the render loop.
     virtual void updateAudioSpatialSource();
