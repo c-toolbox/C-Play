@@ -482,7 +482,7 @@ GridLayout {
         parentWindow: root.Window.window
         fileMode: CPlayFileDialog.OpenFile
         currentFolder: fileToLoadAsMultiVideoLayerDialog.acceptedOnes ? app.pathToUrl(LocationSettings.videoFileDialogLastLocation) : app.pathToUrl(LocationSettings.videoFileDialogLocation)
-        nameFilters: ["Multi-Video composition files (*.json)", "All files (*)"]
+        nameFilters: ["Multi-Video composition files (*.cplaymulti *.json)", "All files (*)"]
         title: "Choose multi-video composition JSON"
 
         onAccepted: {

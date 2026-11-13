@@ -217,6 +217,22 @@ MpvObject::MpvObject(QQuickItem *parent)
         }
     });
 
+    // A *.cplaymulti playlist entry has no duration until its master reference has been
+    // played: take it from the master preview once it is known.
+    connect(this, &MpvObject::durationChanged, this, [this]() {
+        if (!SyncHelper::instance().variables.multiVideoEnabled)
+            return;
+        const int row = m_playlistModel->getPlayingVideo();
+        QPointer<PlayListItem> item = m_playlistModel->getItem(row);
+        if (!item || item->duration() > 0.0 || !item->useMultivideoConfig())
+            return;
+        const double d = getProperty(QStringLiteral("duration")).toDouble();
+        if (d <= 0.0)
+            return;
+        item->setDuration(d);
+        m_playlistModel->refreshItem(row);
+    });
+
     // Update sync threshold settings when PlaybackSettings change
     connect(PlaybackSettings::self(), &PlaybackSettings::UseThresholdToSyncTimePositionChanged,
             this, &MpvObject::updatePlaybackThresholdSettings);
@@ -1314,9 +1330,13 @@ void MpvObject::probeGridModeForFile(const QString &file) {
 }
 
 int MpvObject::addFileToPlaylist(const QString &file, int index, bool guessGridMode) {
-    PlayListItem *item = loadMediaFileDescription(file);
-    if (!item)
+    // Read the file's details without loading it: adding a multi-video entry must not start it.
+    QString fileToAdd = file;
+    fileToAdd.replace(QStringLiteral("file:///"), QStringLiteral(""));
+    if (!QFileInfo::exists(fileToAdd))
         return -1;
+    auto *item = new PlayListItem(fileToAdd);
+    item->loadDetailsFromDisk();
     item->setGuessGridModeOnLoad(guessGridMode && !item->hasDescriptionFile());
 
     const int row = m_playlistModel->insertItem(index, item);
@@ -1439,6 +1459,30 @@ void MpvObject::loadItem(int playListIndex, bool updateLastPlayedFile) {
         m_startTime = pld.m_useListFileStartTime ? pld.m_listFileStartTime : -1.0;
         m_endTime = pld.m_useListFileEndTime ? pld.m_listFileEndTime : -1.0;
 
+#ifdef MULTI_VIDEO_LAYER
+        // A *.cplaymulti entry, or a *.cplayfile that refers to one: start the composition.
+        // loadMultiVideo() loads the master reference and sends the composition to the nodes.
+        if (item->useMultivideoConfig() && !item->multivideoConfigFile().isEmpty()) {
+            m_guessGridModeOnVideoReconfig = false;
+            m_gridGuessPlaylistItem.clear();
+            m_currentSectionsIndex = -1;
+            loadMultiVideo(item->multivideoConfigFile(), updateLastPlayedFile);
+
+            // Playlist entry overrides for the master preview, after the composition's own modes.
+            if (pld.m_useListGridMode && pld.m_gridToMapOn >= 0)
+                setGridToMapOn(pld.m_gridToMapOn);
+            if (pld.m_useListStereoMode && pld.m_stereoVideo >= 0)
+                setStereoscopicMode(pld.m_stereoVideo);
+            if (pld.eofMode() >= 0)
+                setEofMode(pld.eofMode());
+
+            m_playSectionsModel->updateCurrentEditItem(*item);
+            Q_EMIT playSectionsModelChanged();
+            m_playSectionsModel->setCurrentEditItemIsEdited(false);
+            return;
+        }
+#endif
+
         loadItem(pld, updateLastPlayedFile);
         // A list grid mode is the user's choice, keep it over the guess.
         if (item->guessGridModeOnLoad() && !pld.m_useListGridMode
@@ -1458,6 +1502,10 @@ void MpvObject::loadItem(PlayListItemData itemData, bool updateLastPlayedFile, Q
         m_guessGridModeOnVideoReconfig = false;
         m_gridGuessPlaylistItem.clear();
         setAudioId(-1);
+
+        // A normal file ends a running multi-video composition. The nodes drop their
+        // per-node players when they receive the new file (see main.cpp).
+        SyncHelper::instance().variables.multiVideoEnabled = false;
 
         // Apply list audio file override if enabled
         QString audioFile = (itemData.useListAudioFile() && !itemData.listAudioFile().isEmpty())
@@ -1605,15 +1653,10 @@ void MpvObject::loadJSONPlayList(const QString &file, bool updateLastPlayedFile)
             QString filePath = o.value(QStringLiteral("file")).toString();
             QString checkedFilePath = checkAndCorrectPath(filePath, fileSearchPaths);
             if (!checkedFilePath.isEmpty()) {
-                QFileInfo checkedFilePathInfo(checkedFilePath);
-                QString fileExt = checkedFilePathInfo.suffix();
-                PlayListItem *filePtr = nullptr;
-
-                if (fileExt == QStringLiteral("cplayfile") || fileExt == QStringLiteral("cplay_file") || fileExt == QStringLiteral("fdv")) {
-                    filePtr = loadMediaFileDescription(checkedFilePath);
-                } else {
-                    filePtr = new PlayListItem(checkedFilePath);
-                }
+                // Only read the entry here. A multi-video composition starts when the entry is played,
+                // not while the playlist is loaded.
+                PlayListItem *filePtr = new PlayListItem(checkedFilePath);
+                filePtr->loadDetailsFromDisk();
 
                 if (filePtr != NULL) {
                     if (o.contains(QStringLiteral("on_file_end"))) {

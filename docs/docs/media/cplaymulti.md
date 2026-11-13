@@ -428,7 +428,7 @@ The saved file uses the `multivideo` key; `useMultivideoConfig` is an applicatio
 Using cplaymulti inside cplayfile gives you:
 - **Metadata support** — Title, sections, and other cplayfile features work alongside multi-video
 - **Section-based playback** — Define time ranges within the multi-video composition
-- **Playlist integration** — Include multi-video entries in playlists with custom EOF behavior
+- **Playlist entries with sections** — a `.cplaymulti` can be added to a playlist directly (see [In a playlist](#in-a-playlist)); wrap it in a cplayfile when the entry also needs a title or sections
 - **SaveAsCPlayFile dialog** — When saving a multi-video session as a cplayfile, the cplaymulti path is automatically populated
 
 ## Loading Multi-Video Compositions
@@ -436,5 +436,27 @@ Using cplaymulti inside cplayfile gives you:
 Multi-video compositions can be loaded in C-Play by:
 - Opening a `.cplaymulti` file directly (C-Play recognizes the extension)
 - **Loading a `.cplayfile` that references a cplaymulti composition** (see [Integration with cplayfile](#integration-with-cplayfile-c-play-file) above)
+- Playing a playlist entry that is a `.cplaymulti`, or a `.cplayfile` that references one (see [In a playlist](#in-a-playlist))
 
 When loading directly, the master plays the reference video for preview, and the composition JSON is synced to all nodes. Each node then creates sub-players according to its configured entries.
+
+### In a playlist
+
+A `.cplaymulti` file can be a playlist entry by itself; no `.cplayfile` is needed. Add it with **Add file to playlist** (the dialog lists *Multi-video composition (\*.cplaymulti)*), by dropping it on the playlist, or with a `file` entry in a `.cplaylist`:
+
+```json
+{
+  "playlist": [
+    { "file": "intro.mp4", "on_file_end": "continue" },
+    { "file": "./data/multivideo/single_node.cplaymulti", "on_file_end": "continue" },
+    { "file": "outro.mp4", "on_file_end": "pause" }
+  ]
+}
+```
+
+* **Playing the entry** starts the composition: the master plays the reference video and the nodes create their per-node players. Nothing starts when the playlist is loaded or the entry is added.
+* **Playing a normal entry** after a composition ends the composition; the nodes go back to playing the main video.
+* **Playlist entry options** apply as for other entries: end-of-file mode, start and end time, and the grid and stereo mode overrides (for the master preview). The separate audio file override does not apply; set audio in the composition instead.
+* **Shown in the playlist**: the file name, the master's grid and stereo modes, and the duration once the entry has been played. The entry's media file is the master reference file.
+
+A `.cplayfile` that references a composition works the same way in a playlist. Use one when the entry also needs a title or sections.

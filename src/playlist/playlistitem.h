@@ -254,6 +254,8 @@ public:
 private:
     void loadJSONPlayfile();
     void loadUniviewFDV();
+    // A *.cplaymulti entry: marks it as a multi-video composition and reads the master reference file.
+    void loadMultiVideoComposition();
 
     bool m_hasDescriptionFile;
     bool m_guessGridModeOnLoad{false};

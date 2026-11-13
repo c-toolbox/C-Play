@@ -264,7 +264,8 @@ Kirigami.ApplicationWindow {
         else if(UserInterfaceSettings.mappingModeOnOpenFile 
         && openFileExt != "cplayfile" && openFileExt != "cplaylist" 
         && openFileExt != "cplay_file" && openFileExt != "cplay_list" 
-        && openFileExt != "fdv" && openFileExt != "playlist"){
+        && openFileExt != "fdv" && openFileExt != "playlist"
+        && openFileExt != "cplaymulti"){
             openFileValuesDialogLabel.text = playerController.returnFileName(path);
             newMediaFileToOpen = path;
             openFileValuesDialog.open();
@@ -1484,7 +1485,7 @@ Kirigami.ApplicationWindow {
         parentWindow: window
         fileMode: CPlayFileDialog.OpenFile
         currentFolder: LocationSettings.cPlayFileLocation !== "" ? app.pathToUrl(LocationSettings.cPlayFileLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
-        nameFilters: ["C-Play file (*.cplayfile)", "Uniview file (*.fdv)", "All files (*)"]
+        nameFilters: ["C-Play file (*.cplayfile)", "Multi-video composition (*.cplaymulti)", "Uniview file (*.fdv)", "All files (*)"]
         title: "Add file to playlist"
 
         onAccepted: {

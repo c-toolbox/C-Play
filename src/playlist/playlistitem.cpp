@@ -788,7 +788,52 @@ void PlayListItem::loadDetailsFromDisk() {
         loadJSONPlayfile();
     } else if (fileExt == QStringLiteral("fdv")) {
         loadUniviewFDV();
+    } else if (fileExt == QStringLiteral("cplaymulti")) {
+        loadMultiVideoComposition();
     }
+}
+
+void PlayListItem::loadMultiVideoComposition() {
+    // The entry is the composition itself: playing it starts the composition, and the media
+    // file is the master reference (for display and metadata). Nothing is loaded here.
+    setMultivideoConfigFile(filePath());
+    setUseMultivideoConfig(true);
+    m_hasDescriptionFile = true;
+
+    QFile f(filePath());
+    if (!f.open(QIODevice::ReadOnly)) {
+        qDebug() << QStringLiteral("Failed to open multi-video composition ") << filePath();
+        return;
+    }
+    const QJsonDocument doc = QJsonDocument::fromJson(f.readAll());
+    f.close();
+    const QJsonObject master = doc.object().value(QStringLiteral("master")).toObject();
+
+    // The master preview's modes, shown in the playlist (same names as in MpvObject::loadMultiVideo).
+    const QString grid = master.value(QStringLiteral("gridMode")).toString();
+    const QStringList grids{QStringLiteral("None"), QStringLiteral("Plane"), QStringLiteral("Dome"),
+                            QStringLiteral("Sphere_EQR"), QStringLiteral("Sphere_EAC")};
+    if (grids.contains(grid))
+        setGridToMapOn(static_cast<int>(grids.indexOf(grid)));
+    const QString stereo = master.value(QStringLiteral("stereoMode")).toString();
+    const QStringList stereos{QStringLiteral("No_2D"), QStringLiteral("SBS_3D"), QStringLiteral("TB_3D"),
+                              QStringLiteral("TBF_3D")};
+    if (stereos.contains(stereo))
+        setStereoVideo(static_cast<int>(stereos.indexOf(stereo)));
+
+    const QString masterFile = master.value(QStringLiteral("file")).toString();
+    if (masterFile.isEmpty())
+        return;
+
+    const QFileInfo jsonFileInfo(filePath());
+    QStringList fileSearchPaths;
+    fileSearchPaths.append(jsonFileInfo.absoluteDir().absolutePath());
+    fileSearchPaths.append(LocationSettings::cPlayMediaLocation());
+    fileSearchPaths.append(LocationSettings::cPlayFileLocation());
+    fileSearchPaths.append(LocationSettings::univiewVideoLocation());
+    const QString masterPath = checkAndCorrectPath(masterFile, fileSearchPaths);
+    if (!masterPath.isEmpty())
+        setMediaFile(masterPath);
 }
 
 bool PlayListItem::hasDescriptionFile() {
