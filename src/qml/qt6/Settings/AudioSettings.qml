@@ -12,6 +12,7 @@ import QtQuick.Controls
 
 import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay
+import "../Components/WindowHelpers.js" as WindowHelpers
 
 SettingsBasePage {
     id: root
@@ -719,8 +720,7 @@ SettingsBasePage {
                 text: qsTr("Audio mapping...")
 
                 onClicked: {
-                    audioMappingDialog.visible = true;
-                    audioMappingDialog.raise();
+                    WindowHelpers.showWindow(audioMappingDialog);
                 }
 
                 ToolTip.visible: hovered

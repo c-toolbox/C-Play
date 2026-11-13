@@ -7,6 +7,7 @@
 import QtQuick
 import QtQuick.Controls
 import "../Components/PopupHelpers.js" as PopupHelpers
+import "../Components/WindowHelpers.js" as WindowHelpers
 import org.ctoolbox.cplay
 
 Menu {
@@ -40,7 +41,7 @@ Menu {
         text: qsTr("REST Commands Editor...")
         icon.name: "document-send"
         onTriggered: {
-            restCommandsEditor.visible = true;
+            WindowHelpers.showWindow(restCommandsEditor);
         }
     }
     MenuItem {
@@ -50,7 +51,7 @@ Menu {
         visible: CLUX_SUPPORT
         height: visible ? implicitHeight : 0
         onTriggered: {
-            cluxEditorLoader.item.visible = true;
+            WindowHelpers.showWindow(cluxEditorLoader.item);
         }
     }
     MenuItem {
@@ -60,7 +61,7 @@ Menu {
         visible: !!app.mediaMtxServersModel && !!app.mediaMtxModel
         height: visible ? implicitHeight : 0
         onTriggered: {
-            mediaMtxEditor.visible = true;
+            WindowHelpers.showWindow(mediaMtxEditor);
         }
     }
     MenuItem {
@@ -70,14 +71,14 @@ Menu {
         visible: !!app.vdoNinjaRoomsModel && !!app.vdoNinjaSlotsModel
         height: visible ? implicitHeight : 0
         onTriggered: {
-            vdoNinjaRoomsEditor.visible = true;
+            WindowHelpers.showWindow(vdoNinjaRoomsEditor);
         }
     }
     MenuItem {
         text: qsTr("Logging...")
         icon.name: "console"
         onTriggered: {
-            loggingWindow.visible = true;
+            WindowHelpers.showWindow(loggingWindow);
         }
     }
     MenuSeparator {

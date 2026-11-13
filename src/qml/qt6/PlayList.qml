@@ -15,6 +15,7 @@ import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay
 
 import "Components/PopupHelpers.js" as PopupHelpers
+import "Components/WindowHelpers.js" as WindowHelpers
 
 Rectangle {
     id: root
@@ -330,7 +331,7 @@ Rectangle {
                         playlistView.currentIndex = idx;
                         viewPlaylistItemWindow.updateValues(idx);
                     }
-                    viewPlaylistItemWindow.visible = true;
+                    WindowHelpers.showWindow(viewPlaylistItemWindow);
                 }
 
                 ToolTip {

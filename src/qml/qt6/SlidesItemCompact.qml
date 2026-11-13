@@ -15,6 +15,7 @@ import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay
 
 import "Components/PopupHelpers.js" as PopupHelpers
+import "Components/WindowHelpers.js" as WindowHelpers
 
 ItemDelegate {
     id: root
@@ -465,8 +466,7 @@ ItemDelegate {
         }
         function open() {
             active = true;
-            item.show();
-            item.raise();
+            WindowHelpers.showWindow(item);
         }
     }
 
@@ -488,8 +488,7 @@ ItemDelegate {
         icon.height: 20
 
         onClicked: {
-            slideTimelineWindow.show();
-            slideTimelineWindow.raise();
+            WindowHelpers.showWindow(slideTimelineWindow);
         }
 
         ToolTip {

@@ -14,6 +14,7 @@ import QtQuick.Layouts
 
 import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay
+import "Components/WindowHelpers.js" as WindowHelpers
 
 // Effects pane: PowerPoint-style entrance (intro) and exit (outro) effects per slide, plus
 // post process effects (chroma key, color correction, ...) always applied to a layer's image.
@@ -984,8 +985,7 @@ Window {
                         icon.name: "chronometer"
                         visible: root.slideTimeline !== null
                         onClicked: {
-                            root.slideTimeline.show();
-                            root.slideTimeline.raise();
+                            WindowHelpers.showWindow(root.slideTimeline);
                         }
                     }
                 }

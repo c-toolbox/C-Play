@@ -16,6 +16,7 @@ import Qt.labs.platform as Platform
 
 import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay
+import "Components/WindowHelpers.js" as WindowHelpers
 
 Kirigami.ApplicationWindow {
     id: layerWindow
@@ -294,8 +295,7 @@ Kirigami.ApplicationWindow {
         }
         function open() {
             active = true;
-            item.show();
-            item.raise();
+            WindowHelpers.showWindow(item);
         }
     }
 
@@ -453,7 +453,7 @@ Kirigami.ApplicationWindow {
                     icon.name: "configure"
 
                     onClicked: {
-                        layerViewGridParams.visible = checked;
+                        WindowHelpers.toggleWindowFromButton(configureGridParameters, layerViewGridParams);
                     }
 
                     ToolTip {

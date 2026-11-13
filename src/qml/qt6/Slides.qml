@@ -14,6 +14,7 @@ import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay
 
 import "Components/PopupHelpers.js" as PopupHelpers
+import "Components/WindowHelpers.js" as WindowHelpers
 
 Rectangle {
     id: slidesRoot
@@ -425,7 +426,7 @@ Rectangle {
                     text: qsTr("Visibility")
 
                     onClicked: {
-                        slidesVisView.visible = checked;
+                        WindowHelpers.toggleWindowFromButton(visibilityViewButton, slidesVisView);
                     }
 
                     ToolTip {

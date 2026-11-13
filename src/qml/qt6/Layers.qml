@@ -13,6 +13,7 @@ import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay
 
 import "Components/PopupHelpers.js" as PopupHelpers
+import "Components/WindowHelpers.js" as WindowHelpers
 
 Rectangle {
     id: layersRoot
@@ -549,7 +550,7 @@ Rectangle {
                     icon.name: "configure"
 
                     onClicked: {
-                        layerViewGridParams.visible = checked;
+                        WindowHelpers.toggleWindowFromButton(configureGridParameters, layerViewGridParams);
                     }
 
                     ToolTip {
@@ -597,7 +598,7 @@ Rectangle {
                     icon.name: "layer-new"
 
                     onClicked: {
-                        layersAddNew.visible = true;
+                        WindowHelpers.showWindow(layersAddNew);
                     }
 
                     ToolTip {
@@ -697,6 +698,8 @@ Rectangle {
                     }
                 }
                 Button {
+                    id: layerInspectButton
+
                     // As wide as two and a half icon buttons
                     Layout.preferredWidth: layerAddButton.implicitWidth * 2.3 + parent.spacing * 2
                     checkable: true
@@ -708,7 +711,7 @@ Rectangle {
                     text: qsTr("Inspect")
 
                     onClicked: {
-                        layerView.visible = checked;
+                        WindowHelpers.toggleWindowFromButton(layerInspectButton, layerView);
                     }
 
                     ToolTip {

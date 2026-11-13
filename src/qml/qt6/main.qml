@@ -20,6 +20,7 @@ import org.ctoolbox.cplay
 import "Menus"
 import "Settings"
 import "Components/PopupHelpers.js" as PopupHelpers
+import "Components/WindowHelpers.js" as WindowHelpers
 
 Kirigami.ApplicationWindow {
     id: window
@@ -1004,7 +1005,7 @@ Kirigami.ApplicationWindow {
         }
 
         onClicked: {
-            loggingWindow.visible = true;
+            WindowHelpers.showWindow(loggingWindow);
             window.nodeLoadFailureSeen = false;
         }
     }

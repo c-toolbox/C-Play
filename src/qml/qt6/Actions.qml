@@ -10,6 +10,7 @@ import QtQuick
 import QtQuick.Controls
 
 import org.ctoolbox.cplay
+import "Components/WindowHelpers.js" as WindowHelpers
 
 QtObject {
     id: root
@@ -180,7 +181,7 @@ QtObject {
         Component.onCompleted: list["configureAction"] = configureAction
         function updateShortcuts() { shortcut = root.isPrimary ? qaction.shortcutName() : qaction.alternateName() }
         onTriggered: {
-            settingsEditor.visible = true;
+            WindowHelpers.showWindow(settingsEditor);
         }
     }
     property Action configureShortcutsAction: Action {
@@ -333,7 +334,7 @@ QtObject {
             saveCPlayFileDialog.currentFile = mpv.playSectionsModel.getSuggestedFileURL();
             mpv.setLoadedAsCurrentEditItem();
             if (!mpv.playSectionsModel.isEmpty())
-                saveAsCPlayFileWindow.visible = true;
+                WindowHelpers.showWindow(saveAsCPlayFileWindow);
         }
     }
     property Action seekBackwardBigAction: Action {

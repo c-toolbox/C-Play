@@ -372,6 +372,7 @@ set(QML_SRC_FILES
     qml/qt6/Components/LabelWithTooltip.qml
     qml/qt6/Components/LayerCoreProperties.qml
     qml/qt6/Components/PopupHelpers.js
+    qml/qt6/Components/WindowHelpers.js
     qml/qt6/Components/SelectActionPopup.qml
     qml/qt6/Components/SettingsBasePage.qml
     qml/qt6/Components/SettingsHeader.qml
@@ -457,6 +458,7 @@ if(BUILD_CPLAY_WITH_WEBVIEW)
     list(APPEND QML_SRC_FILES qml/qt6/PresenterWebView.qml)
 endif()
 set_source_files_properties(qml/qt6/Components/PopupHelpers.js PROPERTIES QT_QML_SKIP_QMLDIR_ENTRY TRUE)
+set_source_files_properties(qml/qt6/Components/WindowHelpers.js PROPERTIES QT_QML_SKIP_QMLDIR_ENTRY TRUE)
 set_source_files_properties(qml/qt6/Components/DecimalSpinBoxHelpers.js PROPERTIES QT_QML_SKIP_QMLDIR_ENTRY TRUE)
 
 option(CPLAY_FAST_QML_BUILD "Skip QmlLint and QmlCacheGen. Should be OFF for release build." OFF)   
