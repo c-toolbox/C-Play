@@ -55,7 +55,7 @@ Choose **Video** and browse to a recorded clip, such as MP4, MKV, MOV, or WebM. 
 
 A MultiVideo layer groups several video files into one synchronized composition. Use it for installations where different nodes or eyes need different video files while sharing one playback timeline.
 
-Choose **MultiVideo** and open a `.cplaymulti` composition file. It defines a master reference video and the video entries each node should load, including per-entry mapping, stereo, eye, and audio settings. Define node IDs in `data/nodes.json` and make the referenced files available on the corresponding machines. See [Multi-video composition](/media/cplaymulti) for the complete format and examples.
+Choose **MultiVideo** and open a `.cplaymulti` composition file. It defines a master reference video and the video entries each node should load, including per-entry mapping, stereo, eye, and audio settings. Build it in the [Multi-Video Composer](/media/cplaymulti#multi-video-composer) (**File → Multi-Video Composer...**), set the node ids under **Settings → Node Configuration...**, and make the referenced files available on the corresponding machines. See [Multi-video composition](/media/cplaymulti) for a quick start and the file format.
 
 ### Audio
 

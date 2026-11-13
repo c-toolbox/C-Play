@@ -5,25 +5,122 @@ sidebar_position: 6
 
 # Multi-video composition files (*.cplaymulti)
 
-C-Play supports playing **multiple videos simultaneously** on cluster nodes, with each video mapped differently (e.g., left/right eye for 3D, different dome positions). All videos are time-synced to a single **master reference video** played on the master node.
+C-Play can play **several videos at the same time** on the cluster nodes, each with its own mapping: for example left and right eye for 3D, or a different file on each node. All of them stay in time with one **master reference video** that plays on the master.
 
-This feature is defined in a JSON configuration file with the `.cplaymulti` extension. The full composition is sent from the master to all nodes via the sync system, and each node resolves its own per-node file paths using a separate node-identity configuration.
+Such a setup is saved as a multi-video composition, a `.cplaymulti` file. **Build and edit compositions in the [Multi-Video Composer](#multi-video-composer).** It writes a valid file, shows where every video and audio source plays, and warns about mistakes before you play. You do not need to write the JSON by hand; the [file format reference](#file-format-reference) at the end of this page is there for reading files, scripting and troubleshooting.
 
-## Overview
+A composition consists of:
 
-A multi-video composition defines:
+1. **Master reference** — one video played on the master, for preview and timeline control.
+2. **Entries** — the videos (or audio streams) each node plays, each with its own eye, grid and stereo mode.
+3. **Per-node files and audio** — which file each node plays for an entry, and which nodes play audio. Nodes are named by the node ids in `data/nodes.json`.
 
-1. **Master reference video** — A single video played on the master for preview/timeline control
-2. **Video entries** — Multiple videos to play on each node, with distinct rendering mappings (eye mode, grid mode, stereo mode)
-3. **Per-node file paths** — Different files per node, resolved via node ID mapping
+Typical uses:
 
-### Use Cases
+- **Stereoscopic 3D dome** — left-eye and right-eye videos played together on a dome.
+- **Multi-screen installations** — different content on different nodes or parts of the environment.
+- **Audio on one node** — the soundtrack played only on the node wired to the sound system.
 
-- **Stereoscopic 3D dome** — Play left-eye and right-eye videos simultaneously on a dome projection
-- **Multi-screen installations** — Display different content on different parts of the environment
-- **Redundant playback** — Same video from multiple angles/sources, mapped to different positions
+## Quick start
 
-## JSON Schema
+1. **Prepare the files.** Use [C-Slice](https://c-toolbox.github.io/C-Slice/) to render and encode per-window outputs for your SGCT setup (see [video preparation](/media/video#prepare-videos-with-c-slice)). Put the node files where each node can reach them, and prepare separate audio files if you use them.
+2. **Name the nodes.** Open **Settings → Node Configuration...**, click **Add from cluster** (or add the rows by hand), give each node an id such as `Node1`, and save. Copy `data/nodes.json` to every node. See [Node Configuration](#node-configuration).
+3. **Open the composer.** Choose **File → Multi-Video Composer...** and click **New**.
+4. **Set the master reference.** Select *Master reference* in the entry list, choose the reference video, and set its grid and stereoscopic mode so the preview looks right.
+5. **Add entries.** Click **Add video** for each video stream (for example one per eye) and set its eye, grid and stereoscopic mode. Click **Add audio** for a stream that only plays sound.
+6. **Choose the files per node.** For each entry, fill in the file on each node's row under *Per node*, or type one **Path template** such as `/media/sliced/{nodeId}/left.mp4` that works for all nodes.
+7. **Choose where audio plays.** Use **Play audio on** (**All nodes**, **No nodes**, or **Only on** a node, then **Apply**), or set audio per node. The **Audio routing** tab shows the result; aim for one audio source per machine.
+8. **Check and play.** Look at the **Checks** tab, then click **Save and Play**. The master plays the reference video and each node creates its own players.
+
+To use the composition later, open the `.cplaymulti` file, [add it to a playlist](#in-a-playlist), or reference it from a [C-Play file](#integration-with-cplayfile-c-play-file).
+
+## Multi-Video Composer
+
+Open the composer with **File → Multi-Video Composer...**. You can also open it from the **Save As C-Play File** window, using the edit button next to the multi-video composition field. When that field has a file, the composer opens it.
+
+![Multi-Video Composer with a video entry selected](/assets/ui/multivideo_composer.png)
+
+- **Toolbar**: **New**, **Open...**, **Save**, **Save As...** and **Save and Play**. The window title shows the file name, with `*` when there are unsaved changes; New and Open ask before they discard them.
+- **Nodes**: the node ids come from `data/nodes.json`, plus the ids used in the open composition. To add an id by hand, type it in the *Node id* field and click **Add node** (or press Enter). **Node Configuration...** opens the [Node Configuration window](#node-configuration-window).
+- **Entry list**: the master reference first, then the entries, each with a summary of where it plays and where its audio plays. **Add video**, **Add audio**, **Duplicate**, **Up**, **Down** and **Remove** edit the list.
+- **Master reference**: the reference video, its grid and stereoscopic modes, **Play audio on the master**, and an optional separate audio file.
+- **Video entries**: name, eye, grid and stereoscopic mode, and an optional path template. Under *Audio*, **Play audio on** sets audio for **All nodes**, **No nodes**, or **Only on** one node (choose it and click **Apply**). *Default* sets the entry's own audio and separate audio file. Under *Per node*, each node has a row with its video file, an audio setting (**Default (on/off)**, **On** or **Off**) and an optional separate audio file. A node without a file uses the path template.
+- **Audio entries**: give an audio file to each node that should play the stream. Nodes left empty play nothing for it.
+- **Audio routing** lists which audio sources play on the master and on each node. **Checks** warns about issues, for example two audio sources on one node, entries that play nowhere, or node ids missing from `nodes.json`. **JSON** shows the file that will be saved.
+
+File paths are shown in a warning color when they do not exist on this computer. That is fine for files that only exist on a node.
+
+**Save and Play** saves the composition and loads it on the master and all nodes. Fields the composer does not edit (`plane`, `rotate`, `translate`, `roi`) are kept when you save the file, and are listed below the entry.
+
+### Common setups
+
+- **Stereoscopic dome on one node** — add two video entries, set *Eye* to **Left eye only** and **Right eye only**, grid mode **Dome** on both, and choose the left and right files on the node's row. Set **Play audio on** to the node on one of the two entries only.
+- **One file per node on a large cluster** — add one video entry and type a **Path template** with `{nodeId}`, for example `/media/sliced/{nodeId}/show.mp4`, instead of filling in every row. A file in a node's row overrides the template for that node.
+- **Video on one node only** — leave **Path template** empty and choose a file only on that node's row. Other nodes skip the entry.
+- **Audio on one node only** — click **Add audio**, choose the audio file only on that node's row, and turn off audio on the video entries (**Play audio on → No nodes**). Turn off **Play audio on the master** if the master should be silent too.
+
+The master's volume and mute controls apply to all node audio in a composition, also when audio on nodes is turned off in the audio settings.
+
+## Node Configuration
+
+Nodes find their node id by looking up their own IP address in `data/nodes.json`. Multi-video compositions use the id to choose each node's files and audio, and other per-node features use the same file, such as per-node stream, DirectShow and capture settings (see [Per-node resolution in clusters](/media/layer-operations#per-node-resolution-in-clusters)).
+
+### Node Configuration window
+
+Edit the node ids under **Settings → Node Configuration...**. The window can also be opened with the **Node Configuration...** buttons in the Multi-Video Composer and in the Logging window (next to *Node telemetry*).
+
+![Node Configuration window](/assets/ui/node_configuration.png)
+
+* **File** — the `nodes.json` that is edited, in the `data` folder of this C-Play. When it does not exist yet, it is created when you save. When the file was found in the old `data/multivideo` folder, the window says so and saving writes `data/nodes.json`.
+* **Node id** / **IP address** — one row per node. Reorder rows with the arrows, or remove a row with the delete button.
+* **Add node** — adds an empty row.
+* **Add from cluster** — adds a row for each node address in the running cluster configuration that is not listed yet. It is disabled when no cluster configuration is running.
+* **Reload** — discards your changes and reads `nodes.json` again.
+* **Save** — writes the file. The status next to it shows what was loaded, added or saved.
+
+The window warns about rows without a node id or IP address, node ids used more than once (those nodes get the same files), and IP addresses listed more than once (only the last row counts). When a cluster is running, it also lists cluster nodes without a node id and listed addresses that are not in the cluster configuration.
+
+Every computer reads `nodes.json` from its own C-Play folder. After saving, copy the file to every node (unless they share the folder) and restart C-Play on the nodes. An open Multi-Video Composer picks up added or renamed node ids at once.
+
+Older versions kept the file in `./data/multivideo/nodes.json`. That location is still read when `./data/nodes.json` does not exist, and C-Play logs a warning. Open it in the Node Configuration window and save it to move it to `./data/nodes.json`, then copy that file to the nodes.
+
+## Playing compositions
+
+A composition plays when you:
+
+- open the `.cplaymulti` file, or use **Save and Play** in the composer;
+- play a playlist entry that is a `.cplaymulti` file (see [In a playlist](#in-a-playlist));
+- open or play a `.cplayfile` that references one (see [Integration with cplayfile](#integration-with-cplayfile-c-play-file)).
+
+The master plays the reference video for preview and timeline control, and the composition is sent to all nodes. Each node then creates players for the entries that have a file for it. Time, pause and loop follow the master.
+
+After you change a composition, test it on the cluster and check the log for "no path resolved" warnings, which mean a node found no file for an entry: either the node id is missing from `nodes.json`, or the entry has no file or template for that node.
+
+### In a playlist
+
+A `.cplaymulti` file can be a playlist entry by itself; no `.cplayfile` is needed. Add it with **Add file to playlist** (the dialog lists *Multi-video composition (\*.cplaymulti)*) or by dropping it on the playlist.
+
+* **Playing the entry** starts the composition: the master plays the reference video and the nodes create their per-node players. Nothing starts when the playlist is loaded or the entry is added.
+* **Playing a normal entry** after a composition ends the composition; the nodes go back to playing the main video.
+* **Playlist entry options** apply as for other entries: end-of-file mode, start and end time, and the grid and stereo mode overrides (for the master preview). The separate audio file override does not apply; set audio in the composition instead.
+* **Shown in the playlist**: the file name, the master's grid and stereo modes, and the duration once the entry has been played. The entry's media file is the master reference file.
+
+A `.cplayfile` that references a composition works the same way in a playlist. Use one when the entry also needs a title or sections.
+
+### Integration with cplayfile (C-Play File)
+
+A composition can be used **inside a `.cplayfile`** (C-Play file), which adds a title, sections and other C-Play file settings. In the **Save As C-Play File** window, check **Multi-Video Composition** and choose the `.cplaymulti` file; the edit button next to it opens the file in the composer. When you save a C-Play file while a composition is playing, the field is filled in for you.
+
+When the C-Play file is opened or played:
+
+1. C-Play loads the composition instead of a single media file.
+2. The master plays the composition's reference video.
+3. All nodes receive the composition and create their players.
+4. The C-Play file's title and sections still apply, so you can define sections within the composition. In a playlist, the playlist entry supplies the end-of-file mode.
+
+## File format reference
+
+The Multi-Video Composer writes these files, and its **JSON** tab shows the file before you save. Use this reference to read a file, generate one from a script, or troubleshoot. If you edit a file by hand, open it in the composer afterwards and look at the **Checks** tab.
 
 A `.cplaymulti` file is a JSON document with the following structure:
 
@@ -125,7 +222,7 @@ Each video entry must specify which file to play on each node. There are two way
 
 #### Direct Path Mapping (`paths`)
 
-The `paths` object maps node identifiers (from the node identity config) to file paths:
+The `paths` object maps node identifiers (from `data/nodes.json`) to file paths:
 
 ```json
 {
@@ -176,7 +273,7 @@ A nonempty `paths` lookup takes precedence over `pathTemplate`. An empty path fa
 
 ### Audio-only entries
 
-An entry with `"type": "audio"` plays audio with no video. Each node listed in `paths` (or resolved through `pathTemplate`) plays its file. Nodes without a file play nothing for this entry. Use this to play the soundtrack on only the node that is wired to the sound system:
+An entry with `"type": "audio"` plays audio with no video. Each node listed in `paths` (or resolved through `pathTemplate`) plays its file. Nodes without a file play nothing for this entry:
 
 ```json
 {
@@ -188,7 +285,7 @@ An entry with `"type": "audio"` plays audio with no video. Each node listed in `
 }
 ```
 
-The audio sub-player follows the master's time, pause and loop state like the video entries. The master's volume and mute controls apply to all node audio in a composition, also when audio on nodes is turned off in the audio settings. The `eyeMode`, `gridMode`, `stereoMode`, `audio` and `audioFile` fields do not apply to audio entries.
+The audio sub-player follows the master's time, pause and loop state like the video entries. The `eyeMode`, `gridMode`, `stereoMode`, `audio` and `audioFile` fields do not apply to audio entries.
 
 ### Plane Parameters
 
@@ -242,9 +339,9 @@ Region of interest settings allow displaying only a portion of the video:
 | `w` | number | Width in normalized coordinates [0, 1] (default: 1) |
 | `h` | number | Height in normalized coordinates [0, 1] (default: 1) |
 
-## Node Identity Configuration
+### nodes.json
 
-For per-node path resolution to work, C-Play needs a mapping from node IP addresses to node identifiers. This is stored in `./data/nodes.json`. Other per-node features read the same file, such as per-node stream, DirectShow and capture settings (see [Per-node resolution in clusters](/media/layer-operations#per-node-resolution-in-clusters)):
+The [Node Configuration window](#node-configuration-window) writes `./data/nodes.json` in this format:
 
 ```json
 {
@@ -255,30 +352,37 @@ For per-node path resolution to work, C-Play needs a mapping from node IP addres
 }
 ```
 
-Each node uses this file to determine its own identifier, which is then used to look up the correct file path in the composition JSON's `paths` object.
+### In a cplayfile
 
-Older versions kept the file in `./data/multivideo/nodes.json`. That location is still read when `./data/nodes.json` does not exist, and C-Play logs a warning. Move the file to `./data/` on the master and on every node, or open it in the Node Configuration window and save it, which writes it to `./data/nodes.json`.
+A `.cplayfile` refers to a composition with the `multivideo` key:
 
-### Node Configuration window
+```json
+{
+  "video": "/data/Media/Domtest_8K_30_H265/Domtest_Sliced/GUI/DomeTest.mp4",
+  "multivideo": "./data/multivideo/single_node.cplaymulti",
+  "title": "Stereoscopic Dome Show"
+}
+```
 
-You can edit this file in C-Play under **Settings → Node Configuration...**. The window can also be opened with the **Node Configuration...** buttons in the Multi-Video Composer and in the Logging window (next to *Node telemetry*).
+When `multivideo` resolves to a valid `.cplaymulti` file, the composition is played instead of the `video` file. `useMultivideoConfig` is an application property, not a JSON field.
 
-![Node Configuration window](/assets/ui/node_configuration.png)
+### In a cplaylist
 
-* **File** — the `nodes.json` that is edited, in the `data` folder of this C-Play. When it does not exist yet, it is created when you save. When the file was found in the old `data/multivideo` folder, the window says so and saving writes `data/nodes.json`.
-* **Node id** / **IP address** — one row per node. Reorder rows with the arrows, or remove a row with the delete button.
-* **Add node** — adds an empty row.
-* **Add from cluster** — adds a row for each node address in the running cluster configuration that is not listed yet. It is disabled when no cluster configuration is running.
-* **Reload** — discards your changes and reads `nodes.json` again.
-* **Save** — writes the file. The status next to it shows what was loaded, added or saved.
+A `.cplaylist` lists a composition like any other file:
 
-The window warns about rows without a node id or IP address, node ids used more than once (those nodes get the same files), and IP addresses listed more than once (only the last row counts). When a cluster is running, it also lists cluster nodes without a node id and listed addresses that are not in the cluster configuration.
+```json
+{
+  "playlist": [
+    { "file": "intro.mp4", "on_file_end": "continue" },
+    { "file": "./data/multivideo/single_node.cplaymulti", "on_file_end": "continue" },
+    { "file": "outro.mp4", "on_file_end": "pause" }
+  ]
+}
+```
 
-Every computer reads `nodes.json` from its own C-Play folder. After saving, copy the file to every node (unless they share the folder) and restart C-Play on the nodes. An open Multi-Video Composer picks up added or renamed node ids at once.
+### Example: Single-Node Stereoscopic Dome
 
-## Example: Single-Node Stereoscopic Dome
-
-This example plays left-eye and right-eye videos on a single node for stereoscopic dome viewing. The left eye entry includes an optional separate audio file:
+Left-eye and right-eye videos on one node for a stereoscopic dome. The left eye entry plays audio from a separate file:
 
 ```json
 {
@@ -314,9 +418,9 @@ This example plays left-eye and right-eye videos on a single node for stereoscop
 }
 ```
 
-## Example: Multi-Node Cluster with Path Template
+### Example: Multi-Node Cluster with Path Template
 
-This example uses a path template for a 6-node cluster:
+A path template for a 6-node cluster:
 
 ```json
 {
@@ -347,116 +451,3 @@ This example uses a path template for a 6-node cluster:
 For `Node3`, the resolved paths would be:
 - Left eye: `/data/Media/sliced/Node3/left.mp4`
 - Right eye: `/data/Media/sliced/Node3/right.mp4`
-
-## Multi-Video Composer
-
-You can build `.cplaymulti` files in C-Play under **File → Multi-Video Composer...**. You can also open it from the **Save As C-Play File** window, using the edit button next to the multi-video composition field. When that field has a file, the composer opens it.
-
-![Multi-Video Composer with a video entry selected](/assets/ui/multivideo_composer.png)
-
-- **Toolbar**: **New**, **Open...**, **Save**, **Save As...** and **Save and Play**. The window title shows the file name, with `*` when there are unsaved changes; New and Open ask before they discard them.
-- **Nodes**: the node ids come from `data/nodes.json`, plus the ids used in the open composition. To add an id by hand, type it in the *Node id* field and click **Add node** (or press Enter). **Node Configuration...** opens the [Node Configuration window](#node-configuration-window).
-- **Entry list**: the master reference first, then the entries, each with a summary of where it plays and where its audio plays. **Add video**, **Add audio**, **Duplicate**, **Up**, **Down** and **Remove** edit the list.
-- **Master reference**: the reference video, its grid and stereo modes, **Play audio on the master**, and an optional separate audio file.
-- **Video entries**: name, eye, grid and stereo mode, and an optional path template. Under *Audio*, **Play audio on** sets audio for **All nodes**, **No nodes**, or **Only on** one node (choose it and click **Apply**). *Default* sets the entry's own `audio` and separate audio file. Under *Per node*, each node has a row with its video file, an audio setting (**Default (on/off)**, **On** or **Off**) and an optional separate audio file. A node without a file uses the path template.
-- **Audio entries**: give an audio file to each node that should play the stream. Nodes left empty play nothing for it.
-- **Audio routing** lists which audio sources play on the master and on each node. **Checks** warns about issues, for example two audio sources on one node, entries that play nowhere, or node ids missing from `nodes.json`. **JSON** shows the file that will be saved.
-
-File paths are shown in a warning color when they do not exist on this computer. That is fine for files that only exist on a node.
-
-Use **Save and Play** to save the composition and load it on the master and all nodes. Fields the composer does not edit (`plane`, `rotate`, `translate`, `roi`) are kept when you save the file, and are listed below the entry.
-
-## Workflow for Creating cplaymulti Files
-
-1. **Prepare your video files** — Use [C-Slice](https://c-toolbox.github.io/C-Slice/) when you need to render and encode per-window outputs from a video or image sequence for your SGCT setup. See [video preparation](/media/video#prepare-videos-with-c-slice). Ensure all videos are available at the paths specified in the composition, or use path templates with `{nodeId}` placeholders. If using separate audio files, prepare those as well.
-
-2. **Create node identity config** — Create `./data/nodes.json` mapping each node's IP address to a unique identifier, in the [Node Configuration window](#node-configuration-window) or by hand:
-   ```json
-   { "nodes": [ { "id": "Node1", "ip": "10.0.0.11" } ] }
-   ```
-
-3. **Choose master reference video** — Select the video that will be played on the master for preview/timeline control. This should typically match one of the node videos or a combined version.
-
-4. **Define master parameters** — Configure the reference video played on the master:
-   - Set `gridMode` and `stereoMode` for correct preview rendering
-   - Optionally specify an `audioFile` for a separate audio track (similar to cplayfile's "Separate Audio File")
-
-5. **Define video entries** — For each video to play on nodes:
-   - Give it a descriptive `name`
-   - Set `eyeMode` if using split-eye 3D (`"left"` or `"right"`)
-   - Set `gridMode` and `stereoMode` for the desired rendering
-   - Enable `audio` for only one source per machine (to avoid overlapping audio). Use [per-node audio](#per-node-audio) or an [audio-only entry](#audio-only-entries) to play audio on specific nodes only
-   - Optionally specify an `audioFile` for a separate audio track (similar to cplayfile's "Separate Audio File")
-   - Specify per-node paths in `paths` or use `pathTemplate`
-
-6. **Test on master** — Load the `.cplaymulti` file through C-Play's multi-video loader. The master should show the reference video, and nodes should display their respective sub-videos correctly mapped.
-
-7. **Verify node resolution** — Check logs for any "no path resolved" warnings indicating missing or incorrect node ID mappings.
-
-## Integration with cplayfile (C-Play File)
-
-A `.cplaymulti` multi-video composition can be incorporated **inside a `.cplayfile`** (C-Play file). This allows you to use multi-video playback as part of a structured media file that also includes metadata such as title, sections, and other settings. Set per-item EOF behavior in the `.cplaylist` that references it.
-
-### How It Works
-
-When creating or editing a `.cplayfile`, there is an optional **"Multi-video Composition"** field where you can specify the path to a `.cplaymulti` JSON file. When this field is set:
-
-1. Instead of loading the media file directly, C-Play loads the multi-video composition specified in the cplaymulti file
-2. The master reference video from the cplaymulti is played on the master node for preview/timeline control
-3. All nodes receive the composition JSON and create sub-players according to their configured entries
-4. Other settings from the cplayfile (title and sections) still apply; the containing playlist supplies its item's EOF mode
-
-### Example
-
-In a `.cplayfile`, you can specify:
-
-```json
-{
-  "video": "/data/Media/Domtest_8K_30_H265/Domtest_Sliced/GUI/DomeTest.mp4",
-  "multivideo": "./data/multivideo/single_node.cplaymulti",
-  "title": "Stereoscopic Dome Show"
-}
-```
-
-The saved file uses the `multivideo` key; `useMultivideoConfig` is an application property, not a JSON field. When `multivideo` resolves to a valid `.cplaymulti` file, C-Play will:
-- Load the multi-video composition instead of the single media file
-- Use the master reference video from the cplaymulti for preview
-- Sync the full composition to all cluster nodes
-
-### Benefits
-
-Using cplaymulti inside cplayfile gives you:
-- **Metadata support** — Title, sections, and other cplayfile features work alongside multi-video
-- **Section-based playback** — Define time ranges within the multi-video composition
-- **Playlist entries with sections** — a `.cplaymulti` can be added to a playlist directly (see [In a playlist](#in-a-playlist)); wrap it in a cplayfile when the entry also needs a title or sections
-- **SaveAsCPlayFile dialog** — When saving a multi-video session as a cplayfile, the cplaymulti path is automatically populated
-
-## Loading Multi-Video Compositions
-
-Multi-video compositions can be loaded in C-Play by:
-- Opening a `.cplaymulti` file directly (C-Play recognizes the extension)
-- **Loading a `.cplayfile` that references a cplaymulti composition** (see [Integration with cplayfile](#integration-with-cplayfile-c-play-file) above)
-- Playing a playlist entry that is a `.cplaymulti`, or a `.cplayfile` that references one (see [In a playlist](#in-a-playlist))
-
-When loading directly, the master plays the reference video for preview, and the composition JSON is synced to all nodes. Each node then creates sub-players according to its configured entries.
-
-### In a playlist
-
-A `.cplaymulti` file can be a playlist entry by itself; no `.cplayfile` is needed. Add it with **Add file to playlist** (the dialog lists *Multi-video composition (\*.cplaymulti)*), by dropping it on the playlist, or with a `file` entry in a `.cplaylist`:
-
-```json
-{
-  "playlist": [
-    { "file": "intro.mp4", "on_file_end": "continue" },
-    { "file": "./data/multivideo/single_node.cplaymulti", "on_file_end": "continue" },
-    { "file": "outro.mp4", "on_file_end": "pause" }
-  ]
-}
-```
-
-* **Playing the entry** starts the composition: the master plays the reference video and the nodes create their per-node players. Nothing starts when the playlist is loaded or the entry is added.
-* **Playing a normal entry** after a composition ends the composition; the nodes go back to playing the main video.
-* **Playlist entry options** apply as for other entries: end-of-file mode, start and end time, and the grid and stereo mode overrides (for the master preview). The separate audio file override does not apply; set audio in the composition instead.
-* **Shown in the playlist**: the file name, the master's grid and stereo modes, and the duration once the entry has been played. The entry's media file is the master reference file.
-
-A `.cplayfile` that references a composition works the same way in a playlist. Use one when the entry also needs a title or sections.
