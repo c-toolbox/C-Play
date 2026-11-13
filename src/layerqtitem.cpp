@@ -2648,8 +2648,8 @@ void LayerQtOpenGLObject::paint() {
     program->enableAttributeArray(0);
 
     glActiveTexture(GL_TEXTURE1);
-    const unsigned int textureId = m_layer->textureId();
-    m_layer->waitForTexture();
+    // Held until the draw is issued, so the render thread of the 3D view does not write into it meanwhile.
+    const unsigned int textureId = m_layer->acquireTextureForRead();
     glBindTexture(GL_TEXTURE_2D, textureId);
 
     program->setUniformValue("tex", 1);
@@ -2669,6 +2669,7 @@ void LayerQtOpenGLObject::paint() {
     m_vao.bind();
 
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    m_layer->releaseTextureForRead(textureId);
 
     m_vao.release();
 

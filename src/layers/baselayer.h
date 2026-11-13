@@ -387,6 +387,11 @@ public:
     // Call after textureId() when sampling from another window's OpenGL context: makes that
     // context's GPU commands wait until the texture is complete, as published by publishTextureFence().
     virtual void waitForTexture();
+    // For sampling from another window's OpenGL context: returns textureId() after waitForTexture(),
+    // and keeps the render thread from writing into that texture until releaseTextureForRead(),
+    // called with the returned id once the draw commands that sample it are issued.
+    virtual unsigned int acquireTextureForRead();
+    virtual void releaseTextureForRead(unsigned int texId);
     virtual unsigned int textureInternalFormat() const;
     virtual int width() const;
     virtual int height() const;

@@ -91,6 +91,8 @@ public:
     // Texture info (forwarded to active sub-layer)
     unsigned int textureId() const override;
     void waitForTexture() override;
+    unsigned int acquireTextureForRead() override;
+    void releaseTextureForRead(unsigned int texId) override;
     int width() const override;
     int height() const override;
 

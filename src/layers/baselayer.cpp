@@ -1528,6 +1528,16 @@ void BaseLayer::waitForTexture() {
         glWaitSync(m_textureFence, 0, GL_TIMEOUT_IGNORED);
 }
 
+unsigned int BaseLayer::acquireTextureForRead() {
+    const unsigned int texId = textureId();
+    waitForTexture();
+    return texId;
+}
+
+void BaseLayer::releaseTextureForRead(unsigned int) {
+    // Overwrite in derived classes that write into a texture that may still be read
+}
+
 void BaseLayer::publishTextureFence() {
     // Only the master shows a layer in more than one window.
     if (!m_isMaster)

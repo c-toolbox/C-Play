@@ -9,6 +9,8 @@
 #define VIDEOLAYER_H
 
 #include <layers/mpvlayer.h>
+#include <mutex>
+#include <vector>
 
 class VideoLayer : public MpvLayer {
 public:
@@ -27,10 +29,18 @@ public:
     virtual bool ready() const;
 
     unsigned int textureInternalFormat() const override;
+    unsigned int acquireTextureForRead() override;
+    void releaseTextureForRead(unsigned int texId) override;
 
     void updateFbo();
 
 private:
+    // Index of texId among the primary (0) and ping-pong (1) textures, or -1. Needs m_readMutex.
+    int bufferIndex(unsigned int texId) const;
+    // Render thread: makes this context's GPU wait for all reads of the buffer. Needs m_readMutex.
+    void waitForBufferReads(int index);
+    void deleteReadFences();
+
     void applyPendingVideoSize();
     void checkNeededMpvFboResize();
     void createMpvFBO(int width, int height);
@@ -45,6 +55,13 @@ private:
     bool m_pingPongCreated = false;
     bool m_renderingToPingPong = false; // true => MPV renders to ping-pong FBO, display reads primary; false => vice-versa
     bool m_redrawNeeded = true; // The display buffer lacks the current frame, so render even without a new one
+
+    // Reads of the buffers from other windows' contexts (LayerView), so mpv never renders into a
+    // buffer that is still being sampled: a held buffer is skipped, and the GPU waits for the
+    // fences of finished reads before writing.
+    std::mutex m_readMutex;
+    int m_readHolds[2] = {0, 0};
+    std::vector<struct __GLsync *> m_readFences[2];
 };
 
 #endif // VIDEOLAYER_H

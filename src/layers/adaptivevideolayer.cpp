@@ -397,6 +397,19 @@ void AdaptiveVideoLayer::waitForTexture() {
         sub->waitForTexture();
 }
 
+unsigned int AdaptiveVideoLayer::acquireTextureForRead() {
+    BaseLayer* sub = m_mpl == MDK ? static_cast<BaseLayer*>(mdkVideoLayer.get()) : static_cast<BaseLayer*>(mpvVideoLayer.get());
+    return sub ? sub->acquireTextureForRead() : 0;
+}
+
+void AdaptiveVideoLayer::releaseTextureForRead(unsigned int texId) {
+    // Both sub-layers ignore ids that are not theirs, so a backend switch in between is harmless.
+    if (mdkVideoLayer)
+        mdkVideoLayer->releaseTextureForRead(texId);
+    if (mpvVideoLayer)
+        mpvVideoLayer->releaseTextureForRead(texId);
+}
+
 int AdaptiveVideoLayer::width() const {
     BaseLayer* sub = m_mpl == MDK ? static_cast<BaseLayer*>(mdkVideoLayer.get()) : static_cast<BaseLayer*>(mpvVideoLayer.get());
     return sub ? sub->width() : 0;

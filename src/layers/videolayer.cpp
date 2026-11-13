@@ -90,6 +90,9 @@ void VideoLayer::cleanup() {
 
     releaseTextureFence();
 
+    std::lock_guard<std::mutex> readLock(m_readMutex);
+    deleteReadFences();
+
     if (m_data.fboCreated) {
         m_data.fboCreated = false;
         glDeleteFramebuffers(1, &m_data.fboId);
@@ -138,11 +141,24 @@ void VideoLayer::updateFrame() {
             return;
         }
 
+        // Held while rendering and flipping, so another window never acquires the buffer
+        // that mpv writes into, nor a texture id that does not match the published fence.
+        std::unique_lock<std::mutex> readLock(m_readMutex, std::defer_lock);
+
         // On master with ping-pong enabled, render MPV into the back buffer and
         // expose the previously completed front buffer for display.
         unsigned int renderTargetFbo = m_data.fboId;
         if (pingPong) {
-            renderTargetFbo = m_renderingToPingPong ? m_pingPongFboId : m_data.fboId;
+            const int target = m_renderingToPingPong ? 1 : 0;
+            readLock.lock();
+            if (m_readHolds[target] > 0) {
+                // A LayerView is sampling the back buffer right now. Keep the frame for the next call.
+                m_redrawNeeded = true;
+                return;
+            }
+            // Earlier samples of the back buffer from other windows must finish before mpv overwrites it.
+            waitForBufferReads(target);
+            renderTargetFbo = target == 1 ? m_pingPongFboId : m_data.fboId;
         }
 
         mpv_opengl_fbo mpfbo{static_cast<int>(renderTargetFbo), m_data.fboWidth, m_data.fboHeight, GL_RGBA16F};
@@ -177,6 +193,67 @@ void VideoLayer::updateFrame() {
         // The skipped frame is gone from mpv, and a paused layer gets no new one.
         m_redrawNeeded = true;
     }
+}
+
+unsigned int VideoLayer::acquireTextureForRead() {
+    std::lock_guard<std::mutex> lock(m_readMutex);
+    const unsigned int texId = BaseLayer::acquireTextureForRead();
+    const int index = bufferIndex(texId);
+    if (index >= 0)
+        m_readHolds[index]++;
+    return texId;
+}
+
+void VideoLayer::releaseTextureForRead(unsigned int texId) {
+    std::lock_guard<std::mutex> lock(m_readMutex);
+    const int index = bufferIndex(texId);
+    if (index < 0 || m_readHolds[index] == 0)
+        return;
+
+    auto& fences = m_readFences[index];
+    // Reads that are already done need no wait, which also bounds the list while mpv is paused.
+    std::erase_if(fences, [](GLsync fence) {
+        const GLenum status = glClientWaitSync(fence, 0, 0);
+        if (status == GL_ALREADY_SIGNALED || status == GL_CONDITION_SATISFIED) {
+            glDeleteSync(fence);
+            return true;
+        }
+        return false;
+    });
+
+    // The flush makes the fence visible to the render thread's context.
+    fences.push_back(glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0));
+    glFlush();
+    m_readHolds[index]--;
+}
+
+int VideoLayer::bufferIndex(unsigned int texId) const {
+    if (texId == 0)
+        return -1;
+    if (texId == m_primaryTexId)
+        return 0;
+    if (m_pingPongCreated && texId == m_pingPongTexId)
+        return 1;
+    return -1;
+}
+
+void VideoLayer::waitForBufferReads(int index) {
+    for (GLsync fence : m_readFences[index]) {
+        glWaitSync(fence, 0, GL_TIMEOUT_IGNORED);
+        glDeleteSync(fence); // Deferred by OpenGL until the wait is done
+    }
+    m_readFences[index].clear();
+}
+
+void VideoLayer::deleteReadFences() {
+    for (auto& fences : m_readFences) {
+        for (GLsync fence : fences)
+            glDeleteSync(fence);
+        fences.clear();
+    }
+    // Holds on the old textures are released against ids that no longer match.
+    m_readHolds[0] = 0;
+    m_readHolds[1] = 0;
 }
 
 void VideoLayer::applyPendingVideoSize() {
@@ -215,6 +292,10 @@ void VideoLayer::checkNeededMpvFboResize() {
 }
 
 void VideoLayer::createMpvFBO(int width, int height) {
+    // Another window may be acquiring the current textures.
+    std::lock_guard<std::mutex> readLock(m_readMutex);
+    deleteReadFences();
+
     if (m_data.fboCreated) {
         glDeleteFramebuffers(1, &m_data.fboId);
         glDeleteTextures(1, &m_primaryTexId);
