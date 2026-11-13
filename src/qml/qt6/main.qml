@@ -394,6 +394,14 @@ Kirigami.ApplicationWindow {
         id: saveAsCPlayFileWindow
 
     }
+    MultiVideoComposer {
+        id: multiVideoComposerWindow
+    }
+    NodeConfiguration {
+        id: nodeConfigurationWindow
+
+        onSaved: multiVideoComposerWindow.reloadNodes()
+    }
     ViewPlaylistItem {
         id: viewPlaylistItemWindow
 

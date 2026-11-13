@@ -77,6 +77,8 @@ public:
     void setEOFMode(int eofMode) override;
     void setLoopTime(double A, double B, bool enabled) override;
     void setValue(std::string param, int val) override;
+    void setVolume(int v, bool storeLevel = true) override;
+    void setVolumeMute(bool v) override;
 
     // --- VideoLayer overrides ---
     void update(bool updateRendering = true) override;
@@ -100,6 +102,10 @@ private:
     bool m_compositionNeedsMasterApply = false;
 
     std::unique_ptr<MultiVideoHandler> m_handler;
+
+    // Last volume/mute from the master, applied to sub-players created later. -1 = not set yet.
+    int m_subVolume = -1;
+    bool m_subMute = false;
 
     // Stored for passing to handler.setConfig()
     bool m_allowDirectRendering = false;

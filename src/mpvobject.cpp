@@ -525,7 +525,7 @@ bool MpvObject::mute() {
     if (AudioSettings::enableAudioOnMaster()) {
         return getProperty(QStringLiteral("mute")).toBool();
     }
-    else if (AudioSettings::enableAudioOnNodes()) {
+    else if (AudioSettings::enableAudioOnNodes() || SyncHelper::instance().variables.multiVideoEnabled) {
         return SyncHelper::instance().variables.volumeMute;
     }
     return true;
@@ -538,11 +538,13 @@ void MpvObject::setMute(bool value) {
     if (AudioSettings::enableAudioOnMaster()) {
         setProperty(QStringLiteral("mute"), value);
     }
-    if (AudioSettings::enableAudioOnNodes()) {
+    // A multi-video composition can play audio on nodes regardless of "audio on nodes".
+    const bool nodesMayPlayAudio = AudioSettings::enableAudioOnNodes() || SyncHelper::instance().variables.multiVideoEnabled;
+    if (nodesMayPlayAudio) {
         SyncHelper::instance().variables.volumeMute = value;
         SyncHelper::instance().variables.mpvNeedSync = true;
     }
-    if (AudioSettings::enableAudioOnMaster() || AudioSettings::enableAudioOnNodes()) {
+    if (AudioSettings::enableAudioOnMaster() || nodesMayPlayAudio) {
         Q_EMIT muteChanged();
     }
 }
@@ -1156,6 +1158,9 @@ void MpvObject::loadMultiVideo(const QString &jsonPath, bool updateLastPlayedFil
             int gridVal = 0;
             int stereoVal = 0;
             QString masterAudioFile;
+            // An explicit "audio": false silences the master preview, e.g. when the
+            // composition plays its audio on a node instead. Absent keeps the app settings.
+            bool masterAudioDisabled = false;
             bool hasGridMode = false;
             bool hasStereoMode = false;
 
@@ -1174,6 +1179,9 @@ void MpvObject::loadMultiVideo(const QString &jsonPath, bool updateLastPlayedFil
                     else if (sm == "TB_3D")   stereoVal = 2;
                     else if (sm == "TBF_3D")  stereoVal = 3;
                     hasStereoMode = true;
+                }
+                if (doc["master"].contains("audio") && doc["master"]["audio"].is_boolean()) {
+                    masterAudioDisabled = !doc["master"]["audio"].get<bool>();
                 }
                 // Parse optional separate audio file for the master reference video
                 if (doc["master"].contains("audioFile") && doc["master"]["audioFile"].is_string()) {
@@ -1201,7 +1209,11 @@ void MpvObject::loadMultiVideo(const QString &jsonPath, bool updateLastPlayedFil
 
                 // Build loadfile command with audio-file option (mirrors MpvObject::loadItem behavior)
                 QStringList optionsList;
-                if (!masterAudioFile.isEmpty()) {
+                if (masterAudioDisabled) {
+                    // Per-file option: reset by mpv when the next file is loaded.
+                    optionsList << QStringLiteral("aid=no");
+                }
+                else if (!masterAudioFile.isEmpty()) {
                     QString audioFileToLoad = masterAudioFile;
                     audioFileToLoad.replace(QStringLiteral("file:///"), QStringLiteral(""));
                     QFileInfo audioFileInfo(audioFileToLoad);

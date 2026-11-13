@@ -69,7 +69,7 @@ The `master` object defines the reference video played on the master node:
 | `file` | string | **Required.** Path to the master reference video file. |
 | `gridMode` | string | Optional. Grid mode for the master preview (e.g., `"Dome"`, `"Sphere_EQR"`). Defaults to `None`. |
 | `stereoMode` | string | Optional. Stereo mode for the master preview (e.g., `"SBS_3D"`, `"No_2D"`). Defaults to `No_2D`. |
-| `audio` | boolean | Optional. Whether to enable audio on the master reference video. Defaults to `false`. |
+| `audio` | boolean | Optional. Set to `false` to silence the master preview, for example when the audio plays on a node instead. When omitted, the master follows C-Play's audio settings. |
 | `audioFile` | string | Optional. Path to a separate audio file for the master reference video (mirrors cplayfile's "Separate Audio File"). If specified, the file is loaded via mpv's `audio-file` command option when loading the master file. Defaults to empty (no separate audio). |
 
 ### Videos Array
@@ -79,12 +79,13 @@ The `videos` array contains one entry per video stream to play on each node:
 | Field | Type | Description |
 |-------|------|-------------|
 | `name` | string | **Required.** Human-readable name for this video entry (used in logs). |
+| `type` | string | Optional. `"video"` (default) or `"audio"`. An audio entry plays its per-node file as audio only, with no video rendering. See [Audio-only entries](#audio-only-entries). |
 | `eyeMode` | string | Optional. Eye mode mapping: `"left"`, `"right"`, or `"Both"` (default). Used for split-eye 3D rendering. |
 | `gridMode` | string | Optional. Grid mode for this sub-player: `"None"`, `"Plane"`, `"Dome"`, `"Sphere_EQR"`, or `"Sphere_EAC"`. Defaults to `None`. |
 | `stereoMode` | string | Optional. Stereo mode: `"No_2D"`, `"SBS_3D"`, `"TB_3D"`, or `"TBF_3D"`. Defaults to `No_2D`. |
-| `audio` | boolean | Optional. Whether to enable audio for this sub-player. Only one entry should have `audio: true` to avoid overlapping audio. Defaults to `false`. |
+| `audio` | boolean | Optional. Whether to enable audio for this sub-player on every node. A node can override it in `paths`; see [Per-node audio](#per-node-audio). Each machine should play only one audio source to avoid overlapping audio. Defaults to `false`. |
 | `audioFile` | string | Optional. Path to a separate audio file to load for this sub-player (mirrors cplayfile's "Separate Audio File"). If specified, the file is loaded via mpv's `audio-file` property. Defaults to empty (no separate audio). |
-| `paths` | object | Map of node IDs to file paths. Supply `paths`, `pathTemplate`, or both so each intended node can resolve a file. |
+| `paths` | object | Map of node IDs to file paths. A value is either a path string or an object with `file` and optional per-node `audio` and `audioFile`. Supply `paths`, `pathTemplate`, or both so each intended node can resolve a file. |
 | `plane` | object | Optional. Plane grid parameters (used when `gridMode` is `"Plane"`). See [Plane Parameters](#plane-parameters) below. |
 | `rotate` | array | Optional. Rotation as `[x, y, z]` floats. Used for non-plane grid modes. Defaults to `[0, 0, 0]`. |
 | `translate` | array | Optional. Translation as `[x, y, z]` floats. Defaults to `[0, 0, 0]`. |
@@ -148,7 +149,46 @@ As a fallback, you can use a path template with the `{nodeId}` placeholder:
 
 When resolved for `Node1`, this becomes `/videos/Node1/left.mp4`.
 
+#### Per-node audio
+
+To choose audio per node, write the node's value as an object instead of a string:
+
+```json
+{
+  "audio": false,
+  "paths": {
+    "Node1": { "file": "/videos/Node1/left.mp4", "audio": true, "audioFile": "/audio/stereo_mix.wav" },
+    "Node2": "/videos/Node2/left.mp4",
+    "Node3": "/videos/Node3/left.mp4"
+  }
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `file` | string | Video file for this node. Leave it out to use `pathTemplate`. |
+| `audio` | boolean | Optional. Overrides the entry's `audio` on this node. |
+| `audioFile` | string | Optional. Overrides the entry's `audioFile` on this node. |
+
+In this example, only Node1 plays audio, and it plays a separate stereo mix. Node2 and Node3 play the video without audio.
+
 A nonempty `paths` lookup takes precedence over `pathTemplate`. An empty path falls back to the template; it does not disable that node when a template is set. If neither is available or resolves to an empty string, that sub-player is skipped with a warning.
+
+### Audio-only entries
+
+An entry with `"type": "audio"` plays audio with no video. Each node listed in `paths` (or resolved through `pathTemplate`) plays its file. Nodes without a file play nothing for this entry. Use this to play the soundtrack on only the node that is wired to the sound system:
+
+```json
+{
+  "name": "soundtrack",
+  "type": "audio",
+  "paths": {
+    "Node1": "/data/Media/show/soundtrack_5_1.wav"
+  }
+}
+```
+
+The audio sub-player follows the master's time, pause and loop state like the video entries. The master's volume and mute controls apply to all node audio in a composition, also when audio on nodes is turned off in the audio settings. The `eyeMode`, `gridMode`, `stereoMode`, `audio` and `audioFile` fields do not apply to audio entries.
 
 ### Plane Parameters
 
@@ -216,6 +256,23 @@ For per-node path resolution to work, C-Play needs a mapping from node IP addres
 ```
 
 Each node uses this file to determine its own identifier, which is then used to look up the correct file path in the composition JSON's `paths` object.
+
+### Node Configuration window
+
+You can edit this file in C-Play under **Settings → Node Configuration...**. The window can also be opened with the **Node Configuration...** buttons in the Multi-Video Composer and in the Logging window (next to *Node telemetry*).
+
+![Node Configuration window](/assets/ui/node_configuration.png)
+
+* **File** — the `nodes.json` that is edited, in the `data/multivideo` folder of this C-Play. When it does not exist yet, it is created when you save.
+* **Node id** / **IP address** — one row per node. Reorder rows with the arrows, or remove a row with the delete button.
+* **Add node** — adds an empty row.
+* **Add from cluster** — adds a row for each node address in the running cluster configuration that is not listed yet. It is disabled when no cluster configuration is running.
+* **Reload** — discards your changes and reads `nodes.json` again.
+* **Save** — writes the file. The status next to it shows what was loaded, added or saved.
+
+The window warns about rows without a node id or IP address, node ids used more than once (those nodes get the same files), and IP addresses listed more than once (only the last row counts). When a cluster is running, it also lists cluster nodes without a node id and listed addresses that are not in the cluster configuration.
+
+Every computer reads `nodes.json` from its own C-Play folder, once, when it loads its first composition. After saving, copy the file to every node (unless they share the folder) and restart C-Play on the nodes. An open Multi-Video Composer picks up added or renamed node ids at once.
 
 ## Example: Single-Node Stereoscopic Dome
 
@@ -289,11 +346,29 @@ For `Node3`, the resolved paths would be:
 - Left eye: `/data/Media/sliced/Node3/left.mp4`
 - Right eye: `/data/Media/sliced/Node3/right.mp4`
 
+## Multi-Video Composer
+
+You can build `.cplaymulti` files in C-Play under **File → Multi-Video Composer...**. You can also open it from the **Save As C-Play File** window, using the edit button next to the multi-video composition field. When that field has a file, the composer opens it.
+
+![Multi-Video Composer with a video entry selected](/assets/ui/multivideo_composer.png)
+
+- **Toolbar**: **New**, **Open...**, **Save**, **Save As...** and **Save and Play**. The window title shows the file name, with `*` when there are unsaved changes; New and Open ask before they discard them.
+- **Nodes**: the node ids come from `data/multivideo/nodes.json`, plus the ids used in the open composition. To add an id by hand, type it in the *Node id* field and click **Add node** (or press Enter). **Node Configuration...** opens the [Node Configuration window](#node-configuration-window).
+- **Entry list**: the master reference first, then the entries, each with a summary of where it plays and where its audio plays. **Add video**, **Add audio**, **Duplicate**, **Up**, **Down** and **Remove** edit the list.
+- **Master reference**: the reference video, its grid and stereo modes, **Play audio on the master**, and an optional separate audio file.
+- **Video entries**: name, eye, grid and stereo mode, and an optional path template. Under *Audio*, **Play audio on** sets audio for **All nodes**, **No nodes**, or **Only on** one node (choose it and click **Apply**). *Default* sets the entry's own `audio` and separate audio file. Under *Per node*, each node has a row with its video file, an audio setting (**Default (on/off)**, **On** or **Off**) and an optional separate audio file. A node without a file uses the path template.
+- **Audio entries**: give an audio file to each node that should play the stream. Nodes left empty play nothing for it.
+- **Audio routing** lists which audio sources play on the master and on each node. **Checks** warns about issues, for example two audio sources on one node, entries that play nowhere, or node ids missing from `nodes.json`. **JSON** shows the file that will be saved.
+
+File paths are shown in a warning color when they do not exist on this computer. That is fine for files that only exist on a node.
+
+Use **Save and Play** to save the composition and load it on the master and all nodes. Fields the composer does not edit (`plane`, `rotate`, `translate`, `roi`) are kept when you save the file, and are listed below the entry.
+
 ## Workflow for Creating cplaymulti Files
 
 1. **Prepare your video files** — Use [C-Slice](https://c-toolbox.github.io/C-Slice/) when you need to render and encode per-window outputs from a video or image sequence for your SGCT setup. See [video preparation](/media/video#prepare-videos-with-c-slice). Ensure all videos are available at the paths specified in the composition, or use path templates with `{nodeId}` placeholders. If using separate audio files, prepare those as well.
 
-2. **Create node identity config** — Create `./data/multivideo/nodes.json` mapping each node's IP address to a unique identifier:
+2. **Create node identity config** — Create `./data/multivideo/nodes.json` mapping each node's IP address to a unique identifier, in the [Node Configuration window](#node-configuration-window) or by hand:
    ```json
    { "nodes": [ { "id": "Node1", "ip": "10.0.0.11" } ] }
    ```
@@ -308,7 +383,7 @@ For `Node3`, the resolved paths would be:
    - Give it a descriptive `name`
    - Set `eyeMode` if using split-eye 3D (`"left"` or `"right"`)
    - Set `gridMode` and `stereoMode` for the desired rendering
-   - Enable `audio` for only one entry (to avoid overlapping audio)
+   - Enable `audio` for only one source per machine (to avoid overlapping audio). Use [per-node audio](#per-node-audio) or an [audio-only entry](#audio-only-entries) to play audio on specific nodes only
    - Optionally specify an `audioFile` for a separate audio track (similar to cplayfile's "Separate Audio File")
    - Specify per-node paths in `paths` or use `pathTemplate`
 

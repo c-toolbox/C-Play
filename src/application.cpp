@@ -8,6 +8,7 @@
 
 #include "application.h"
 #include "cplayfiledialog.h"
+#include "utils/multivideocomposer.h"
 #include "configmodel.h"
 #include "haction.h"
 #include "layerqtitem.h"
@@ -554,6 +555,7 @@ void Application::registerQmlTypes() {
     qmlRegisterType<LayersMirrorQtItem>("org.ctoolbox.cplay", 1, 0, "LayersMirrorQtItem");
     qmlRegisterType<SlidesQtItem>("org.ctoolbox.cplay", 1, 0, "SlidesQtItem");
     qmlRegisterType<CPlayFileDialog>("org.ctoolbox.cplay", 1, 0, "CPlayFileDialog");
+    qmlRegisterType<MultiVideoComposer>("org.ctoolbox.cplay", 1, 0, "MultiVideoComposerBackend");
     qRegisterMetaType<QAction *>();
     qRegisterMetaType<KFileMetaData::PropertyMultiMap>("KFileMetaData::PropertyMultiMap");
 }

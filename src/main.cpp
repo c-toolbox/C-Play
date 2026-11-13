@@ -246,9 +246,11 @@ static std::vector<std::byte> encode() {
             if (SyncHelper::instance().variables.enableAudioOnNodes) {
                 serializeObject(data, SyncHelper::instance().variables.loadAudioInVidFolder);
                 serializeObject(data, SyncHelper::instance().variables.audioId);
-                serializeObject(data, SyncHelper::instance().variables.volume);
-                serializeObject(data, SyncHelper::instance().variables.volumeMute);
             }
+            // Volume and mute are always sent: multi-video compositions can play audio on
+            // nodes even when "audio on nodes" is off in the settings.
+            serializeObject(data, SyncHelper::instance().variables.volume);
+            serializeObject(data, SyncHelper::instance().variables.volumeMute);
             serializeObject(data, SyncHelper::instance().variables.gridToMapOn);
             serializeObject(data, SyncHelper::instance().variables.stereoscopicMode);
             serializeObject(data, SyncHelper::instance().variables.eofMode);
@@ -630,9 +632,10 @@ static void decode(const std::vector<std::byte> &data) {
                 if (!safeToRead()) return;
                 deserializeObject(data, pos, SyncHelper::instance().variables.loadAudioInVidFolder);
                 deserializeObject(data, pos, SyncHelper::instance().variables.audioId);
-                deserializeObject(data, pos, SyncHelper::instance().variables.volume);
-                deserializeObject(data, pos, SyncHelper::instance().variables.volumeMute);
             }
+            if (!safeToRead()) return;
+            deserializeObject(data, pos, SyncHelper::instance().variables.volume);
+            deserializeObject(data, pos, SyncHelper::instance().variables.volumeMute);
 
             if (!safeToRead()) return;
             deserializeObject(data, pos, SyncHelper::instance().variables.gridToMapOn);
@@ -1399,6 +1402,8 @@ static void postSyncPreDraw() {
                 // Check sublayers if present
                 if (layer->hasSubLayers()) {
                     for (const auto &sublayer : layer->getSubLayers()) {
+                        if (sublayer->type() == BaseLayer::LayerType::AUDIO)
+                            continue; // audio-only sub-player, does not affect viewports
                         if (sublayer->stereoMode() > 0) {
                             show3Dcontent = true;
                             if (sublayer->gridMode() == 1) {
@@ -1486,6 +1491,10 @@ static void postSyncPreDraw() {
         if (SyncHelper::instance().variables.enableAudioOnNodes) {
             mainVideoLayer->setLoadAudioInVidFolder(SyncHelper::instance().variables.loadAudioInVidFolder);
             mainVideoLayer->setAudioId(SyncHelper::instance().variables.audioId);
+        }
+        // Multi-video sub-players choose their audio from the composition, so they follow the
+        // volume/mute controls whether or not "audio on nodes" is enabled.
+        if (SyncHelper::instance().variables.enableAudioOnNodes || mainVideoLayer->hasSubLayers()) {
             mainVideoLayer->setVolume(SyncHelper::instance().variables.volume);
             mainVideoLayer->setVolumeMute(SyncHelper::instance().variables.volumeMute);
         }

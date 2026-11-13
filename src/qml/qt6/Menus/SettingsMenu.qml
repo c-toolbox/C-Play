@@ -75,6 +75,13 @@ Menu {
         }
     }
     MenuItem {
+        text: qsTr("Node Configuration...")
+        icon.name: "network-workgroup"
+        onTriggered: {
+            WindowHelpers.showWindow(nodeConfigurationWindow);
+        }
+    }
+    MenuItem {
         text: qsTr("Logging...")
         icon.name: "console"
         onTriggered: {

@@ -810,6 +810,9 @@ void LayersRenderer::renderLayers(const sgct::RenderData &data, int viewMode, fl
     for (const auto &layer : layers2render) {
         if (layer->hasSubLayers()) {
             for (const auto& sublayer : layer->getSubLayers()) {
+                // Audio-only sub-players (multi-video "type": "audio") have nothing to draw.
+                if (sublayer->type() == BaseLayer::LayerType::AUDIO)
+                    continue;
                 if (sublayer->shouldRenderForEye(currentEyeInt))
                     renderLayer(data, sublayer.get(), currentEye, angle, layer.get());
             }

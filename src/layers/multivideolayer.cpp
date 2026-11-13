@@ -146,6 +146,9 @@ void MultiVideoLayer::applyCompositionOnNode() {
     if (m_handler->isActive()) {
         m_handler->applyEofMode(eofMode());
         m_handler->applyLoopTime(loopTimeA(), loopTimeB(), loopTimeEnabled());
+        if (m_subVolume >= 0)
+            m_handler->applyVolume(m_subVolume);
+        m_handler->applyMute(m_subMute);
     }
 
     m_compositionPendingApply = false;
@@ -211,6 +214,23 @@ void MultiVideoLayer::setLoopTime(double A, double B, bool enabled) {
     MpvLayer::setLoopTime(A, B, enabled);
     if (m_handler && m_handler->isActive()) {
         m_handler->applyLoopTime(A, B, enabled);
+    }
+}
+
+void MultiVideoLayer::setVolume(int v, bool storeLevel) {
+    MpvLayer::setVolume(v, storeLevel);
+    m_subVolume = v;
+    // Called every frame on nodes; the sub-players ignore unchanged values.
+    if (m_handler && m_handler->isActive()) {
+        m_handler->applyVolume(v);
+    }
+}
+
+void MultiVideoLayer::setVolumeMute(bool v) {
+    MpvLayer::setVolumeMute(v);
+    m_subMute = v;
+    if (m_handler && m_handler->isActive()) {
+        m_handler->applyMute(v);
     }
 }
 

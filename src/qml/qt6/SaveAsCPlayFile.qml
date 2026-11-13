@@ -6,6 +6,7 @@ import QtQuick.Dialogs
 
 import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay
+import "Components/WindowHelpers.js" as WindowHelpers
 
 Kirigami.ApplicationWindow {
     function hasCurrentEditItem() {
@@ -144,7 +145,7 @@ Kirigami.ApplicationWindow {
         parentWindow: saveAsCPlayFileWindow
         fileMode: CPlayFileDialog.OpenFile
         currentFolder: LocationSettings.cPlayMediaLocation !== "" ? app.pathToUrl(LocationSettings.cPlayMediaLocation) : app.pathToUrl(LocationSettings.fileDialogLastLocation)
-        nameFilters: ["Multi-Video composition files (*.json)", "All files (*)"]
+        nameFilters: ["Multi-Video composition files (*.cplaymulti *.json)", "All files (*)"]
         title: "Choose Multi-Video Composition JSON"
 
         onAccepted: {
@@ -529,6 +530,21 @@ Kirigami.ApplicationWindow {
                     }
                     openFileDialog(openMultivideoJsonDialog);
                 }
+            }
+            ToolButton {
+                focusPolicy: Qt.NoFocus
+                icon.height: 16
+                icon.name: "document-edit"
+                text: ""
+
+                onClicked: {
+                    WindowHelpers.showWindow(multiVideoComposerWindow);
+                    if (multivideoJsonTextField.text !== "")
+                        multiVideoComposerWindow.openFile(multivideoJsonTextField.text);
+                }
+
+                ToolTip.visible: hovered
+                ToolTip.text: qsTr("Open in the Multi-Video Composer")
             }
         }
         CheckBox {

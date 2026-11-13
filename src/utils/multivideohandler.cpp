@@ -7,6 +7,7 @@
 
 #include "multivideohandler.h"
 #include <layers/videolayer.h>
+#include <layers/audiolayer.h>
 #include "locationsettings.h"
 #include <sgct/sgct.h>
 
@@ -85,9 +86,32 @@ void MultiVideoHandler::setConfig(const MultiVideoConfig& config,
         }
 
         if (filePath.empty()) {
-            sgct::Log::Warning(std::format(
-                "MultiVideoHandler: no path resolved for entry '{}' on node '{}', skipping",
-                entry.name, nodeId));
+            // Audio-only entries are commonly targeted at a single node (the one wired to
+            // the sound system), so other nodes having no file for them is expected.
+            if (entry.audioOnly) {
+                sgct::Log::Info(std::format(
+                    "MultiVideoHandler: audio entry '{}' is not assigned to node '{}'",
+                    entry.name, nodeId));
+            } else {
+                sgct::Log::Warning(std::format(
+                    "MultiVideoHandler: no path resolved for entry '{}' on node '{}', skipping",
+                    entry.name, nodeId));
+            }
+            continue;
+        }
+
+        if (entry.audioOnly) {
+            // Audio-only sub-player: no video decoding and no texture, so the renderer skips it.
+            auto audioSub = std::make_shared<AudioLayer>(opa, allowDirectRendering, loggingOn, logLevel);
+            audioSub->setIsMaster(false);
+            audioSub->enableAudio(true);
+            audioSub->setShouldUpdate(true);
+            audioSub->initializeAndLoad(filePath);
+
+            sgct::Log::Info(std::format(
+                "MultiVideoHandler: created audio sub-layer '{}' -> '{}'", entry.name, filePath));
+
+            m_subLayers.push_back(audioSub);
             continue;
         }
 
@@ -124,22 +148,26 @@ void MultiVideoHandler::setConfig(const MultiVideoConfig& config,
             sub->setRoi(entry.roi);
         }
 
-        sub->enableAudio(entry.audio);
+        // Audio is resolved per node: a per-node override in "paths" wins over the entry default.
+        const bool audioOn = MultiVideoConfig::audioEnabledForNode(entry, nodeId);
+        sub->enableAudio(audioOn);
         sub->setAlpha(1.f);
         sub->setShouldUpdate(true);
 
         // Apply optional separate audio file via setAudioFile() before loading.
         // This passes the audio-file parameter to mpv's loadfile command,
         // consistent with how MpvObject::loadItem handles it for cplayfiles.
-        if (!entry.audioFile.empty()) {
-            sub->setAudioFile(entry.audioFile);
+        const std::string audioFile = MultiVideoConfig::audioFileForNode(entry, nodeId);
+        if (audioOn && !audioFile.empty()) {
+            sub->setAudioFile(resolveFilePath(audioFile));
         }
 
         // Initialize and load the file
         sub->initializeAndLoad(filePath);
 
         sgct::Log::Info(std::format(
-            "MultiVideoHandler: created sub-layer '{}' -> '{}'", entry.name, filePath));
+            "MultiVideoHandler: created sub-layer '{}' -> '{}' (audio {})",
+            entry.name, filePath, audioOn ? "on" : "off"));
 
         m_subLayers.push_back(sub);
     }
@@ -210,6 +238,23 @@ void MultiVideoHandler::applyValue(const std::string& param, int val) {
     for (auto& sub : m_subLayers) {
         if (sub) {
             sub->setValue(param, val);
+        }
+    }
+}
+
+void MultiVideoHandler::applyVolume(int volume) {
+    for (auto& sub : m_subLayers) {
+        if (sub) {
+            sub->setVolume(volume);
+        }
+    }
+}
+
+void MultiVideoHandler::applyMute(bool mute) {
+    // Sub-players without audio ignore this (MpvLayer only mutes when its audio is enabled).
+    for (auto& sub : m_subLayers) {
+        if (sub) {
+            sub->setVolumeMute(mute);
         }
     }
 }

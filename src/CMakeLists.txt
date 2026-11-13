@@ -8,7 +8,7 @@ set(CPLAY_VERSION_MAJOR 2)
 set(CPLAY_VERSION_MINOR 4)
 set(CPLAY_VERSION_PATCH 0)
 set(CPLAY_VERSION_PR_NAME "Beta")
-set(CPLAY_VERSION_PR_VERS 58)
+set(CPLAY_VERSION_PR_VERS 59)
 
 qt_add_executable(${TARGET_NAME})
 set_compile_options(${TARGET_NAME})
@@ -169,6 +169,8 @@ set(SOURCE_FILES
     utils/mediasizeprobe.h
     utils/multivideoconfig.cpp
     utils/multivideoconfig.h
+    utils/multivideocomposer.cpp
+    utils/multivideocomposer.h
     utils/nodeidentityconfig.cpp
     utils/nodeidentityconfig.h
     utils/streampathsconfig.cpp
@@ -435,6 +437,8 @@ set(QML_SRC_FILES
     qml/qt6/BackgroundImage.qml
     qml/qt6/ForegroundImage.qml
     qml/qt6/SaveAsCPlayFile.qml
+    qml/qt6/MultiVideoComposer.qml
+    qml/qt6/NodeConfiguration.qml
     qml/qt6/ViewPlaylistItem.qml
     qml/qt6/WorkingIndicator.qml
 )

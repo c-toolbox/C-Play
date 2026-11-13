@@ -8,6 +8,7 @@ import QtQml.Models
 import QtQuick
 import QtQuick.Controls
 import "../Components/PopupHelpers.js" as PopupHelpers
+import "../Components/WindowHelpers.js" as WindowHelpers
 
 Menu {
     id: root
@@ -216,6 +217,11 @@ Menu {
     }
     MenuItem {
         action: actions["saveAsCPlayFileAction"]
+    }
+    MenuItem {
+        text: qsTr("Multi-Video Composer...")
+        icon.name: "view-split-left-right"
+        onTriggered: WindowHelpers.showWindow(multiVideoComposerWindow)
     }
     //MenuItem { action: actions["openUrlAction"] }
 

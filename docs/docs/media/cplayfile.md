@@ -43,7 +43,7 @@ Open the sections panel beside the playlist. Its position follows the [playlist 
 
    ![Save As C-Play File](/assets/ui/saveAsCplayfile.png)
 
-   The dialog starts with the current settings. Review the title, paths, mapping, and optional overlay before saving.
+   The dialog starts with the current settings. Review the title, paths, mapping, and optional overlay before saving. To play a [multi-video composition](/media/cplaymulti) instead of the single file, check **Multi-Video Composition** and choose a `.cplaymulti` file. The edit button next to it opens the file in the [Multi-Video Composer](/media/cplaymulti#multi-video-composer).
 
 5. Click **Save C-Play File**. Use the **Common C-play file location** configured in [Location settings](/settings/location) to keep descriptions together and simplify relative paths.
 

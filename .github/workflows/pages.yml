@@ -1,8 +1,9 @@
 # Build and deploy the C-Play Docusaurus site to GitHub Pages.
 #
 # The site lives in docs/ and is served at https://c-toolbox.github.io/C-Play/.
-# docusaurus.config.ts defaults match that URL; configure-pages' base_path is
-# passed through as --baseUrl, so a future custom domain or path change only
+# docusaurus.config.ts defaults match that URL; configure-pages' origin and
+# base_path are passed through as DOCS_URL / DOCS_BASE_URL (the Docusaurus CLI
+# has no --baseUrl option), so a future custom domain or path change only
 # requires updating the repo's Pages settings.
 
 name: Deploy Docusaurus site to Pages
@@ -50,7 +51,10 @@ jobs:
         id: pages
         uses: actions/configure-pages@v5
       - name: Build with Docusaurus
-        run: npm run build -- --baseUrl "${{ steps.pages.outputs.base_path }}/"
+        env:
+          DOCS_URL: ${{ steps.pages.outputs.origin }}
+          DOCS_BASE_URL: ${{ steps.pages.outputs.base_path }}/
+        run: npm run build
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

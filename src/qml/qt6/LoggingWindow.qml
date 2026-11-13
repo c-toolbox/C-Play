@@ -12,6 +12,7 @@ import QtQuick.Controls
 
 import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay
+import "Components/WindowHelpers.js" as WindowHelpers
 
 Kirigami.ApplicationWindow {
     id: root
@@ -233,11 +234,25 @@ Kirigami.ApplicationWindow {
             ScrollBar.vertical: ScrollBar {}
         }
 
-        Label {
-            text: qsTr("Node telemetry")
-            font.pointSize: 14
-            font.bold: true
+        RowLayout {
+            Layout.fillWidth: true
             Layout.topMargin: Kirigami.Units.largeSpacing
+
+            Label {
+                text: qsTr("Node telemetry")
+                font.pointSize: 14
+                font.bold: true
+            }
+            Item {
+                Layout.fillWidth: true
+            }
+            Button {
+                icon.name: "network-workgroup"
+                text: qsTr("Node Configuration...")
+                onClicked: WindowHelpers.showWindow(nodeConfigurationWindow)
+                ToolTip.visible: hovered
+                ToolTip.text: qsTr("Edit nodes.json: which IP address is which node id in multi-video compositions.")
+            }
         }
         CheckBox {
             id: nodeTelemetryCheck

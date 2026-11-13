@@ -25,9 +25,13 @@ struct MultiVideoMasterParams {
     std::string audioFile;
 };
 
-// Represents a single video entry in the composition (one video per node-role).
+// Represents a single entry in the composition (one video or audio stream per node-role).
 struct MultiVideoEntry {
     std::string name;
+
+    // Audio-only entry ("type": "audio"): the resolved per-node file is played as audio
+    // without any video rendering. Nodes without a resolved file play nothing for it.
+    bool audioOnly = false;
 
     // Rendering mapping — mirrors BaseLayer enum values
     uint8_t eyeMode    = 0; // BaseLayer::EyeMode::Both
@@ -60,6 +64,12 @@ struct MultiVideoEntry {
     // Per-node file paths: nodeId -> relative file path
     std::map<std::string, std::string> paths;
 
+    // Per-node audio overrides (from the object form of a "paths" value):
+    //   "paths": { "Node2": { "file": "...", "audio": true, "audioFile": "..." } }
+    // nodeAudio overrides `audio` and nodeAudioFile overrides `audioFile` on that node.
+    std::map<std::string, bool> nodeAudio;
+    std::map<std::string, std::string> nodeAudioFile;
+
     // Optional fallback path template; use {nodeId} as a placeholder
     std::string pathTemplate;
 };
@@ -75,9 +85,14 @@ struct MultiVideoEntry {
 //       "audio": true, "audioFile": "/path/to/audio_left.mp3",
 //       "paths": { "node-A": "videos/left_A.mp4", "node-B": "videos/left_B.mp4" } },
 //     { "name": "rightEye", "eyeMode": "right", "stereoMode": "No_2D", "gridMode": "Dome",
-//       "paths": { "node-A": "videos/right_A.mp4", "node-B": "videos/right_B.mp4" } }
+//       "paths": { "node-A": "videos/right_A.mp4",
+//                  "node-B": { "file": "videos/right_B.mp4", "audio": true } } },
+//     { "name": "soundtrack", "type": "audio", "paths": { "node-A": "audio/mix.wav" } }
 //   ]
 // }
+//
+// A "paths" value is either a file path string or an object with "file" and optional
+// per-node "audio" / "audioFile" overrides. Entries with "type": "audio" are audio-only.
 //
 class MultiVideoConfig {
 public:
@@ -103,6 +118,13 @@ public:
     // Returns an empty string if no path can be resolved.
     static std::string resolvePathForNode(const MultiVideoEntry& entry,
                                           const std::string& nodeId);
+
+    // Whether audio is enabled for an entry on a node (per-node override, else entry.audio).
+    // Audio-only entries always have audio enabled.
+    static bool audioEnabledForNode(const MultiVideoEntry& entry, const std::string& nodeId);
+
+    // Separate audio file for an entry on a node (per-node override, else entry.audioFile).
+    static std::string audioFileForNode(const MultiVideoEntry& entry, const std::string& nodeId);
 
     // Whether any entries were loaded.
     bool isValid() const;

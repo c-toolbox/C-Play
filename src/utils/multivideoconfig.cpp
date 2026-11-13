@@ -77,6 +77,11 @@ bool MultiVideoConfig::loadFromString(const std::string& jsonStr) {
             if (v.contains("name") && v["name"].is_string())
                 entry.name = v["name"].get<std::string>();
 
+            if (v.contains("type") && v["type"].is_string()) {
+                const std::string type = v["type"].get<std::string>();
+                entry.audioOnly = (type == "audio" || type == "Audio");
+            }
+
             if (v.contains("eyeMode") && v["eyeMode"].is_string())
                 entry.eyeMode = parseEyeMode(v["eyeMode"].get<std::string>());
 
@@ -134,11 +139,22 @@ bool MultiVideoConfig::loadFromString(const std::string& jsonStr) {
                 entry.roi.w = static_cast<float>(r.value("h", 1.0));
             }
 
-            // Per-node paths
+            // Per-node paths: a plain path string, or an object with "file" and
+            // optional per-node "audio" / "audioFile" overrides.
             if (v.contains("paths") && v["paths"].is_object()) {
                 for (auto it = v["paths"].begin(); it != v["paths"].end(); ++it) {
-                    if (it.value().is_string())
-                        entry.paths[it.key()] = it.value().get<std::string>();
+                    const auto& nodeValue = it.value();
+                    if (nodeValue.is_string()) {
+                        entry.paths[it.key()] = nodeValue.get<std::string>();
+                    }
+                    else if (nodeValue.is_object()) {
+                        if (nodeValue.contains("file") && nodeValue["file"].is_string())
+                            entry.paths[it.key()] = nodeValue["file"].get<std::string>();
+                        if (nodeValue.contains("audio") && nodeValue["audio"].is_boolean())
+                            entry.nodeAudio[it.key()] = nodeValue["audio"].get<bool>();
+                        if (nodeValue.contains("audioFile") && nodeValue["audioFile"].is_string())
+                            entry.nodeAudioFile[it.key()] = nodeValue["audioFile"].get<std::string>();
+                    }
                 }
             }
 
@@ -195,6 +211,24 @@ std::string MultiVideoConfig::resolvePathForNode(const MultiVideoEntry& entry,
     }
 
     return "";
+}
+
+/*static*/
+bool MultiVideoConfig::audioEnabledForNode(const MultiVideoEntry& entry, const std::string& nodeId) {
+    if (entry.audioOnly)
+        return true;
+    auto it = entry.nodeAudio.find(nodeId);
+    if (it != entry.nodeAudio.end())
+        return it->second;
+    return entry.audio;
+}
+
+/*static*/
+std::string MultiVideoConfig::audioFileForNode(const MultiVideoEntry& entry, const std::string& nodeId) {
+    auto it = entry.nodeAudioFile.find(nodeId);
+    if (it != entry.nodeAudioFile.end() && !it->second.empty())
+        return it->second;
+    return entry.audioFile;
 }
 
 bool MultiVideoConfig::isValid() const {

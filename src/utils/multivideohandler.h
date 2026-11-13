@@ -64,6 +64,8 @@ public:
     void applyEofMode(int eofMode);
     void applyLoopTime(double A, double B, bool enabled);
     void applyValue(const std::string& param, int val);
+    void applyVolume(int volume);
+    void applyMute(bool mute);
 
     // Stop, cleanup, and remove all sub-players.
     void clearAll();
