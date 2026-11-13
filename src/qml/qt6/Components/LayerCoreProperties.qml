@@ -1341,7 +1341,7 @@ GridLayout {
             }
 
             ToolTip {
-                text: qsTr("Ask the nodes (data/multivideo/nodes.json) to report their capture inputs again")
+                text: qsTr("Ask the nodes (data/nodes.json) to report their capture inputs again")
             }
         }
     }

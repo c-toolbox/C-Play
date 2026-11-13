@@ -87,7 +87,7 @@ Use per-machine presets when the master and nodes need different local inputs. U
 
 In a cluster setup (master + nodes), each machine can resolve a different local media path for the same predefined stream. When you add a Stream layer from the predefined list, C-Play stores the entry's *title* as a stable key on the layer and syncs that key to all machines. Each machine then looks up the entry in its own local `data/predefined-streams.json` and resolves which path it should open:
 
-1. **`paths[role]`** — An optional object mapping roles to paths. The role is `"master"` on the master, or the node id from `data/multivideo/nodes.json` on nodes (the machine's IP address when no id can be resolved). When a key exists for that machine its value wins over everything else - even an empty value (`""` or `null`). An empty value means *this machine intentionally does not open this stream*.
+1. **`paths[role]`** — An optional object mapping roles to paths. The role is `"master"` on the master, or the node id from `data/nodes.json` on nodes (the machine's IP address when no id can be resolved). When a key exists for that machine its value wins over everything else - even an empty value (`""` or `null`). An empty value means *this machine intentionally does not open this stream*.
 2. **`pathTemplate`** — An optional template string where `{nodeId}` is replaced with the machine's role/node id (e.g. `"av://dshow:video=Capture Card ({nodeId})"`). Used when there is no explicit `paths` entry for that machine.
 3. **`path`** — The plain default path, used as a fallback when neither of the above applies. It may be empty, in which case only machines listed under `paths` open the stream.
 
@@ -108,11 +108,11 @@ Example:
 
 In this example the master opens its local capture card, while `node-A` intentionally does not open anything. All other nodes fall back to the plain `path`, which is also empty here - so only the master displays this stream.
 
-Note that per-node resolution on a node requires the machine to be identifiable through `data/multivideo/nodes.json` (see [Multi-video composition](/media/cplaymulti)). The local JSON files are re-read every few seconds, so edits take effect without restarting C-Play.
+Note that per-node resolution on a node requires the machine to be identifiable through `data/nodes.json` (see [Multi-video composition](/media/cplaymulti)). The local JSON files are re-read every few seconds, so edits take effect without restarting C-Play.
 
 DirectShow capture setups work the same way with `data/predefined-directshows.json`: when you add a DirectShow layer from the predefined list, C-Play stores the entry's *title* as a stable key on the layer and syncs it to all machines. Each machine then looks up the entry in its own local file and resolves which capture devices it should use:
 
-1. **`devices[role]`** — An optional object mapping roles to device pairs (`{"videoDevice": ..., "audioDevice": ...}`). The role is `"master"` on the master, or the node id from `data/multivideo/nodes.json` on nodes (the machine's IP address when no id can be resolved). When a key exists for that machine its value wins over everything else - even when both values are empty (`""` or `null`), which means *this machine intentionally does not open any capture at all* and the layer stays idle there.
+1. **`devices[role]`** — An optional object mapping roles to device pairs (`{"videoDevice": ..., "audioDevice": ...}`). The role is `"master"` on the master, or the node id from `data/nodes.json` on nodes (the machine's IP address when no id can be resolved). When a key exists for that machine its value wins over everything else - even when both values are empty (`""` or `null`), which means *this machine intentionally does not open any capture at all* and the layer stays idle there.
 2. **`videoDevice` / `audioDevice`** — The plain default device names, used as a fallback when there is no explicit `devices` entry for that machine.
 
 Unlike streams, DirectShow setups do not support `{nodeId}` templates - capture device names are machine-specific strings, so per-role entries are the natural way to describe them. If an entry's title does not exist at all in a machine's local file (for instance if the files differ between machines), that machine falls back to the device pair synced from the master. Custom (non-predefined) DirectShow layers always use their chosen devices verbatim on every machine, and per-node resolution is not applied.

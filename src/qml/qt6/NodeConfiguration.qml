@@ -13,8 +13,8 @@ import QtQuick.Controls
 import org.kde.kirigami as Kirigami
 import org.ctoolbox.cplay
 
-// Edits data/multivideo/nodes.json: the mapping from a node's IP address to the node id that
-// multi-video compositions (*.cplaymulti) use for per-node files and audio.
+// Edits data/nodes.json: the mapping from a node's IP address to the node id that multi-video
+// compositions (*.cplaymulti) and per-node stream, DirectShow and capture settings use.
 Kirigami.ApplicationWindow {
     id: root
 
@@ -29,6 +29,7 @@ Kirigami.ApplicationWindow {
 
     property string filePath: ""
     property bool fileExists: false
+    property bool legacyFile: false
     property bool dirty: false
     property var issues: []
 
@@ -52,9 +53,12 @@ Kirigami.ApplicationWindow {
             nodesModel.append({ nodeId: r.nodes[i].id, ip: r.nodes[i].ip });
         root.filePath = r.path;
         root.fileExists = r.exists;
+        root.legacyFile = !!r.legacy;
         root.dirty = false;
         if (!r.ok)
             statusLabel.show(r.error, true);
+        else if (root.legacyFile)
+            statusLabel.show(qsTr("Read from the old location; saving writes %1").arg(r.savePath), false);
         else
             statusLabel.show(r.exists ? qsTr("Loaded %1 node(s)").arg(nodesModel.count) : qsTr("No nodes.json yet; it is created when you save."), false);
         root.validate();
@@ -150,6 +154,7 @@ Kirigami.ApplicationWindow {
         }
         root.dirty = false;
         root.fileExists = true;
+        root.legacyFile = false;
         root.filePath = backend.nodesSavePath();
         statusLabel.show(qsTr("Saved %1").arg(root.filePath), false);
         root.saved();
@@ -163,13 +168,19 @@ Kirigami.ApplicationWindow {
         Label {
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
-            text: qsTr("Each node looks up its own IP address here to find its node id. Multi-video compositions use the node ids to pick the files and audio for each node.")
+            text: qsTr("Each node looks up its own IP address here to find its node id. Multi-video compositions use the node ids to pick the files and audio for each node, and per-node stream, DirectShow and capture settings use them to pick each node's source.")
         }
         Kirigami.InlineMessage {
             Layout.fillWidth: true
             visible: true
             type: Kirigami.MessageType.Information
-            text: qsTr("Every computer reads data/multivideo/nodes.json from its own C-Play folder, once, when it loads its first composition. After saving, copy the file to every node computer (unless they share this folder) and restart C-Play on the nodes.")
+            text: qsTr("Every computer reads data/nodes.json from its own C-Play folder. After saving, copy the file to every node computer (unless they share this folder) and restart C-Play on the nodes.")
+        }
+        Kirigami.InlineMessage {
+            Layout.fillWidth: true
+            visible: root.legacyFile
+            type: Kirigami.MessageType.Warning
+            text: qsTr("This nodes.json is in the old data/multivideo folder. Save to write it to data/nodes.json, then copy that file to the nodes as well.")
         }
         RowLayout {
             Layout.fillWidth: true
@@ -344,7 +355,7 @@ Kirigami.ApplicationWindow {
             Button {
                 icon.name: "document-save"
                 text: qsTr("Save")
-                enabled: root.dirty || !root.fileExists
+                enabled: root.dirty || !root.fileExists || root.legacyFile
                 onClicked: root.save()
             }
         }

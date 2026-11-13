@@ -251,7 +251,7 @@ Kirigami.ApplicationWindow {
                 text: qsTr("Node Configuration...")
                 onClicked: WindowHelpers.showWindow(nodeConfigurationWindow)
                 ToolTip.visible: hovered
-                ToolTip.text: qsTr("Edit nodes.json: which IP address is which node id in multi-video compositions.")
+                ToolTip.text: qsTr("Edit data/nodes.json: which IP address is which node id.")
             }
         }
         CheckBox {

@@ -14,7 +14,7 @@
 // Parses the predefined DirectShow capture setup list (default path: ./data/predefined-directshows.json) and resolves, for each entry, which local video/audio capture devices a given machine should use.
 //
 // Each entry is identified by its "title", which acts as a stable key shared across all machines in a cluster. Besides the plain default "videoDevice"/"audioDevice", an entry may define:
-//   * "devices" - an object mapping role/node id ("master", or node ids from data/multivideo/nodes.json) to a device pair {"videoDevice": ..., "audioDevice": ...}. When present it wins for that machine, even when both values are empty ("" or null), which means the capture setup is intentionally not opened on that machine.
+//   * "devices" - an object mapping role/node id ("master", or node ids from data/nodes.json) to a device pair {"videoDevice": ..., "audioDevice": ...}. When present it wins for that machine, even when both values are empty ("" or null), which means the capture setup is intentionally not opened on that machine.
 //
 // A master override {"placeholder": true} renders a movable name/ID TextLayer on the master
 // instead of opening a source. Node source resolution is unchanged.

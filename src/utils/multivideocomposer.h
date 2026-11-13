@@ -51,10 +51,12 @@ public:
     Q_INVOKABLE QStringList nodeIdsFromNodesFile() const;
     // The nodes.json in use, or "" when none exists yet.
     Q_INVOKABLE QString nodesFilePath() const;
-    // Where nodes.json is (or will be) saved: the existing file, else ./data/multivideo/nodes.json.
+    // Where nodes.json is (or will be) saved: the existing file, else ./data/nodes.json (also when the
+    // existing file is in the old data/multivideo folder).
     Q_INVOKABLE QString nodesSavePath() const;
 
-    // Reads nodes.json. Returns { ok, error, path, exists, nodes: [ { id, ip } ] }.
+    // Reads nodes.json. Returns { ok, error, path, exists, legacy, savePath, nodes: [ { id, ip } ] };
+    // legacy is true when path is the old data/multivideo/nodes.json.
     Q_INVOKABLE QVariantMap loadNodes() const;
     // Writes nodes.json (creating data/multivideo when needed). Returns "" or an error message.
     Q_INVOKABLE QString saveNodes(const QVariantList &nodes) const;

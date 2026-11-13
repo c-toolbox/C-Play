@@ -244,7 +244,7 @@ Region of interest settings allow displaying only a portion of the video:
 
 ## Node Identity Configuration
 
-For per-node path resolution to work, C-Play needs a mapping from node IP addresses to node identifiers. This is stored in a separate JSON file (typically `./data/multivideo/nodes.json`):
+For per-node path resolution to work, C-Play needs a mapping from node IP addresses to node identifiers. This is stored in `./data/nodes.json`. Other per-node features read the same file, such as per-node stream, DirectShow and capture settings (see [Per-node resolution in clusters](/media/layer-operations#per-node-resolution-in-clusters)):
 
 ```json
 {
@@ -257,13 +257,15 @@ For per-node path resolution to work, C-Play needs a mapping from node IP addres
 
 Each node uses this file to determine its own identifier, which is then used to look up the correct file path in the composition JSON's `paths` object.
 
+Older versions kept the file in `./data/multivideo/nodes.json`. That location is still read when `./data/nodes.json` does not exist, and C-Play logs a warning. Move the file to `./data/` on the master and on every node, or open it in the Node Configuration window and save it, which writes it to `./data/nodes.json`.
+
 ### Node Configuration window
 
 You can edit this file in C-Play under **Settings → Node Configuration...**. The window can also be opened with the **Node Configuration...** buttons in the Multi-Video Composer and in the Logging window (next to *Node telemetry*).
 
 ![Node Configuration window](/assets/ui/node_configuration.png)
 
-* **File** — the `nodes.json` that is edited, in the `data/multivideo` folder of this C-Play. When it does not exist yet, it is created when you save.
+* **File** — the `nodes.json` that is edited, in the `data` folder of this C-Play. When it does not exist yet, it is created when you save. When the file was found in the old `data/multivideo` folder, the window says so and saving writes `data/nodes.json`.
 * **Node id** / **IP address** — one row per node. Reorder rows with the arrows, or remove a row with the delete button.
 * **Add node** — adds an empty row.
 * **Add from cluster** — adds a row for each node address in the running cluster configuration that is not listed yet. It is disabled when no cluster configuration is running.
@@ -272,7 +274,7 @@ You can edit this file in C-Play under **Settings → Node Configuration...**. T
 
 The window warns about rows without a node id or IP address, node ids used more than once (those nodes get the same files), and IP addresses listed more than once (only the last row counts). When a cluster is running, it also lists cluster nodes without a node id and listed addresses that are not in the cluster configuration.
 
-Every computer reads `nodes.json` from its own C-Play folder, once, when it loads its first composition. After saving, copy the file to every node (unless they share the folder) and restart C-Play on the nodes. An open Multi-Video Composer picks up added or renamed node ids at once.
+Every computer reads `nodes.json` from its own C-Play folder. After saving, copy the file to every node (unless they share the folder) and restart C-Play on the nodes. An open Multi-Video Composer picks up added or renamed node ids at once.
 
 ## Example: Single-Node Stereoscopic Dome
 
@@ -353,7 +355,7 @@ You can build `.cplaymulti` files in C-Play under **File → Multi-Video Compose
 ![Multi-Video Composer with a video entry selected](/assets/ui/multivideo_composer.png)
 
 - **Toolbar**: **New**, **Open...**, **Save**, **Save As...** and **Save and Play**. The window title shows the file name, with `*` when there are unsaved changes; New and Open ask before they discard them.
-- **Nodes**: the node ids come from `data/multivideo/nodes.json`, plus the ids used in the open composition. To add an id by hand, type it in the *Node id* field and click **Add node** (or press Enter). **Node Configuration...** opens the [Node Configuration window](#node-configuration-window).
+- **Nodes**: the node ids come from `data/nodes.json`, plus the ids used in the open composition. To add an id by hand, type it in the *Node id* field and click **Add node** (or press Enter). **Node Configuration...** opens the [Node Configuration window](#node-configuration-window).
 - **Entry list**: the master reference first, then the entries, each with a summary of where it plays and where its audio plays. **Add video**, **Add audio**, **Duplicate**, **Up**, **Down** and **Remove** edit the list.
 - **Master reference**: the reference video, its grid and stereo modes, **Play audio on the master**, and an optional separate audio file.
 - **Video entries**: name, eye, grid and stereo mode, and an optional path template. Under *Audio*, **Play audio on** sets audio for **All nodes**, **No nodes**, or **Only on** one node (choose it and click **Apply**). *Default* sets the entry's own `audio` and separate audio file. Under *Per node*, each node has a row with its video file, an audio setting (**Default (on/off)**, **On** or **Off**) and an optional separate audio file. A node without a file uses the path template.
@@ -368,7 +370,7 @@ Use **Save and Play** to save the composition and load it on the master and all 
 
 1. **Prepare your video files** — Use [C-Slice](https://c-toolbox.github.io/C-Slice/) when you need to render and encode per-window outputs from a video or image sequence for your SGCT setup. See [video preparation](/media/video#prepare-videos-with-c-slice). Ensure all videos are available at the paths specified in the composition, or use path templates with `{nodeId}` placeholders. If using separate audio files, prepare those as well.
 
-2. **Create node identity config** — Create `./data/multivideo/nodes.json` mapping each node's IP address to a unique identifier, in the [Node Configuration window](#node-configuration-window) or by hand:
+2. **Create node identity config** — Create `./data/nodes.json` mapping each node's IP address to a unique identifier, in the [Node Configuration window](#node-configuration-window) or by hand:
    ```json
    { "nodes": [ { "id": "Node1", "ip": "10.0.0.11" } ] }
    ```

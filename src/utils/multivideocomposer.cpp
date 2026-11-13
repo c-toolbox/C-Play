@@ -348,17 +348,22 @@ QString MultiVideoComposer::nodesFilePath() const {
 }
 
 QString MultiVideoComposer::nodesSavePath() const {
+    // Save over the file in use, unless it is in the old data/multivideo folder: then write the new
+    // data/nodes.json, which is found first from then on.
     const QString existing = nodesFilePath();
-    if (!existing.isEmpty())
+    if (!existing.isEmpty() && !NodeIdentityConfig::isLegacyPath(existing.toStdString()))
         return existing;
     return QDir::cleanPath(QDir::current().absoluteFilePath(QString::fromStdString(NodeIdentityConfig::kDefaultFilePath)));
 }
 
 QVariantMap MultiVideoComposer::loadNodes() const {
     QVariantMap result;
-    const QString path = nodesSavePath();
+    const QString existing = nodesFilePath();
+    const QString path = existing.isEmpty() ? nodesSavePath() : existing;
     result.insert(QStringLiteral("path"), path);
     result.insert(QStringLiteral("exists"), QFileInfo::exists(path));
+    result.insert(QStringLiteral("legacy"), !existing.isEmpty() && NodeIdentityConfig::isLegacyPath(existing.toStdString()));
+    result.insert(QStringLiteral("savePath"), nodesSavePath());
     result.insert(QStringLiteral("nodes"), QVariantList());
     result.insert(QStringLiteral("ok"), true);
     if (!QFileInfo::exists(path))
@@ -544,7 +549,7 @@ QVariantList MultiVideoComposer::validate(const QVariantMap &composition, const 
     }
 
     if (knownNodes.isEmpty())
-        add(QStringLiteral("info"), tr("nodes.json was not found. Nodes find their node id from their IP address in data/multivideo/nodes.json; create it with Node Configuration."));
+        add(QStringLiteral("info"), tr("nodes.json was not found. Nodes find their node id from their IP address in data/nodes.json; create it with Node Configuration."));
 
     // Audio routing: more than one source on one machine plays overlapping audio.
     const QVariantList routing = audioRouting(composition, nodeIds);

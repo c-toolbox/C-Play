@@ -9,40 +9,69 @@
 #include <sgct/sgct.h>
 #include <filesystem>
 #include <fstream>
+#include <atomic>
 #include <sstream>
 #include <vector>
 #include <nlohmann/json.hpp>
 
-/*static*/ const std::string NodeIdentityConfig::kDefaultFilePath = "./data/multivideo/nodes.json";
+/*static*/ const std::string NodeIdentityConfig::kDefaultFilePath = "./data/nodes.json";
+/*static*/ const std::string NodeIdentityConfig::kLegacyFilePath = "./data/multivideo/nodes.json";
 
 NodeIdentityConfig::NodeIdentityConfig() {}
 
 /*static*/
 std::string NodeIdentityConfig::findDefaultFilePath() {
-    // The default path is CWD-relative ("./data/multivideo/nodes.json"), which only works when the app is
+    // The default path is CWD-relative ("./data/nodes.json"), which only works when the app is
     // launched from its install directory. To be robust against other working directories, also walk up from
-    // the current directory looking for <dir>/data/multivideo/nodes.json (covers e.g. running from a build/ subfolder).
-    std::vector<std::string> candidates;
-    candidates.push_back(kDefaultFilePath);
-
-    try {
-        namespace fs = std::filesystem;
-        auto cur = fs::current_path();
-        for (int i = 0; i < 6 && !cur.empty(); ++i) {
-            candidates.push_back((cur / "data" / "multivideo" / "nodes.json").string());
-            if (!cur.has_parent_path() || cur.parent_path() == cur)
-                break;
-            cur = cur.parent_path();
-        }
-    } catch (...) {}
-
-    for (const auto& c : candidates) {
+    // the current directory looking for <dir>/data/nodes.json (covers e.g. running from a build/ subfolder).
+    // nodes.json used to live in data/multivideo; that location is searched last so existing setups keep working.
+    auto search = [](const std::string& cwdRelative, const std::filesystem::path& relative) -> std::string {
+        std::vector<std::string> candidates;
+        candidates.push_back(cwdRelative);
         try {
-            if (std::filesystem::exists(c))
-                return c;
+            namespace fs = std::filesystem;
+            auto cur = fs::current_path();
+            for (int i = 0; i < 6 && !cur.empty(); ++i) {
+                candidates.push_back((cur / relative).string());
+                if (!cur.has_parent_path() || cur.parent_path() == cur)
+                    break;
+                cur = cur.parent_path();
+            }
         } catch (...) {}
+
+        for (const auto& c : candidates) {
+            try {
+                if (std::filesystem::exists(c))
+                    return c;
+            } catch (...) {}
+        }
+        return "";
+    };
+
+    std::string found = search(kDefaultFilePath, std::filesystem::path("data") / "nodes.json");
+    if (!found.empty())
+        return found;
+
+    found = search(kLegacyFilePath, std::filesystem::path("data") / "multivideo" / "nodes.json");
+    if (!found.empty()) {
+        static std::atomic_bool warned{false};
+        if (!warned.exchange(true)) {
+            sgct::Log::Warning(std::format(
+                "NodeIdentityConfig: using '{}' from the old location; move it to data/nodes.json "
+                "(other C-Play features read it from there too)", found));
+        }
     }
-    return "";
+    return found;
+}
+
+/*static*/
+bool NodeIdentityConfig::isLegacyPath(const std::string& path) {
+    try {
+        const auto p = std::filesystem::path(path).lexically_normal();
+        return p.filename() == "nodes.json" && p.parent_path().filename() == "multivideo";
+    } catch (...) {
+        return false;
+    }
 }
 
 bool NodeIdentityConfig::loadFromFile(const std::string& filePath) {

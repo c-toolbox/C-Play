@@ -76,7 +76,7 @@ bool StreamPathResolver::resolve(const std::string& streamKey, bool isMaster, st
         if (role.empty()) {
             sgct::Log::Warning(std::format(
                 "StreamPathResolver: stream '{}' has no local path on this machine and the node identity could not be resolved "
-                "(add this machine's IP to data/multivideo/nodes.json), so no stream is opened here", streamKey));
+                "(add this machine's IP to data/nodes.json), so no stream is opened here", streamKey));
         } else {
             sgct::Log::Info(std::format(
                 "StreamPathResolver: stream '{}' resolves to an empty path for role '{}', so no stream is opened on this machine",

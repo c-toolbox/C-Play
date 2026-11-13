@@ -17,7 +17,7 @@
 
 // Resolves, on this machine, which local media path a predefined stream entry (identified by its title) should open.
 //
-// The machine's role is "master" on the master, and otherwise the node id from data/multivideo/nodes.json for this
+// The machine's role is "master" on the master, and otherwise the node id from data/nodes.json for this
 // machine's IP address (falling back to the raw IP address when no id can be resolved). Both the stream list and the
 // node identity are re-read at most once per refresh interval, so edits to the JSON files take effect without a restart.
 class StreamPathResolver {

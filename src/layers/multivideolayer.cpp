@@ -86,7 +86,7 @@ void MultiVideoLayer::applyCompositionOnNode() {
     // Resolve this node's identity. The composition keys per-node video paths by a
     // logical node id (e.g. "Node1"); we must map this machine to that id via
     // nodes.json. This is the most common source of intermittent failure: if the
-    // file isn't found at CWD-relative ./data/multivideo/nodes.json, or this node's
+    // file isn't found at CWD-relative ./data/nodes.json, or this node's
     // IP isn't listed in it, identity resolution fails and no sub-layers are created.
     std::string myAddress;
     try {
@@ -124,7 +124,7 @@ void MultiVideoLayer::applyCompositionOnNode() {
                 sgct::Log::Warning(std::format(
                     "MultiVideoLayer: could not resolve node identity from nodes.json "
                     "(address '{}', file '{}'). Composition targets a single node '{}'; "
-                    "using it as fallback. Add this node's IP to data/multivideo/nodes.json "
+                    "using it as fallback. Add this node's IP to data/nodes.json "
                     "for correct multi-node routing.",
                     myAddress, nodesPath.empty() ? std::string("<not found>") : nodesPath, fallbackId));
             } else {

@@ -14,7 +14,7 @@
 // Parses the predefined stream list (default path: ./data/predefined-streams.json) and resolves, for each entry, which local media path a given machine should open.
 //
 // Each entry is identified by its "title", which acts as a stable key shared across all machines in a cluster. Besides the plain default "path", an entry may define:
-//   * "paths" - an object mapping role/node id ("master", or node ids from data/multivideo/nodes.json) to a path. When present it wins for that machine, even when the value is empty ("" or null), which means the stream is intentionally not opened on that machine.
+//   * "paths" - an object mapping role/node id ("master", or node ids from data/nodes.json) to a path. When present it wins for that machine, even when the value is empty ("" or null), which means the stream is intentionally not opened on that machine.
 //   * "pathTemplate" - a template string where {nodeId} is replaced with the machine's role/node id. Used when there is no explicit "paths" entry for the machine.
 //
 // A master override {"placeholder": true} renders a movable name/ID TextLayer on the master

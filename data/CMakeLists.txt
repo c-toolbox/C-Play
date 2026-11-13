@@ -52,6 +52,15 @@ if(CPLAY_INSTALL_DEPENDENCIES)
             else()
                 message("${PROJECT_SOURCE_DIR}/data/http-server-conf.json was not found")
             endif()
+            # Node id per IP address, used by multi-video compositions and per-node stream/capture settings.
+            if(EXISTS "${PROJECT_SOURCE_DIR}/data/nodes.json")
+                file(INSTALL
+                    DESTINATION "${CMAKE_INSTALL_PREFIX}/bin/data"
+                    FILES "${PROJECT_SOURCE_DIR}/data/nodes.json"
+                )
+            else()
+                message("${PROJECT_SOURCE_DIR}/data/nodes.json was not found")
+            endif()
             if(EXISTS "${PROJECT_SOURCE_DIR}/data/predefined-streams.json")
                 file(INSTALL
                     DESTINATION "${CMAKE_INSTALL_PREFIX}/bin/data"

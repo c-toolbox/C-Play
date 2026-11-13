@@ -556,7 +556,7 @@ Kirigami.ApplicationWindow {
             Label {
                 Layout.fillWidth: true
                 elide: Text.ElideRight
-                text: root.nodeIds.length > 0 ? root.nodeIds.join(", ") : qsTr("(none; add node ids or create data/multivideo/nodes.json)")
+                text: root.nodeIds.length > 0 ? root.nodeIds.join(", ") : qsTr("(none; add node ids or create data/nodes.json)")
                 color: root.nodeIds.length > 0 ? Kirigami.Theme.textColor : Kirigami.Theme.neutralTextColor
 
                 ToolTip.visible: nodesMouse.containsMouse
@@ -955,7 +955,7 @@ Kirigami.ApplicationWindow {
                                 Layout.fillWidth: true
                                 wrapMode: Text.WordWrap
                                 color: Kirigami.Theme.neutralTextColor
-                                text: qsTr("No nodes yet. Add node ids above, or list them in data/multivideo/nodes.json.")
+                                text: qsTr("No nodes yet. Add node ids above, or list them in data/nodes.json.")
                             }
                             ColumnLayout {
                                 Layout.fillWidth: true

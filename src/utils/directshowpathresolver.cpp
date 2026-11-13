@@ -70,7 +70,7 @@ bool DirectShowPathResolver::resolve(const std::string& setupKey, bool isMaster,
         if (role.empty()) {
             sgct::Log::Warning(std::format(
                 "DirectShowPathResolver: setup '{}' has no local capture devices on this machine and the node identity could not be resolved "
-                "(add this machine's IP to data/multivideo/nodes.json), so no capture is opened here", setupKey));
+                "(add this machine's IP to data/nodes.json), so no capture is opened here", setupKey));
         } else {
             sgct::Log::Info(std::format(
                 "DirectShowPathResolver: setup '{}' resolves to no capture devices for role '{}', so no capture is opened on this machine",

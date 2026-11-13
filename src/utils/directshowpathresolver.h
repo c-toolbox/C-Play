@@ -17,7 +17,7 @@
 
 // Resolves, on this machine, which local video/audio capture devices a predefined DirectShow setup entry (identified by its title) should use.
 //
-// The machine's role is "master" on the master, and otherwise the node id from data/multivideo/nodes.json for this
+// The machine's role is "master" on the master, and otherwise the node id from data/nodes.json for this
 // machine's IP address (falling back to the raw IP address when no id can be resolved). Both the setup list and the
 // node identity are re-read at most once per refresh interval, so edits to the JSON files take effect without a restart.
 class DirectShowPathResolver {

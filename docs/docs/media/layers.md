@@ -55,7 +55,7 @@ Choose **Video** and browse to a recorded clip, such as MP4, MKV, MOV, or WebM. 
 
 A MultiVideo layer groups several video files into one synchronized composition. Use it for installations where different nodes or eyes need different video files while sharing one playback timeline.
 
-Choose **MultiVideo** and open a `.cplaymulti` composition file. It defines a master reference video and the video entries each node should load, including per-entry mapping, stereo, eye, and audio settings. Define node IDs in `data/multivideo/nodes.json` and make the referenced files available on the corresponding machines. See [Multi-video composition](/media/cplaymulti) for the complete format and examples.
+Choose **MultiVideo** and open a `.cplaymulti` composition file. It defines a master reference video and the video entries each node should load, including per-entry mapping, stereo, eye, and audio settings. Define node IDs in `data/nodes.json` and make the referenced files available on the corresponding machines. See [Multi-video composition](/media/cplaymulti) for the complete format and examples.
 
 ### Audio
 
@@ -131,7 +131,7 @@ The JSON format looks like this:
 - `videoDevice` must match a video capture device name reported by DirectShow on this machine (the same names that appear in the *Video device* dropdown). It may be empty for audio-only setups.
 - `audioDevice` must match an audio capture device name reported by DirectShow (the same names as in the *Audio device* dropdown). It may be empty when no audio should be captured.
 - `enabled` is optional and defaults to `true`. Set it to `false` to keep a setup in the file without showing it in the UI - useful for documenting example setups that do not apply on every machine.
-- `devices` is an optional object with per-machine device overrides, keyed by role (`"master"` or node ids from `data/multivideo/nodes.json`) - see [Per-node resolution in clusters](/media/layer-operations#per-node-resolution-in-clusters). An entry whose plain devices are both empty but that has a non-empty `devices` object is still shown in the UI.
+- `devices` is an optional object with per-machine device overrides, keyed by role (`"master"` or node ids from `data/nodes.json`) - see [Per-node resolution in clusters](/media/layer-operations#per-node-resolution-in-clusters). An entry whose plain devices are both empty but that has a non-empty `devices` object is still shown in the UI.
 - Entries where both device names are empty and there is no `devices` object are ignored.
 - The file is re-read every time the predefined list is opened, so you can edit it while C-Play is running and pick up changes without restarting.
 

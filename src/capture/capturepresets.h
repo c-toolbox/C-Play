@@ -20,7 +20,7 @@
 //
 // Resolution per machine: sources[role] (when present) -> the entry's default source. A role object
 // only overrides the fields it sets, so input, ganging, directGpu and audio can all differ per machine.
-// role is "master", or the node id from data/multivideo/nodes.json (falling back to the node IP).
+// role is "master", or the node id from data/nodes.json (falling back to the node IP).
 // A role mapped to null, or to an input <= 0, means "no capture on that machine".
 //
 // A master source {"placeholder": true} replaces capture with a movable name/ID TextLayer
