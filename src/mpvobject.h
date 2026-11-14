@@ -642,6 +642,11 @@ private:
 
     // Flags the main video file for the nodes, with a new load id the nodes report back on.
     void syncMainVideoLoad();
+    // Sets what the nodes load for the main video file mediaFile: the <name>_NODE file when it
+    // exists (else mediaFile itself), plus the map of the <name>_NODES node media folder.
+    void setNodeMainVideoFiles(const QString &mediaFile);
+    // Sends the file name of the current audio track to the nodes (node media folders).
+    void syncAudioTrackFile();
 
     // Command-line API override
     bool m_apiOverrideFromCommandLine = false;

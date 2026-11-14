@@ -42,6 +42,8 @@
 #include <telemetry/nodetelemetry.h>
 #include <telemetry/nodeloaderverifier.h>
 #include <utils/logfilewriter.h>
+#include <utils/nodeidentityconfig.h>
+#include <utils/nodemediafolder.h>
 #include <configmodel.h>
 
 #ifdef MDK_SUPPORT
@@ -115,6 +117,18 @@ std::shared_ptr<VideoLayer> mainVideoLayer;
 #endif
 // Id of the master's main video load that mainVideoLayer opened last (0: none yet).
 int mainVideoLoadId = 0;
+
+// What this node opens for the master's main video, resolved from the node media folder map
+// (NodeMediaFolder) whenever loadedFile or the map changes.
+struct NodeMainVideo {
+    std::string loadedFile;   // the master's loadedFile this was resolved for
+    std::string nodeMediaMap; // and its node media folder map
+    std::string path;         // file to open on this node
+    bool fromFolder = false;  // this node has an entry (own folder or default/) in the map
+    std::vector<std::string> audioFiles; // the entry's audio files; empty = no audio on this node
+    bool videoDisabled = false;          // the entry has no video (audio-only node)
+};
+NodeMainVideo nodeMainVideo;
 std::shared_ptr<TextLayer> mainSubtitleLayer;
 
 
@@ -139,6 +153,56 @@ static void *get_proc_address_glfw_v1(void*, const char *name) {
 }
 static void* get_proc_address_glfw_v2(const char* name, void*) {
     return reinterpret_cast<void*>(glfwGetProcAddress(name));
+}
+
+// This node's key in node media folders: its id in data/nodes.json, else its IP address.
+static const std::string& thisNodeMediaId() {
+    static const std::string id = [] {
+        NodeIdentityConfig identity;
+        const std::string nodesPath = NodeIdentityConfig::findDefaultFilePath();
+        if (!nodesPath.empty())
+            identity.loadFromFile(nodesPath);
+        std::string nodeId = identity.thisNodeId();
+        if (nodeId.empty()) {
+            try {
+                nodeId = Engine::instance().thisNode().address();
+            } catch (...) {}
+            Log::Warning(std::format("Node media folders: this node is not in data/nodes.json, "
+                "so only a folder named '{}' (or default) matches it", nodeId));
+        }
+        return nodeId;
+    }();
+    return id;
+}
+
+// Resolves what this node opens for the master's main video (see NodeMainVideo).
+static const NodeMainVideo& resolveNodeMainVideo() {
+    const auto& vars = SyncHelper::instance().variables;
+    if (nodeMainVideo.loadedFile == vars.loadedFile && nodeMainVideo.nodeMediaMap == vars.nodeMediaMap)
+        return nodeMainVideo;
+
+    NodeMainVideo r;
+    r.loadedFile = vars.loadedFile;
+    r.nodeMediaMap = vars.nodeMediaMap;
+    r.path = vars.loadedFile;
+    if (!vars.loadedFile.empty() && !vars.nodeMediaMap.empty()) {
+        const std::string& nodeId = thisNodeMediaId();
+        if (auto entry = NodeMediaFolder::entryForNode(vars.nodeMediaMap, nodeId)) {
+            r.fromFolder = true;
+            r.audioFiles = entry->audio;
+            r.videoDisabled = entry->video.empty();
+            r.path = r.videoDisabled ? entry->audio.front() : entry->video;
+            Log::Info(std::format("Node media folder: node '{}' plays {}{}", nodeId,
+                r.videoDisabled ? "audio only from " : (r.audioFiles.empty() ? "video only from " : "video + audio from "),
+                r.path));
+            if (!r.audioFiles.empty() && !vars.enableAudioOnNodes)
+                Log::Warning("Node media folder: audio on nodes is off in the master's audio settings, so this node stays silent");
+        } else {
+            Log::Info(std::format("Node media folder: no folder for node '{}', playing '{}'", nodeId, r.path));
+        }
+    }
+    nodeMainVideo = std::move(r);
+    return nodeMainVideo;
 }
 
 static void initOGL(GLFWwindow *) {
@@ -246,6 +310,7 @@ static std::vector<std::byte> encode() {
             if (SyncHelper::instance().variables.enableAudioOnNodes) {
                 serializeObject(data, SyncHelper::instance().variables.loadAudioInVidFolder);
                 serializeObject(data, SyncHelper::instance().variables.audioId);
+                serializeObject(data, SyncHelper::instance().variables.audioTrackFile);
             }
             // Volume and mute are always sent: multi-video compositions can play audio on
             // nodes even when "audio on nodes" is off in the settings.
@@ -347,6 +412,7 @@ static std::vector<std::byte> encode() {
             serializeObject(data, SyncHelper::instance().variables.loadFile);
             serializeObject(data, SyncHelper::instance().variables.loadedFile);
             serializeObject(data, SyncHelper::instance().variables.loadFileId);
+            serializeObject(data, SyncHelper::instance().variables.nodeMediaMap);
             SyncHelper::instance().variables.loadFile = false;
         } else if (SyncHelper::instance().variables.overlayFileDirty) { // ID: 1 = overlay image file
             serializeObject(data, 1);
@@ -632,6 +698,7 @@ static void decode(const std::vector<std::byte> &data) {
                 if (!safeToRead()) return;
                 deserializeObject(data, pos, SyncHelper::instance().variables.loadAudioInVidFolder);
                 deserializeObject(data, pos, SyncHelper::instance().variables.audioId);
+                deserializeObject(data, pos, SyncHelper::instance().variables.audioTrackFile);
             }
             if (!safeToRead()) return;
             deserializeObject(data, pos, SyncHelper::instance().variables.volume);
@@ -738,6 +805,7 @@ static void decode(const std::vector<std::byte> &data) {
             deserializeObject(data, pos, SyncHelper::instance().variables.loadFile);
             deserializeObject(data, pos, SyncHelper::instance().variables.loadedFile);
             deserializeObject(data, pos, SyncHelper::instance().variables.loadFileId);
+            deserializeObject(data, pos, SyncHelper::instance().variables.nodeMediaMap);
 #ifdef MULTI_VIDEO_LAYER
             SyncHelper::instance().variables.multiVideoEnabled = false;
 #endif
@@ -1268,9 +1336,13 @@ static void postSyncPreDraw() {
         }
 #endif
 
+        const NodeMainVideo& nodeVideo = resolveNodeMainVideo();
         if (!SyncHelper::instance().variables.loadedFile.empty()) {
+            // Node media folder: this node's own video and/or audio files, set before the load.
+            mainVideoLayer->setAudioFiles(nodeVideo.fromFolder ? nodeVideo.audioFiles : std::vector<std::string>{});
+            mainVideoLayer->setVideoDisabled(nodeVideo.fromFolder && nodeVideo.videoDisabled);
             // Load new MPV file (sub-players already cleared if multi-video was active)
-            mainVideoLayer->loadFile(SyncHelper::instance().variables.loadedFile, SyncHelper::instance().variables.loadFile);
+            mainVideoLayer->loadFile(nodeVideo.path, SyncHelper::instance().variables.loadFile);
             if (SyncHelper::instance().variables.loadFile)
                 mainVideoLoadId = SyncHelper::instance().variables.loadFileId;
             SyncHelper::instance().variables.loadFile = false;
@@ -1487,7 +1559,11 @@ static void postSyncPreDraw() {
         // Set properties of main mpv layer
         mainVideoLayer->setTimePause(SyncHelper::instance().variables.paused);
         mainVideoLayer->setEOFMode(SyncHelper::instance().variables.eofMode);
-        mainVideoLayer->enableAudio(SyncHelper::instance().variables.enableAudioOnNodes);
+        // A node media folder without audio files makes this a video-only node.
+        mainVideoLayer->enableAudio(SyncHelper::instance().variables.enableAudioOnNodes &&
+            (!nodeMainVideo.fromFolder || !nodeMainVideo.audioFiles.empty()));
+        // From a node media folder the track is chosen by file name, not by the master's track number.
+        mainVideoLayer->setAudioTrackByFile(nodeMainVideo.fromFolder, SyncHelper::instance().variables.audioTrackFile);
         if (SyncHelper::instance().variables.enableAudioOnNodes) {
             mainVideoLayer->setLoadAudioInVidFolder(SyncHelper::instance().variables.loadAudioInVidFolder);
             mainVideoLayer->setAudioId(SyncHelper::instance().variables.audioId);

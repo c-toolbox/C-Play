@@ -54,6 +54,7 @@ So for file-based media with audio on nodes:
 * The media file must exist on the **master** and on **every node that plays audio**, at the same path, or a path that C-Play's [file locations](/settings/location) resolve on each machine.
 * Separate audio tracks that are *side-loaded* from the video's folder (see [Naming of external files](#naming-of-external-files)) should be present on both the master and the nodes. The master selects the audio track by its number, so the track list must be the same on all machines.
 * **`_NODE` files:** the master can play a lighter file while the nodes play a separate version named `<name>_NODE.<ext>`, for example `Show.mp4` on the master and `Show_NODE.mp4` on the nodes. The master decides whether to send the `_NODE` name by checking whether that file exists on the master's **own** disk. So the `_NODE` file must also be present on the master, next to the original file, for the nodes to use it.
+* **Per-node media folders:** to give each node its own video and/or audio files (video only, audio only, or both, with several audio files per node), put them in a `<name>_NODES/<node id>/` folder next to the file. See [Per-node media folders](/media/node-media-folders). A node without a folder there uses the `_NODE` file or the master's file as described above.
 
 ### Live sources: the master does not need the source
 

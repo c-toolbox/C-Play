@@ -71,6 +71,17 @@ public:
 
         // Optional separate audio file to pass via loadfile command (mirrors MpvObject behavior)
         std::string audioFile;
+        // Optional list of audio files for the next loadFile() (node media folders). When set,
+        // it replaces audioFile and the automatic loading of audio files from the video folder.
+        std::vector<std::string> audioFiles;
+        // Open the next file without video (audio-only node in a node media folder).
+        std::atomic_bool videoDisabled = false;
+        // Select the audio track by the file it comes from instead of by audioId (node media
+        // folders): the track from audioTrackFile (a file name, no folder), else the track from
+        // audioFiles[0]. Read by the mpv event thread; guarded by audioSelectMutex.
+        std::mutex audioSelectMutex;
+        bool selectAudioByFile = false;
+        std::string audioTrackFile;
         // Optional per-layer mpv options identifier (base name of <id>_<suffix>.json in data/mpv-conf)
         std::string mpvOptionsName;
         std::string mpvOptionsName_Dec = "";
@@ -189,6 +200,12 @@ public:
     void setVolumeMute(bool v);
     void setLoadAudioInVidFolder(bool v);
     void setAudioFile(const std::string &audioFile);
+    // Audio files and video on/off for the next loadFile() (see mpvData::audioFiles / videoDisabled).
+    void setAudioFiles(const std::vector<std::string> &audioFiles);
+    void setVideoDisabled(bool disabled);
+    // Select the audio track by source file name instead of by audioId (see mpvData::selectAudioByFile).
+    // fileName is the file name of the master's current audio track ("" = none or embedded).
+    void setAudioTrackByFile(bool enabled, const std::string &fileName = "");
 
     // Per layer, initially taken from AudioSettings (off by default). Only works with mpv's JACK audio output (ao=jack): mpv
     // connects its output ports to a JACK client of this layer instead of the system playback

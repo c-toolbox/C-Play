@@ -74,7 +74,9 @@ void loadTracks(MpvLayer::mpvData& vd) {
         bool hasVideo = false;
         for (const auto& track : tracks) {
             const auto t = track.toMap();
-            if (t[QStringLiteral("type")] == QStringLiteral("video") && !t[QStringLiteral("albumart")].toBool())
+            // With vid=no a video track is never rendered, so the file counts as audio only.
+            if (t[QStringLiteral("type")] == QStringLiteral("video") && !t[QStringLiteral("albumart")].toBool()
+                && !vd.videoDisabled)
                 hasVideo = true;
             if (track.toMap()[QStringLiteral("type")] == QStringLiteral("audio")) {
                 auto newTrack = Track();
@@ -100,8 +102,53 @@ void loadTracks(MpvLayer::mpvData& vd) {
     }
 }
 
+// Node media folders: the id of the audio track that comes from the file named fileName (no
+// folder, case-insensitive). A track of the opened file itself comes from loadedFile. -1 if none.
+int audioTrackIdForFile(MpvLayer::mpvData& vd, const QString& fileName) {
+    if (fileName.isEmpty())
+        return -1;
+    QString mainFile;
+    {
+        const std::lock_guard<std::mutex> lock(vd.loadStatusMutex);
+        mainFile = QString::fromStdString(vd.loadedFile);
+    }
+    const QList<QVariant> tracks = mpv::qt::get_property(vd.handle, QStringLiteral("track-list")).toList();
+    for (const auto& track : tracks) {
+        const auto t = track.toMap();
+        if (t[QStringLiteral("type")] != QStringLiteral("audio"))
+            continue;
+        const QString source = t[QStringLiteral("external")].toBool()
+            ? t[QStringLiteral("external-filename")].toString() : mainFile;
+        if (QFileInfo(source).fileName().compare(fileName, Qt::CaseInsensitive) == 0)
+            return t[QStringLiteral("id")].toInt();
+    }
+    return -1;
+}
+
 void loadAudioId(MpvLayer::mpvData& vd) {
     if (vd.handle && vd.mpvInitialized) {
+        bool byFile = false;
+        QString wanted;
+        QString fallback;
+        {
+            const std::lock_guard<std::mutex> lock(vd.audioSelectMutex);
+            byFile = vd.selectAudioByFile;
+            wanted = QString::fromStdString(vd.audioTrackFile);
+            if (!vd.audioFiles.empty())
+                fallback = QFileInfo(QString::fromStdString(vd.audioFiles.front())).fileName();
+        }
+        if (byFile) {
+            // The master's track when this node has a file with the same name, else the first
+            // of the node's audio files (never the video's own audio).
+            int id = audioTrackIdForFile(vd, wanted);
+            if (id < 0)
+                id = audioTrackIdForFile(vd, fallback);
+            if (id >= 0)
+                mpv::qt::set_property(vd.handle, QStringLiteral("aid"), id, vd.loggingOn);
+            else
+                mpv::qt::set_property(vd.handle, QStringLiteral("aid"), QStringLiteral("auto"), vd.loggingOn);
+            return;
+        }
         if (vd.audioId < 0) {
             mpv::qt::set_property(vd.handle, QStringLiteral("aid"), QStringLiteral("auto"), vd.loggingOn);
         }
@@ -832,7 +879,8 @@ void MpvLayer::setAudioId(int value) {
     }
 
     m_data.audioId = value;
-    if (m_data.handle && !m_data.loadedFile.empty()) {
+    // With audio disabled, selecting a track would turn the audio back on.
+    if (m_data.audioEnabled && m_data.handle && hasLoadedFile(m_data)) {
         loadAudioId(m_data);
     }
 
@@ -851,7 +899,8 @@ void MpvLayer::enableAudio(bool enabled) {
 
     // This will also be triggered on mpv initialization
     if (enabled) {
-        mpv::qt::set_property(m_data.handle, QStringLiteral("aid"), QStringLiteral("auto"), m_data.loggingOn);
+        // The selected track (audioId, or the file-based selection of node media folders); "auto" when none.
+        loadAudioId(m_data);
         mpv::qt::set_property(m_data.handle, QStringLiteral("volume-max"), QStringLiteral("100"), m_data.loggingOn);
         updateAudioOutput();
     }
@@ -1093,9 +1142,36 @@ void MpvLayer::loadFile(std::string filePath, bool reload) {
         // Build command options list (mirrors MpvObject::loadItem behavior)
         QStringList optionsList;
 
+        std::vector<std::string> audioFiles;
+        {
+            const std::lock_guard<std::mutex> lock(m_data.audioSelectMutex);
+            audioFiles = m_data.audioFiles;
+        }
+        if (!audioFiles.empty()) {
+            // Node media folder: exactly these audio files (minus the opened file itself, for an
+            // audio-only node), and no automatic loading of other audio files from the folder.
+            // %<bytes>% quotes the value, as paths can contain commas.
+            QStringList extraFiles;
+            for (const auto &f : audioFiles) {
+                if (f != filePath)
+                    extraFiles << QString::fromStdString(f);
+            }
+            optionsList << QStringLiteral("audio-file-auto=no");
+            if (!extraFiles.isEmpty()) {
+#ifdef WIN32
+                const QString value = extraFiles.join(QLatin1Char(';'));
+#else
+                const QString value = extraFiles.join(QLatin1Char(':'));
+#endif
+                optionsList << QStringLiteral("audio-files=%%1%").arg(value.toUtf8().size()) + value;
+            }
+        }
         // Apply optional separate audio file via loadfile command
-        if (!m_data.audioFile.empty()) {
+        else if (!m_data.audioFile.empty()) {
             optionsList << QStringLiteral("audio-file=") + QString::fromStdString(m_data.audioFile);
+        }
+        if (m_data.videoDisabled) {
+            optionsList << QStringLiteral("vid=no");
         }
 
         QString options = optionsList.join(QStringLiteral(","));
@@ -1353,6 +1429,27 @@ void MpvLayer::frameSyncSeek(double target, double baseSpeed) {
 
 void MpvLayer::setAudioFile(const std::string &audioFile) {
     m_data.audioFile = audioFile;
+}
+
+void MpvLayer::setAudioFiles(const std::vector<std::string> &audioFiles) {
+    const std::lock_guard<std::mutex> lock(m_data.audioSelectMutex);
+    m_data.audioFiles = audioFiles;
+}
+
+void MpvLayer::setVideoDisabled(bool disabled) {
+    m_data.videoDisabled = disabled;
+}
+
+void MpvLayer::setAudioTrackByFile(bool enabled, const std::string &fileName) {
+    {
+        const std::lock_guard<std::mutex> lock(m_data.audioSelectMutex);
+        if (m_data.selectAudioByFile == enabled && m_data.audioTrackFile == fileName)
+            return;
+        m_data.selectAudioByFile = enabled;
+        m_data.audioTrackFile = fileName;
+    }
+    if (m_data.audioEnabled && m_data.handle && m_data.mpvInitialized && hasLoadedFile(m_data))
+        loadAudioId(m_data);
 }
 
 std::string MpvLayer::mpvOptionsName() const {

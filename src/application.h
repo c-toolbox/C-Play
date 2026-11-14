@@ -570,6 +570,12 @@ class SyncHelper {
 public:
     struct SyncVariables {
         std::string loadedFile;
+        // Node media folder map of the main video (NodeMediaFolder::buildMapJson), sent with
+        // loadedFile; "" when the file has no <name>_NODES folder.
+        std::string nodeMediaMap;
+        // File name (no folder) of the master's current audio track when it comes from a
+        // separate file; "" otherwise. Nodes with a node media folder select their track by it.
+        std::string audioTrackFile;
         std::string overlayFile;
         std::string bgImageFile;
         std::string fgImageFile;
@@ -716,6 +722,8 @@ public:
 
     SyncVariables variables = {
         /*loadedFile*/ "",
+        /*nodeMediaMap*/ "",
+        /*audioTrackFile*/ "",
         /*overlayFile*/ "",
         /*bgImageFile*/ "",
         /*fgImageFile*/ "",

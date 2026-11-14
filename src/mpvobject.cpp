@@ -33,6 +33,7 @@
 #include "utils/autosave.h"
 #include "utils/logfilewriter.h"
 #include "utils/mediasizeprobe.h"
+#include "utils/nodemediafolder.h"
 #include <iostream>
 #include <thread>
 #ifdef MULTI_VIDEO_LAYER
@@ -477,6 +478,38 @@ void MpvObject::syncMainVideoLoad() {
         setPause(true);
         m_playWhenNodesReady = true;
     }
+}
+
+void MpvObject::setNodeMainVideoFiles(const QString &mediaFile) {
+    // _NODE file: one replacement file for all nodes. Must exist on the master's own disk.
+    QFileInfo mediaFileInfo(mediaFile);
+    QString nodeSeparateMediaFile = mediaFile;
+    nodeSeparateMediaFile.replace(mediaFileInfo.fileName(), mediaFileInfo.baseName() + QStringLiteral("_NODE.") + mediaFileInfo.completeSuffix());
+    if (QFileInfo::exists(nodeSeparateMediaFile)) {
+        SyncHelper::instance().setString(SyncHelper::instance().variables.loadedFile, nodeSeparateMediaFile.toStdString());
+    } else {
+        SyncHelper::instance().setString(SyncHelper::instance().variables.loadedFile, mediaFile.toStdString());
+    }
+
+    // <name>_NODES folder: files per node. Nodes without a folder there use loadedFile above.
+    const std::string nodeMediaMap = NodeMediaFolder::buildMapJson(mediaFile);
+    if (!nodeMediaMap.empty()) {
+        sgct::Log::Info(std::format("Main video: node media folder '{}'",
+            NodeMediaFolder::folderFor(mediaFile).toStdString()));
+    }
+    SyncHelper::instance().setString(SyncHelper::instance().variables.nodeMediaMap, nodeMediaMap);
+}
+
+void MpvObject::syncAudioTrackFile() {
+    std::string fileName;
+    if (getProperty(QStringLiteral("current-tracks/audio/external")).toBool()) {
+        fileName = QFileInfo(getProperty(QStringLiteral("current-tracks/audio/external-filename")).toString())
+                       .fileName().toStdString();
+    }
+    if (fileName == SyncHelper::instance().variables.audioTrackFile)
+        return;
+    SyncHelper::instance().setString(SyncHelper::instance().variables.audioTrackFile, fileName);
+    SyncHelper::instance().variables.mpvNeedSync = true;
 }
 
 bool MpvObject::autoPlay() {
@@ -1106,17 +1139,7 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile, bool gu
         m_loadedFileStructure = fileToLoad;
         m_separateAudioFile = QStringLiteral("");
 
-        QFileInfo mediaFileInfo(fileToLoad);
-        QString nodeSeparateMediaFile = fileToLoad;
-        nodeSeparateMediaFile.replace(mediaFileInfo.fileName(), mediaFileInfo.baseName() + QStringLiteral("_NODE.") + mediaFileInfo.completeSuffix());
-        QFileInfo nodeMediaFileInfo(nodeSeparateMediaFile);
-        if (nodeMediaFileInfo.exists())
-        {
-            SyncHelper::instance().setString(SyncHelper::instance().variables.loadedFile, nodeSeparateMediaFile.toStdString());
-        }
-        else {
-            SyncHelper::instance().setString(SyncHelper::instance().variables.loadedFile, fileToLoad.toStdString());
-        }
+        setNodeMainVideoFiles(fileToLoad);
         SyncHelper::instance().setString(SyncHelper::instance().variables.overlayFile, "");
         syncMainVideoLoad();
         SyncHelper::instance().variables.overlayFileDirty = true;
@@ -1295,6 +1318,7 @@ void MpvObject::loadMultiVideo(const QString &jsonPath, bool updateLastPlayedFil
     // (which may be stale from a previously played video) to avoid loading an
     // unrelated file and leaking its audio on the nodes.
     SyncHelper::instance().setString(SyncHelper::instance().variables.loadedFile, "");
+    SyncHelper::instance().setString(SyncHelper::instance().variables.nodeMediaMap, "");
     SyncHelper::instance().setString(SyncHelper::instance().variables.overlayFile, "");
     SyncHelper::instance().variables.loadFile    = false;
     // The nodes do not report the per-node sub-players; do not hold playback for them.
@@ -1548,17 +1572,7 @@ void MpvObject::loadItem(PlayListItemData itemData, bool updateLastPlayedFile, Q
 
         command(newCommand, true);
 
-        QFileInfo mediaFileInfo(itemData.mediaFile());
-        QString nodeSeparateMediaFile = itemData.mediaFile();
-        nodeSeparateMediaFile.replace(mediaFileInfo.fileName(), mediaFileInfo.baseName() + QStringLiteral("_NODE.") + mediaFileInfo.completeSuffix());
-        QFileInfo nodeMediaFileInfo(nodeSeparateMediaFile);
-        if (nodeMediaFileInfo.exists())
-        {
-            SyncHelper::instance().setString(SyncHelper::instance().variables.loadedFile, nodeSeparateMediaFile.toStdString());
-        }
-        else {
-            SyncHelper::instance().setString(SyncHelper::instance().variables.loadedFile, itemData.mediaFile().toStdString());
-        }
+        setNodeMainVideoFiles(itemData.mediaFile());
 
         SyncHelper::instance().setString(SyncHelper::instance().variables.overlayFile, itemData.separateOverlayFile().toStdString());
         syncMainVideoLoad();
@@ -2098,6 +2112,8 @@ void MpvObject::eventHandler() {
                     Q_EMIT chapterChanged();
                 }
             } else if (strcmp(prop->name, "aid") == 0) {
+                // Also when the track is turned off (format NONE): the nodes then use their default track.
+                syncAudioTrackFile();
                 if (prop->format == MPV_FORMAT_INT64) {
                     Q_EMIT audioIdChanged();
                 }
@@ -2124,6 +2140,8 @@ void MpvObject::eventHandler() {
             } else if (strcmp(prop->name, "track-list") == 0) {
                 if (prop->format == MPV_FORMAT_NODE) {
                     loadTracks();
+                    // The selected track's source is known once the external files are added.
+                    syncAudioTrackFile();
                 }
             } else if (strcmp(prop->name, "video-params") == 0) {
                 if (prop->format == MPV_FORMAT_NODE) {
