@@ -15,6 +15,7 @@ extern "C" {
 #include <libavutil/samplefmt.h>
 #include <libavutil/version.h>
 }
+#include <utils/ffmpegversioncheck.h> // headers of mpv's FFmpeg tree, not another one
 
 #include <cstring>
 #include <vector>

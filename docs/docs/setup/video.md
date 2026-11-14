@@ -15,7 +15,7 @@ The bundled mpv and FFmpeg versions depend on the C-Play build. Check the librar
 
 C-Play ships with a bunch of different pre-configured mpv configuration files, located in the *data/mpv-conf* directory.
 
-If nothing is specified, C-Play will load the configuration in the *default* folder. There are two ways to choose another configuration:
+If nothing is specified, C-Play will load the configuration in the *default* folder. It sets `"hwdec": "auto-safe"`: mpv decodes on the GPU with the hardware decoders it considers safe, and falls back to the CPU for files they cannot decode. There are two ways to choose another configuration:
 
 * **Startup configuration setting** — In *[Settings > Playback](/settings/playback#mpv-configuration)*, select a configuration in the *Startup configuration* list. The list shows every folder in *data/mpv-conf* that contains an *all.json*. Selecting a configuration shows its files in the text area below, so you can compare what each configuration sets before restarting. The selection is saved and used the next time C-Play starts. The master also sends it to the nodes at startup, so the whole cluster uses the same configuration without any command-line options. The folder must exist in *data/mpv-conf* on every computer; a node that does not have it keeps its current configuration and logs a warning.
 * **Command-line option** — Supplying "*--mpvconf decoding_gpu_nvdec*" loads the configuration files in that folder when C-Play starts. The copy button next to the *Startup configuration* list copies this option for the selected configuration.

@@ -11,6 +11,7 @@ extern "C" {
 #include <libavutil/hwcontext.h>
 #include <libswscale/swscale.h>
 }
+#include <utils/ffmpegversioncheck.h> // headers of mpv's FFmpeg tree, not another one
 
 #include <cstring>
 #include <vector>

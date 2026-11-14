@@ -118,12 +118,20 @@ find_package_handle_standard_args(FFmpegPinned
 
 if(FFmpegPinned_FOUND AND NOT TARGET FFmpegPinned::FFmpeg)
     add_library(FFmpegPinned::FFmpeg INTERFACE IMPORTED)
+    set(_ffmpeg_found_libs "")
     foreach(_comp IN LISTS FFmpegPinned_FIND_COMPONENTS)
         if(${_comp}_FOUND)
             set_property(TARGET FFmpegPinned::FFmpeg APPEND
                          PROPERTY INTERFACE_LINK_LIBRARIES FFmpegPinned::${_comp})
+            list(APPEND _ffmpeg_found_libs ${_comp})
         endif()
     endforeach()
+    # Consumers include src/utils/ffmpegversioncheck.h, which fails the build if their FFmpeg
+    # headers come from another tree (e.g. Craft's) than these linked libraries.
+    include("${CMAKE_CURRENT_LIST_DIR}/FFmpegHeaderVersions.cmake")
+    cplay_ffmpeg_header_majors("${FFmpegPinned_INCLUDE_DIR}" _ffmpeg_majors ${_ffmpeg_found_libs})
+    set_property(TARGET FFmpegPinned::FFmpeg APPEND PROPERTY INTERFACE_COMPILE_DEFINITIONS ${_ffmpeg_majors})
+    message(STATUS "FFmpegPinned headers: ${FFmpegPinned_INCLUDE_DIR} (${_ffmpeg_majors})")
 endif()
 
 mark_as_advanced(FFmpegPinned_INCLUDE_DIR)
