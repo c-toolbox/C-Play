@@ -570,17 +570,23 @@ if (MSVC)
     /wd4828 # illegal character
     /experimental:external /external:anglebrackets /external:templates- /external:W0)
 
-if(${QT_VERSION_MAJOR} GREATER_EQUAL 6 AND ${QT_VERSION_MINOR} GREATER_EQUAL 8)
-    #set_target_properties(all_aotstats PROPERTIES FOLDER ${AUTO_TARGET_NAME})
-    set_target_properties(${TARGET_NAME}_copy_qml PROPERTIES FOLDER ${AUTO_TARGET_NAME})
-    set_target_properties(${TARGET_NAME}_copy_res PROPERTIES FOLDER ${AUTO_TARGET_NAME})
-endif()
-    set_target_properties(all_qmltyperegistrations PROPERTIES FOLDER ${AUTO_TARGET_NAME})
-    set_target_properties(${TARGET_NAME}_automoc_json_extraction PROPERTIES FOLDER ${AUTO_TARGET_NAME})
-    #set_target_properties(${TARGET_NAME}_other_files PROPERTIES FOLDER ${AUTO_TARGET_NAME})
-    set_target_properties(${TARGET_NAME}_qmltyperegistration PROPERTIES FOLDER ${AUTO_TARGET_NAME})
-    set_target_properties(${TARGET_NAME}_tooling PROPERTIES FOLDER ${AUTO_TARGET_NAME})
-    set_target_properties(fetch-translations PROPERTIES FOLDER "External")
+    # Helper targets created by Qt/CMake. Which ones exist depends on the Qt and CMake versions
+    # (e.g. CMake 4.4+ extracts the automoc metatypes itself, so Qt no longer adds
+    # <target>_automoc_json_extraction), so only group the ones that are there.
+    foreach(_generated_target
+            ${TARGET_NAME}_copy_qml
+            ${TARGET_NAME}_copy_res
+            all_qmltyperegistrations
+            ${TARGET_NAME}_automoc_json_extraction
+            ${TARGET_NAME}_qmltyperegistration
+            ${TARGET_NAME}_tooling)
+        if(TARGET ${_generated_target})
+            set_target_properties(${_generated_target} PROPERTIES FOLDER ${AUTO_TARGET_NAME})
+        endif()
+    endforeach()
+    if(TARGET fetch-translations)
+        set_target_properties(fetch-translations PROPERTIES FOLDER "External")
+    endif()
 endif()
 
 target_include_directories(${TARGET_NAME} PRIVATE layers)
