@@ -1103,10 +1103,10 @@ GridLayout {
 
             SourceCopyArea {
                 property var devices: root.getDirectShowPresetDevices()
-                identifier: devices ? devices.video : ""
+                identifier: devices?.video ?? ""
                 copyText: qsTr("Copy video device identifier")
                 showAudioIdentifier: true
-                audioIdentifier: devices ? devices.audio : ""
+                audioIdentifier: devices?.audio ?? ""
             }
 
             Layout.fillWidth: true

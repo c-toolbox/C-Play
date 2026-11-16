@@ -59,7 +59,8 @@ QStringList ControlEventFeed::availableTopics() {
         QStringLiteral("playlist"), QStringLiteral("playing_in_playlist"),
         QStringLiteral("sections"), QStringLiteral("playing_in_sections"),
         QStringLiteral("slides"), QStringLiteral("slide_name"), QStringLiteral("playing_in_slides"),
-        QStringLiteral("triggered_slide"), QStringLiteral("layers"), QStringLiteral("main_video_load")
+        QStringLiteral("triggered_slide"), QStringLiteral("layers"), QStringLiteral("layer_states"),
+        QStringLiteral("main_video_load")
 #ifdef WEB_VIEWS_SUPPORT
         , QStringLiteral("presentation"), QStringLiteral("movie"), QStringLiteral("layerview")
 #endif
@@ -71,6 +72,43 @@ bool ControlEventFeed::validateTopics(const QStringList &topics) {
     return std::all_of(topics.begin(), topics.end(), [&available](const QString &topic) {
         return topic == QStringLiteral("*") || available.contains(topic);
     });
+}
+
+QByteArray ControlEventFeed::formatLayerStates(const QJsonValue &value, int charsPerItem) {
+    const auto object = value.toObject();
+    const auto layers = object.value(QStringLiteral("layers")).toArray();
+    QString text;
+    if (charsPerItem <= 0) {
+        text = QStringLiteral("slide=") + QString::number(object.value(QStringLiteral("slide")).toInt(-1));
+        for (const auto &item : layers) {
+            const auto row = item.toObject();
+            text += QLatin1Char(';') + QString::number(row.value(QStringLiteral("index")).toInt())
+                + QLatin1Char(':') + row.value(QStringLiteral("state")).toString();
+        }
+        return text.toUtf8();
+    }
+    // The state takes the last 4 characters (right aligned), the numbered title the rest.
+    const int titleWidth = std::max(0, charsPerItem - 4);
+    for (int i = 0; i < layers.size(); ++i) {
+        const auto row = layers.at(i).toObject();
+        QString title = QString::number(i + 1) + QStringLiteral(". ") + row.value(QStringLiteral("title")).toString();
+        title.replace(QLatin1Char('\r'), QLatin1Char(' ')).replace(QLatin1Char('\n'), QLatin1Char(' '));
+        // Width is measured in Unicode code points, without splitting surrogate pairs.
+        auto characters = title.toUcs4();
+        if (characters.size() > titleWidth) {
+            const bool ellipsis = titleWidth >= 4;
+            characters.resize(ellipsis ? titleWidth - 3 : titleWidth);
+            title = QString::fromUcs4(characters.constData(), characters.size());
+            if (ellipsis) title += QStringLiteral("...");
+        } else {
+            title = QString::fromUcs4(characters.constData(), characters.size())
+                + QString(titleWidth - characters.size(), QLatin1Char(' '));
+        }
+        const QString state = row.value(QStringLiteral("state")).toString();
+        if (i > 0) text += QLatin1Char('\n');
+        text += title + (charsPerItem >= 4 ? state.rightJustified(4) : state.left(charsPerItem));
+    }
+    return text.toUtf8();
 }
 
 void ControlEventFeed::addTopic(const QString &topic, std::function<QJsonValue()> reader) {

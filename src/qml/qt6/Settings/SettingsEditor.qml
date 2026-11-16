@@ -22,7 +22,7 @@ Kirigami.ApplicationWindow {
     visible: false
     width: 1150
 
-    Component.onCompleted: pageStack.push(`${root.pagePath}/Navigation.qml`)
+    Component.onCompleted: pageStack.push(navigationPage)
     onVisibleChanged: {
         if (visible) {
             // Center over the main application window. From this nested component "window" is
@@ -31,6 +31,12 @@ Kirigami.ApplicationWindow {
             x = window.x + (window.width - width) / 2;
             y = Math.max(window.y, window.y + (window.height - height) / 2);
         }
+    }
+
+    Navigation {
+        id: navigationPage
+
+        visible: false
     }
 
     Loader {

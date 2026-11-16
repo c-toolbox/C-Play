@@ -547,9 +547,9 @@ bool TcpControlManager::dispatchCommand(const QString &id, const QJsonObject &ev
             const int charsPerItem = item.value(QStringLiteral("charsPerItem")).toInt();
             QString topic = event.value(QStringLiteral("topic")).toString();
             if (topic.isEmpty()) topic = item.value(QStringLiteral("eventTopics")).toStringList().value(0);
-            // Lists use the REST formatters so TCP and REST send identical text.
-            const auto formatted = charsPerItem > 0 && m_listFormatter
-                ? m_listFormatter(topic, charsPerItem) : std::nullopt;
+            // Lists use the REST formatters so TCP and REST send identical text. The formatter
+            // returns nullopt for width 0 except for topics with a text form at every width.
+            const auto formatted = m_listFormatter ? m_listFormatter(topic, charsPerItem) : std::nullopt;
             payload += formatted ? *formatted : eventValueBytes(value, charsPerItem);
         }
         accepted = item.value(QStringLiteral("raw")).toBool() ? client->sendBinary(payload) : client->sendMessage(payload);

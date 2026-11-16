@@ -92,6 +92,8 @@ Kirigami.Page {
     ListView {
         id: settingsPagesList
 
+        property Item settingsPage: null
+
         anchors.fill: parent
         currentIndex: -1
         model: settingsPagesModel
@@ -104,8 +106,21 @@ Kirigami.Page {
  
             onClicked: {
                 settingsPagesList.currentIndex = index
-                applicationWindow().pageStack.removePage(1);
-                applicationWindow().pageStack.push(`${settingsPagesModel.pagePath}/${model.page}`);
+                const pageStack = applicationWindow().pageStack;
+                pageStack.removePage(1);
+                if (settingsPagesList.settingsPage) {
+                    settingsPagesList.settingsPage.destroy();
+                    settingsPagesList.settingsPage = null;
+                }
+                // Create the page with a visual parent; pages pushed by URL are created
+                // parentless, which Qt reports as "not placed in the graphics scene".
+                const component = Qt.createComponent(`${settingsPagesModel.pagePath}/${model.page}`);
+                if (component.status !== Component.Ready) {
+                    console.warn(component.errorString());
+                    return;
+                }
+                settingsPagesList.settingsPage = component.createObject(pageStack, { visible: false });
+                pageStack.push(settingsPagesList.settingsPage);
             }
         }
     }

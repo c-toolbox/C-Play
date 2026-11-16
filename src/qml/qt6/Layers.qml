@@ -797,13 +797,8 @@ Rectangle {
                     text: modelData.label
                     leftPadding: 15
                     rightPadding: 15
-                    Layout.preferredWidth: hierarchyTextMetrics.advanceWidth + leftPadding + rightPadding + 4
+                    Layout.preferredWidth: leftPadding + rightPadding + 4
 
-                    TextMetrics {
-                        id: hierarchyTextMetrics
-                        font: parent.font
-                        text: parent.text
-                    }
                     Layout.preferredHeight: Kirigami.Units.gridUnit * 1.2
 
                     onClicked: {

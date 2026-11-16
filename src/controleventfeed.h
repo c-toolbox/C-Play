@@ -30,6 +30,9 @@ public:
     void setWebSocketPort(quint16 port);
     static QStringList availableTopics();
     static bool validateTopics(const QStringList &topics);
+    // Text form of a `layer_states` value. charsPerItem 0 gives "slide=2;0:ON;1:OFF" (zero-based
+    // layer_idx); a positive width gives LF separated "1. Title     ON" rows of exactly that width.
+    static QByteArray formatLayerStates(const QJsonValue &value, int charsPerItem);
     // An empty cursor gives an initial snapshot. A cursor enables long polling.
     QJsonObject read(const QStringList &topics, const QString &since = {}, int waitMs = 0);
 Q_SIGNALS:

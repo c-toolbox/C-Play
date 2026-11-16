@@ -36,7 +36,10 @@
 #include <QDir>
 #include <QFileInfo>
 #include <QSet>
+#include <QHash>
 #include <QRegularExpression>
+#include <cmath>
+#include <memory>
 
 #ifdef SAIL_SUPPORT
 #include <sail-c++/sail-c++.h>
@@ -212,6 +215,12 @@ void PlayerController::setupControlEvents() {
     // Same formatters as the REST list endpoints (/playlist, /sections, /audiotracks, /slides).
     Application::instance().tcpControlManager()->setListFormatter(
         [this](const QString &topic, int charsPerItem) -> std::optional<QByteArray> {
+        // layer_states has a text form at every width; read the cached value the event carried.
+        if (topic == QStringLiteral("layer_states"))
+            return ControlEventFeed::formatLayerStates(m_controlEvents->read({topic})
+                .value(QStringLiteral("values")).toObject().value(topic), charsPerItem);
+        if (charsPerItem <= 0)
+            return std::nullopt;
         if (topic == QStringLiteral("playlist"))
             return m_mpv && m_mpv->playlistModel()
                 ? QByteArray::fromStdString(m_mpv->playlistModel()->getListAsFormattedString(charsPerItem)) : QByteArray();
@@ -364,6 +373,40 @@ void PlayerController::setupControlEvents() {
             }
         }
         return layers;
+    });
+    // On/off/transition state of each layer of the selected slide (as playing_in_slides; the
+    // master slide when it is -1), for show control. Only state changes are sent, not every fade step.
+    auto previousAlpha = std::make_shared<QHash<QString, float>>();
+    m_controlEvents->addTopic(QStringLiteral("layer_states"), [this, previousAlpha]() -> QJsonValue {
+        QJsonArray layers;
+        const int selected = m_slidesModel ? m_slidesModel->selectedSlideIdx() : -1;
+        LayersModel *slide = !m_slidesModel ? nullptr
+            : selected >= 0 ? m_slidesModel->slide(selected) : m_slidesModel->masterSlide();
+        QHash<QString, float> alphas;
+        if (slide) {
+            const auto entries = slide->getLayers();
+            for (int j = 0; j < entries.size(); ++j) {
+                const auto &layer = entries[j].first;
+                if (!layer) continue;
+                const QString id = QString::number(layer->identifier());
+                const float alpha = layer->alpha();
+                alphas.insert(id, alpha);
+                // Fades and entrance/exit effects the layer runs itself are known directly. Slide
+                // transitions, timelines and remote visibility changes show as alpha moving
+                // between two samples (100 ms apart).
+                int direction = slide->layerTransitionDirection(layer.get());
+                const auto previous = previousAlpha->constFind(id);
+                if (direction == 0 && previous != previousAlpha->constEnd() && std::abs(alpha - *previous) > 1e-4f)
+                    direction = alpha > *previous ? 1 : -1;
+                const QString state = direction > 0 ? QStringLiteral("IN") : direction < 0 ? QStringLiteral("OUT")
+                    : alpha > 0.f ? QStringLiteral("ON") : QStringLiteral("OFF");
+                layers.append(QJsonObject{{QStringLiteral("index"), j},
+                    {QStringLiteral("title"), QString::fromStdString(layer->title())},
+                    {QStringLiteral("state"), state}});
+            }
+        }
+        *previousAlpha = std::move(alphas);
+        return QJsonObject{{QStringLiteral("slide"), slide ? selected : -1}, {QStringLiteral("layers"), layers}};
     });
 }
 

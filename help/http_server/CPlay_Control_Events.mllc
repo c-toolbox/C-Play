@@ -60,7 +60,7 @@ VariableLengthChar=?
 Requests count=0
 Wait for answer=0
 Timeout Answer=3000
-Variables count=29
+Variables count=30
 Variable0.Name=Last_Command
 Variable0.Frame=?!0D
 Variable0.Position=0
@@ -322,6 +322,15 @@ Variable28.Format=literal
 Variable28.UpdateMode=0
 Variable28.EnumNameCount=0
 Variable28.BEnumIntegerValues=0
+Variable29.Name=CPlay_layer_states
+Variable29.Frame=cplay layer_states ?!0D
+Variable29.Position=19
+Variable29.Length=1
+Variable29.Type=string
+Variable29.Format=literal
+Variable29.UpdateMode=0
+Variable29.EnumNameCount=0
+Variable29.BEnumIntegerValues=0
 
 [AUTOMATION]
 Connection mode=1

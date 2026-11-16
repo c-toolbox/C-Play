@@ -410,6 +410,21 @@
             "monitoringVariable": "CPlay_layers",
             "monitoringType": "string",
             "charsPerItem": 40
+        },
+        {
+            "id": "medialon-event-layer_states",
+            "name": "Medialon: layer_states",
+            "serverId": "127.0.0.1:9000",
+            "encoding": "text",
+            "payload": "cplay layer_states ",
+            "raw": false,
+            "eventTopics": [
+                "layer_states"
+            ],
+            "eventPayload": "value",
+            "monitoringVariable": "CPlay_layer_states",
+            "monitoringType": "string",
+            "charsPerItem": 0
         }
     ]
 }

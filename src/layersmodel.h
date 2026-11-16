@@ -507,6 +507,9 @@ public:
     Q_INVOKABLE bool fadeLayers(const QList<int> &rows, bool show);
     // True when any of the rows with a visibility can be faded in (show) or out.
     Q_INVOKABLE bool canFadeLayers(const QList<int> &rows, bool show) const;
+    // Direction of a fade or entrance/exit the layer itself is running (fadeLayer):
+    // 1 showing, -1 hiding, 0 none. Sublayer fades and a held visibility scrub count as none.
+    int layerTransitionDirection(const BaseLayer *layer) const;
 
     // True when the layer's alpha is driven by the animation (keyframes or entrance effects).
     bool isLayerTimelineDriven(const BaseLayer *layer) const;

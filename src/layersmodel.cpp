@@ -4752,6 +4752,20 @@ cplay::anim::LayerAnimState LayersModel::evaluateLayerPlay(const LayerPlay &play
     return state;
 }
 
+int LayersModel::layerTransitionDirection(const BaseLayer *layer) const {
+    if (!layer)
+        return 0;
+    for (const LayerFade &f : m_layerFades) {
+        if (f.layer == layer && f.subLayerIdx < 0 && f.to != f.from)
+            return f.to > f.from ? 1 : -1;
+    }
+    for (const LayerPlay &p : m_layerPlays) {
+        if (p.layer == layer && !p.scrubbing)
+            return p.show ? 1 : -1;
+    }
+    return 0;
+}
+
 int LayersModel::layerPlayProgress(const BaseLayer *layer) const {
     for (const LayerPlay &p : m_layerPlays) {
         if (p.layer != layer)

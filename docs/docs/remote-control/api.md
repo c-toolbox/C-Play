@@ -212,6 +212,7 @@ This endpoint controls stereo display on the cluster. It does not select the mas
 | `/slide_volume_fade_up` | POST | `slide_idx=` (`-1` = master) or `slide_name=` *(optional, default: selected slide)* | Fade the slide volume up over the fade duration, to the level the last fade down started from, or else to 100 | `"Fading slide volume up"` or error |
 | `/slide_skip_toggle` | POST | `slide_idx=` or `slide_name=` *(optional, default: selected slide)* | Toggle whether the slide is skipped | Confirmation or error |
 | `/layers` | GET, POST | `slide_name=` or `slide_idx=` *(required)*, `charsPerItem=` *(optional)* | Get formatted layer list for a slide | Text list |
+| `/layer_states` | GET, POST | `charsPerItem=` *(optional, 0–4096, default `0`)* | On/off/transition state of the layers of the selected slide (`playing_in_slides`; the master slide when it is `-1`), as the [`layer_states` event topic](tcp.md#layer-states) sends it | `slide=2;0:ON;1:IN` with `charsPerItem=0`, otherwise a fixed-width text list |
 
 ### Layer control
 

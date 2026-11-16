@@ -1105,6 +1105,32 @@ void HttpServerThread::setupHttpServer() {
         svr.Get("/layers", layersHandler);
         registerPost("/layers", layersHandler);
 
+        // On/off/transition state of the selected slide's layers, as the layer_states event topic
+        // sends it. Reads the event feed's cached value, so this thread never touches the models.
+        auto layerStatesHandler = [this](const httplib::Request& req, httplib::Response& res) {
+            int charsPerItem = 0;
+            if (req.has_param("charsPerItem")
+                && (!stringToInt(req.get_param_value("charsPerItem"), charsPerItem) || charsPerItem < 0 || charsPerItem > 4096)) {
+                res.status = 400;
+                res.set_content("charsPerItem must be an integer from 0 to 4096", "text/plain");
+                return;
+            }
+            if (!m_eventFeed) {
+                res.status = 503;
+                return;
+            }
+            const QString topic = QStringLiteral("layer_states");
+            const QJsonValue value = m_eventFeed->read({topic}).value(QStringLiteral("values")).toObject().value(topic);
+            if (value.isUndefined()) {
+                res.status = 503;
+                res.set_content("Layer states are not available yet", "text/plain");
+                return;
+            }
+            res.set_content(ControlEventFeed::formatLayerStates(value, charsPerItem).toStdString(), "text/plain");
+        };
+        svr.Get("/layer_states", layerStatesHandler);
+        registerPost("/layer_states", layerStatesHandler);
+
         auto layerVolumeGetHandler = [this](const httplib::Request& req, httplib::Response& res) {
             LayersModel* layerModel = nullptr;
             int layerIdx = -1;
