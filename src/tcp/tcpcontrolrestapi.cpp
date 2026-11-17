@@ -44,9 +44,11 @@ void registerTcpControlRoutes(httplib::Server &server, TcpControlManager *manage
                 const QString commandId = QString::fromStdString(req.get_param_value("command_id"));
                 const bool hasWidth = req.has_param("charsPerItem");
                 const QString widthParameter = QString::fromStdString(req.get_param_value("charsPerItem"));
+                const bool hasTimeFormat = req.has_param("timeFormat");
+                const QString timeFormat = QString::fromStdString(req.get_param_value("timeFormat"));
                 const auto pending = std::make_shared<PendingReply>();
                 pending->reply = reply;
-                const auto execute = [guarded, action, serverId, commandId, hasWidth, widthParameter, pending] {
+                const auto execute = [guarded, action, serverId, commandId, hasWidth, widthParameter, hasTimeFormat, timeFormat, pending] {
                     auto &reply = pending->reply;
                     auto *manager = guarded.data();
                     if (!manager) return;
@@ -71,21 +73,24 @@ void registerTcpControlRoutes(httplib::Server &server, TcpControlManager *manage
                         return;
                     }
                     if (action == "command") {
-                        if (commandId.isEmpty() || !hasWidth) {
-                            reply = failure(400, QStringLiteral("Expected command_id and charsPerItem"));
+                        if (commandId.isEmpty() || (!hasWidth && !hasTimeFormat)) {
+                            reply = failure(400, QStringLiteral("Expected command_id and charsPerItem and/or timeFormat"));
                             return;
                         }
                         if (manager->command(commandId).isEmpty()) {
                             reply = failure(404, QStringLiteral("TCP command does not exist"));
                             return;
                         }
-                        bool valid = false;
-                        const int width = widthParameter.toInt(&valid);
+                        bool valid = !hasWidth;
+                        const int width = hasWidth ? widthParameter.toInt(&valid) : 0;
                         if (!valid || width < 0 || width > 4096) {
                             reply = failure(400, QStringLiteral("charsPerItem must be an integer from 0 to 4096"));
                             return;
                         }
-                        if (!manager->setCommandCharsPerItem(commandId, width)) reply = failure(409, manager->lastError());
+                        // An empty timeFormat restores seconds.
+                        if ((hasWidth && !manager->setCommandCharsPerItem(commandId, width))
+                            || (hasTimeFormat && !manager->setCommandTimeFormat(commandId, timeFormat)))
+                            reply = failure(409, manager->lastError());
                         else reply = {200, {{QStringLiteral("success"), true},
                             {QStringLiteral("command"), QJsonObject::fromVariantMap(manager->command(commandId))}}};
                         return;

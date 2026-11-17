@@ -264,6 +264,23 @@ void PlayerController::setupControlEvents() {
     m_controlEvents->addTopic(QStringLiteral("main_video_load"), []() -> QJsonValue {
         return NodeLoaderVerifier::instance().mainVideoLoadState();
     });
+    // Stereo display on the cluster, as GET /view_mode: 0 automatic, 1 forced 2D.
+    m_controlEvents->addTopic(QStringLiteral("view_mode"), [this]() -> QJsonValue {
+        return getViewModeOnClients();
+    });
+    // Background/foreground state as set by the TCP actions and read by the matching GET endpoints.
+    m_controlEvents->addTopic(QStringLiteral("background_image"), [this]() -> QJsonValue {
+        return backgroundVisibility() == 0.f ? 0 : 1;
+    });
+    m_controlEvents->addTopic(QStringLiteral("background_mode"), [this]() -> QJsonValue {
+        return backgroundMode();
+    });
+    m_controlEvents->addTopic(QStringLiteral("background_color"), [this]() -> QJsonValue {
+        return backgroundColor();
+    });
+    m_controlEvents->addTopic(QStringLiteral("foreground_image"), [this]() -> QJsonValue {
+        return foregroundVisibility() == 0.f ? 0 : 1;
+    });
     m_controlEvents->addTopic(QStringLiteral("speed"), [this]() -> QJsonValue {
         return m_mpv ? QJsonValue(m_mpv->speed()) : QJsonValue();
     });

@@ -34,7 +34,8 @@
             "eventPayload": "value",
             "monitoringVariable": "CPlay_position",
             "monitoringType": "string",
-            "charsPerItem": 0
+            "charsPerItem": 0,
+            "timeFormat": "hh:mm:ss"
         },
         {
             "id": "medialon-event-remaining",
@@ -49,7 +50,8 @@
             "eventPayload": "value",
             "monitoringVariable": "CPlay_remaining",
             "monitoringType": "string",
-            "charsPerItem": 0
+            "charsPerItem": 0,
+            "timeFormat": "hh:mm:ss"
         },
         {
             "id": "medialon-event-duration",
@@ -64,7 +66,8 @@
             "eventPayload": "value",
             "monitoringVariable": "CPlay_duration",
             "monitoringType": "string",
-            "charsPerItem": 0
+            "charsPerItem": 0,
+            "timeFormat": "hh:mm:ss"
         },
         {
             "id": "medialon-event-pause",
@@ -198,6 +201,81 @@
             ],
             "eventPayload": "value",
             "monitoringVariable": "CPlay_grid_mode",
+            "monitoringType": "integer",
+            "charsPerItem": 0
+        },
+        {
+            "id": "medialon-event-view_mode",
+            "name": "Medialon: view_mode",
+            "serverId": "127.0.0.1:9000",
+            "encoding": "text",
+            "payload": "cplay view_mode ",
+            "raw": false,
+            "eventTopics": [
+                "view_mode"
+            ],
+            "eventPayload": "value",
+            "monitoringVariable": "CPlay_view_mode",
+            "monitoringType": "integer",
+            "charsPerItem": 0
+        },
+        {
+            "id": "medialon-event-background_image",
+            "name": "Medialon: background_image",
+            "serverId": "127.0.0.1:9000",
+            "encoding": "text",
+            "payload": "cplay background_image ",
+            "raw": false,
+            "eventTopics": [
+                "background_image"
+            ],
+            "eventPayload": "value",
+            "monitoringVariable": "CPlay_background_image",
+            "monitoringType": "integer",
+            "charsPerItem": 0
+        },
+        {
+            "id": "medialon-event-background_mode",
+            "name": "Medialon: background_mode",
+            "serverId": "127.0.0.1:9000",
+            "encoding": "text",
+            "payload": "cplay background_mode ",
+            "raw": false,
+            "eventTopics": [
+                "background_mode"
+            ],
+            "eventPayload": "value",
+            "monitoringVariable": "CPlay_background_mode",
+            "monitoringType": "integer",
+            "charsPerItem": 0
+        },
+        {
+            "id": "medialon-event-background_color",
+            "name": "Medialon: background_color",
+            "serverId": "127.0.0.1:9000",
+            "encoding": "text",
+            "payload": "cplay background_color ",
+            "raw": false,
+            "eventTopics": [
+                "background_color"
+            ],
+            "eventPayload": "value",
+            "monitoringVariable": "CPlay_background_color",
+            "monitoringType": "string",
+            "charsPerItem": 0
+        },
+        {
+            "id": "medialon-event-foreground_image",
+            "name": "Medialon: foreground_image",
+            "serverId": "127.0.0.1:9000",
+            "encoding": "text",
+            "payload": "cplay foreground_image ",
+            "raw": false,
+            "eventTopics": [
+                "foreground_image"
+            ],
+            "eventPayload": "value",
+            "monitoringVariable": "CPlay_foreground_image",
             "monitoringType": "integer",
             "charsPerItem": 0
         },

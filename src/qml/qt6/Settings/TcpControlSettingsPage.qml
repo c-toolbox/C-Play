@@ -71,6 +71,7 @@ SettingsBasePage {
         commandEventTopics.text = c && c.eventTopics ? c.eventTopics.join(", ") : "";
         eventPayload.currentIndex = c && c.eventPayload !== "fixed" && c.eventPayload ? 1 : 0;
         charsPerItem.value = c && c.charsPerItem ? c.charsPerItem : 0;
+        timeFormat.text = c && c.timeFormat ? c.timeFormat : "";
     }
     Component.onCompleted: { editServer(null); editCommand(null); }
     Connections {
@@ -228,6 +229,11 @@ SettingsBasePage {
             ComboBox { id: eventPayload; model: [qsTr("Fixed payload"), qsTr("Append current value")] }
             Label { text: qsTr("Characters per list item:") }
             DeferredSpinBox { id: charsPerItem; from: 0; to: 4096; editable: true }
+            Label { text: qsTr("Time format:") }
+            TextField {
+                id: timeFormat; Layout.fillWidth: true
+                placeholderText: qsTr("Empty = seconds; e.g. hh:mm:ss or hh:mm:ss/zz (position, remaining, duration)")
+            }
         }
         Label {
             Layout.fillWidth: true; wrapMode: Text.WordWrap
@@ -245,7 +251,8 @@ SettingsBasePage {
                     var id = root.manager.saveCommand({id: root.commandId, name: commandName.text,
                         serverId: root.commandServerId, encoding: encoding.currentIndex === 0 ? "text" : "hex",
                         payload: payload.text, raw: raw.checked, eventTopics: root.topics(commandEventTopics.text),
-                        eventPayload: ["fixed", "value"][eventPayload.currentIndex], charsPerItem: charsPerItem.value});
+                        eventPayload: ["fixed", "value"][eventPayload.currentIndex], charsPerItem: charsPerItem.value,
+                        timeFormat: timeFormat.text.trim()});
                     if (id !== "") root.commandId = id;
                 }
             }

@@ -57,6 +57,10 @@ public:
     Q_INVOKABLE bool triggerCommand(const QString &id);
     Q_INVOKABLE QVariantMap triggerAll(const QString &serverId);
     Q_INVOKABLE bool setCommandCharsPerItem(const QString &id, int charsPerItem);
+    // Empty sends seconds; otherwise a QTime format such as "hh:mm:ss" or "hh:mm:ss/zz".
+    Q_INVOKABLE bool setCommandTimeFormat(const QString &id, const QString &timeFormat);
+    // Topics whose value is a time in seconds and that accept a command timeFormat.
+    static QStringList timeTopics();
     Q_INVOKABLE bool importEventModel(const QString &serverId, const QString &path = QStringLiteral("./data/EventModel.json"));
     Q_INVOKABLE bool connectServer(const QString &id);
     Q_INVOKABLE bool disconnectServer(const QString &id);
@@ -83,7 +87,8 @@ private:
     void reconcile();
     void error(const QString &description);
     void publishEvent(const QJsonObject &event);
-    bool dispatchCommand(const QString &id, const QJsonObject &event);
+    // skipUnchanged drops a time-formatted payload equal to the last one sent by that command.
+    bool dispatchCommand(const QString &id, const QJsonObject &event, bool skipUnchanged = false);
     void sendEventMessage(const QString &serverId, const QJsonObject &message);
     bool handleEventRequest(const QString &serverId, const QByteArray &payload);
 
@@ -98,6 +103,7 @@ private:
     QHash<QString, QStringList> m_topicDependencies;
     QPointer<ControlEventFeed> m_eventFeed;
     ListFormatter m_listFormatter;
+    QHash<QString, QByteArray> m_lastTimePayloads;
     bool m_active = false;
 };
 #endif

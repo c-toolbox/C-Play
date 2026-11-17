@@ -16,6 +16,7 @@
 #include <QRegularExpression>
 #include <QSaveFile>
 #include <QSet>
+#include <QTime>
 #include <QUuid>
 #include <cmath>
 
@@ -28,6 +29,13 @@ QByteArray jsonValueBytes(const QJsonValue &value) {
 
 QString singleLine(QString text) {
     return text.replace(QLatin1Char('\r'), QLatin1Char(' ')).replace(QLatin1Char('\n'), QLatin1Char(' '));
+}
+
+// Seconds as text in a QTime format (like REST `format=`); negative times keep a leading minus.
+QByteArray formatSeconds(double seconds, const QString &format) {
+    const qint64 ms = std::llround(std::abs(seconds) * 1000.0);
+    const QString text = QTime(0, 0).addMSecs(ms).toString(format);
+    return ((seconds < 0 && ms > 0 ? QStringLiteral("-") : QString()) + text).toUtf8();
 }
 
 QByteArray eventValueBytes(const QJsonValue &value, int charsPerItem) {
@@ -171,6 +179,13 @@ bool TcpControlManager::normalizeCommand(const QVariantMap &input, const QVarian
         error(tr("Unknown TCP command event topic"));
         return false;
     }
+    const QString timeFormat = input.value(QStringLiteral("timeFormat")).toString();
+    if (!timeFormat.isEmpty() && (mode != QStringLiteral("value") || !timeTopics().contains(topics.value(0))
+        || timeFormat.size() > 64 || timeFormat.contains(QLatin1Char('\r')) || timeFormat.contains(QLatin1Char('\n')))) {
+        error(tr("Time format requires an appended value of %1, at most 64 characters on one line")
+            .arg(timeTopics().join(QStringLiteral(", "))));
+        return false;
+    }
     const QString encoding = input.value(QStringLiteral("encoding"), QStringLiteral("text")).toString();
     static const QRegularExpression hex(QStringLiteral("^(?:[0-9a-fA-F]{2})*$"));
     if (input.value(QStringLiteral("name")).toString().trimmed().isEmpty()
@@ -185,6 +200,7 @@ bool TcpControlManager::normalizeCommand(const QVariantMap &input, const QVarian
         {QStringLiteral("payload"), input.value(QStringLiteral("payload")).toString()}, {QStringLiteral("raw"), input.value(QStringLiteral("raw"), false).toBool()},
         {QStringLiteral("eventTopics"), topics}, {QStringLiteral("eventPayload"), mode},
         {QStringLiteral("charsPerItem"), static_cast<int>(width)} };
+    if (!timeFormat.isEmpty()) output.insert(QStringLiteral("timeFormat"), timeFormat);
     return true;
 }
 
@@ -500,6 +516,18 @@ bool TcpControlManager::setCommandCharsPerItem(const QString &id, int charsPerIt
     return !saveCommand(item).isEmpty();
 }
 
+bool TcpControlManager::setCommandTimeFormat(const QString &id, const QString &timeFormat) {
+    auto item = command(id);
+    if (item.isEmpty()) { error(tr("TCP command does not exist")); return false; }
+    if (timeFormat.isEmpty()) item.remove(QStringLiteral("timeFormat"));
+    else item[QStringLiteral("timeFormat")] = timeFormat;
+    return !saveCommand(item).isEmpty();
+}
+
+QStringList TcpControlManager::timeTopics() {
+    return {QStringLiteral("position"), QStringLiteral("remaining"), QStringLiteral("duration")};
+}
+
 QVariantMap TcpControlManager::triggerAll(const QString &serverId) {
     auto *client = m_clients.value(serverId);
     if (!m_active || !m_eventFeed || !client || !client->isConnected()) {
@@ -527,7 +555,7 @@ QVariantMap TcpControlManager::triggerAll(const QString &serverId) {
         {QStringLiteral("rejected"), rejected}, {QStringLiteral("message"), failure}};
 }
 
-bool TcpControlManager::dispatchCommand(const QString &id, const QJsonObject &event) {
+bool TcpControlManager::dispatchCommand(const QString &id, const QJsonObject &event, bool skipUnchanged) {
     const auto item = command(id);
     const QString serverId = item.value(QStringLiteral("serverId")).toString();
     auto *client = m_clients.value(serverId);
@@ -554,14 +582,22 @@ bool TcpControlManager::dispatchCommand(const QString &id, const QJsonObject &ev
             const int charsPerItem = item.value(QStringLiteral("charsPerItem")).toInt();
             QString topic = event.value(QStringLiteral("topic")).toString();
             if (topic.isEmpty()) topic = item.value(QStringLiteral("eventTopics")).toStringList().value(0);
-            // Lists use the REST formatters so TCP and REST send identical text. The formatter
-            // returns nullopt for width 0 except for topics with a text form at every width.
-            const auto formatted = m_listFormatter ? m_listFormatter(topic, charsPerItem) : std::nullopt;
-            payload += formatted ? *formatted : eventValueBytes(value, charsPerItem);
+            const QString timeFormat = item.value(QStringLiteral("timeFormat")).toString();
+            if (!timeFormat.isEmpty() && value.isDouble()) {
+                payload += formatSeconds(value.toDouble(), timeFormat);
+                // Position is sampled every 100 ms; a coarser format only sends when its text changes.
+                if (skipUnchanged && m_lastTimePayloads.value(id) == payload) return true;
+            } else {
+                // Lists use the REST formatters so TCP and REST send identical text. The formatter
+                // returns nullopt for width 0 except for topics with a text form at every width.
+                const auto formatted = m_listFormatter ? m_listFormatter(topic, charsPerItem) : std::nullopt;
+                payload += formatted ? *formatted : eventValueBytes(value, charsPerItem);
+            }
         }
         accepted = item.value(QStringLiteral("raw")).toBool() ? client->sendBinary(payload) : client->sendMessage(payload);
         if (!accepted) error(client->lastError());
         else { m_lastError.clear(); Q_EMIT lastErrorChanged(); }
+        if (accepted && item.contains(QStringLiteral("timeFormat"))) m_lastTimePayloads.insert(id, payload);
     }
     Q_EMIT commandTriggered(id, accepted);
     return accepted;
@@ -602,7 +638,7 @@ void TcpControlManager::publishEvent(const QJsonObject &event) {
     for (const auto &value : commands) {
         const auto command = value.toMap();
         if (matches(command.value(QStringLiteral("eventTopics")).toStringList()))
-            dispatchCommand(command.value(QStringLiteral("id")).toString(), event);
+            dispatchCommand(command.value(QStringLiteral("id")).toString(), event, true);
     }
     // Only formatted output depends on the source topic; an empty event reads the cached value.
     for (const auto &dependent : m_topicDependencies.value(topic)) {

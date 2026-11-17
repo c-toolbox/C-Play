@@ -385,13 +385,13 @@ These HTTP endpoints manage the outgoing [TCP Control Client](tcp.md#tcp-control
 | Endpoint | Method | Parameters | Result |
 | --- | --- | --- | --- |
 | `/tcp/servers` | GET | — | `servers` array containing saved profiles and runtime connection state. |
-| `/tcp/commands` | GET | `server_id` (optional) | `commands` array, optionally filtered to one saved server; includes command IDs, payloads, event topics and `charsPerItem`. |
+| `/tcp/commands` | GET | `server_id` (optional) | `commands` array, optionally filtered to one saved server; includes command IDs, payloads, event topics, `charsPerItem` and any `timeFormat`. |
 | `/tcp/connect` | POST | `server_id` | Start or resume connection attempts; HTTP 202 with `success` and `server_id`. The server must be enabled and the player active. |
 | `/tcp/disconnect` | POST | `server_id` | Disconnect and suspend retries; HTTP 200 with `success` and `server_id`. Does not disable the saved profile. |
 | `/tcp/trigger` | POST | `server_id`, `command_id` | Send one saved command on its server; HTTP 200 with `success`. Use `command_id=all` for a full state update. |
-| `/tcp/command` | POST | `command_id`, `charsPerItem` | Save the command's list width (integer 0–4096); HTTP 200 with `success` and the updated `command` object. |
+| `/tcp/command` | POST | `command_id`, and `charsPerItem` and/or `timeFormat` | Save the command's list width (integer 0–4096) and/or its time code format (for example `hh:mm:ss`; empty restores seconds; only for `position`, `remaining` and `duration` commands, see [time format](tcp.md)); HTTP 200 with `success` and the updated `command` object. |
 
-Obtain IDs from `/tcp/servers` and `/tcp/commands`. Server IDs are endpoints such as `127.0.0.1:9000` or `[2001:db8::1]:9000`; command IDs are stable saved identifiers. `/tcp/trigger` requires the command to belong to the specified server. `/tcp/command` changes only the width of an existing command; it does not create a command or send it.
+Obtain IDs from `/tcp/servers` and `/tcp/commands`. Server IDs are endpoints such as `127.0.0.1:9000` or `[2001:db8::1]:9000`; command IDs are stable saved identifiers. `/tcp/trigger` requires the command to belong to the specified server. `/tcp/command` changes only the width and time format of an existing command; it does not create a command or send it.
 
 With `command_id=all`, C-Play reads one cached state snapshot and dispatches each command on that server with a nonempty `eventTopics` selection once. Commands without event topics are excluded. The response reports `success`, `accepted` and `rejected` counts, and a `message`. A full update requires an active event feed and a connected TCP server. C-Play sends the same full update automatically whenever a server connection is established or restored; requesting it manually is useful when the server needs a fresh state at another time.
 
