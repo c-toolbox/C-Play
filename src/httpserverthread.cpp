@@ -1189,7 +1189,7 @@ void HttpServerThread::setupHttpServer() {
             }
         });
 
-        // Fades a layer up or down as double-clicking it does, with its entrance or exit effects when it has them.
+        // Fades a layer in or out as double-clicking it does, with its entrance or exit effects when it has them.
         auto layerFadeHandler = [this](bool show) {
             return [this, show](const httplib::Request& req, httplib::Response& res) {
                 LayersModel* layerModel = nullptr;
@@ -1218,9 +1218,12 @@ void HttpServerThread::setupHttpServer() {
                         slides->setNeedsSync(true);
                     }
                 }, Qt::QueuedConnection);
-                res.set_content(show ? "Fading layer up" : "Fading layer down", "text/plain");
+                res.set_content(show ? "Fading layer in" : "Fading layer out", "text/plain");
             };
         };
+        registerPost("/layer_fade_in", layerFadeHandler(true));
+        registerPost("/layer_fade_out", layerFadeHandler(false));
+        // Former names, kept so existing integrations keep working.
         registerPost("/layer_fade_up", layerFadeHandler(true));
         registerPost("/layer_fade_down", layerFadeHandler(false));
 

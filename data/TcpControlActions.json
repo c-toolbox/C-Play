@@ -360,22 +360,28 @@
       ]
     },
     {
-      "path": "/layer_fade_up",
-      "name": "Layer Fade Up",
+      "path": "/layer_fade_in",
+      "name": "Layer Fade In",
       "parameters": [
         "slide_idx",
         "layer_idx"
       ],
-      "required": []
+      "required": [],
+      "aliases": [
+        "/layer_fade_up"
+      ]
     },
     {
-      "path": "/layer_fade_down",
-      "name": "Layer Fade Down",
+      "path": "/layer_fade_out",
+      "name": "Layer Fade Out",
       "parameters": [
         "slide_idx",
         "layer_idx"
       ],
-      "required": []
+      "required": [],
+      "aliases": [
+        "/layer_fade_down"
+      ]
     },
     {
       "path": "/layer_plane",

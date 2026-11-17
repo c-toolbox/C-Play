@@ -316,6 +316,10 @@ void PlayerController::setupControlEvents() {
     m_controlEvents->addTopic(QStringLiteral("playing_in_slides"), [this]() -> QJsonValue {
         return m_slidesModel ? m_slidesModel->selectedSlideIdx() : -1;
     });
+    // The slide layer_states describes; same value as playing_in_slides, under its own name.
+    m_controlEvents->addTopic(QStringLiteral("selected_slide"), [this]() -> QJsonValue {
+        return m_slidesModel ? m_slidesModel->selectedSlideIdx() : -1;
+    });
     m_controlEvents->addTopic(QStringLiteral("triggered_slide"), [this]() -> QJsonValue {
         return m_slidesModel ? m_slidesModel->triggeredSlideIdx() : -1;
     });

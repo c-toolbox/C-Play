@@ -127,10 +127,10 @@ Command39.Name=Layer Volume
 Command39.Frame=POST /layer_volume?slide_idx=[slide_idx,string,literal,0]!26layer_idx=[layer_idx,string,literal,0]!26level=[level,string,literal,0]!0D!0A
 Command40.Name=Layer Visibility
 Command40.Frame=POST /layer_visibility?slide_idx=[slide_idx,string,literal,0]!26layer_idx=[layer_idx,string,literal,0]!26value=[value,string,literal,0]!0D!0A
-Command41.Name=Layer Fade Up
-Command41.Frame=POST /layer_fade_up?slide_idx=[slide_idx,string,literal,0]!26layer_idx=[layer_idx,string,literal,0]!0D!0A
-Command42.Name=Layer Fade Down
-Command42.Frame=POST /layer_fade_down?slide_idx=[slide_idx,string,literal,0]!26layer_idx=[layer_idx,string,literal,0]!0D!0A
+Command41.Name=Layer Fade In
+Command41.Frame=POST /layer_fade_in?slide_idx=[slide_idx,string,literal,0]!26layer_idx=[layer_idx,string,literal,0]!0D!0A
+Command42.Name=Layer Fade Out
+Command42.Frame=POST /layer_fade_out?slide_idx=[slide_idx,string,literal,0]!26layer_idx=[layer_idx,string,literal,0]!0D!0A
 Command43.Name=Layer Plane
 Command43.Frame=POST /layer_plane?slide_idx=[slide_idx,string,literal,0]!26layer_idx=[layer_idx,string,literal,0]!26azimuth=[azimuth,string,literal,0]!26elevation=[elevation,string,literal,0]!26roll=[roll,string,literal,0]!26distance=[distance,string,literal,0]!26horizontal=[horizontal,string,literal,0]!26vertical=[vertical,string,literal,0]!26circular=[circular,string,literal,0]!26centreDegrees=[centreDegrees,string,literal,0]!26widthDegrees=[widthDegrees,string,literal,0]!0D!0A
 Command44.Name=Tcp Connect

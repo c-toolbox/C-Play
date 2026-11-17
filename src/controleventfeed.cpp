@@ -59,7 +59,9 @@ QStringList ControlEventFeed::availableTopics() {
         QStringLiteral("playlist"), QStringLiteral("playing_in_playlist"),
         QStringLiteral("sections"), QStringLiteral("playing_in_sections"),
         QStringLiteral("slides"), QStringLiteral("slide_name"), QStringLiteral("playing_in_slides"),
-        QStringLiteral("triggered_slide"), QStringLiteral("layers"), QStringLiteral("layer_states"),
+        QStringLiteral("triggered_slide"), QStringLiteral("layers"),
+        // selected_slide comes before layer_states so it is sent first when both change.
+        QStringLiteral("selected_slide"), QStringLiteral("layer_states"),
         QStringLiteral("main_video_load")
 #ifdef WEB_VIEWS_SUPPORT
         , QStringLiteral("presentation"), QStringLiteral("movie"), QStringLiteral("layerview")
@@ -135,10 +137,14 @@ void ControlEventFeed::setActive(bool active) {
 
 void ControlEventFeed::sample() {
     QList<QJsonObject> events;
+    // Changes of one sample are published in availableTopics() order.
+    static const QStringList order = availableTopics();
     {
         QMutexLocker lock(&m_mutex);
-        for (const auto &[topic, reader] : m_readers) {
-            const auto value = reader();
+        for (const auto &topic : order) {
+            const auto readerIt = m_readers.find(topic);
+            if (readerIt == m_readers.end()) continue;
+            const auto value = readerIt->second();
             if (m_values.contains(topic) && m_values.value(topic) == value) continue;
             QJsonObject event{{QStringLiteral("type"), QStringLiteral("change")},
                 {QStringLiteral("topic"), topic}, {QStringLiteral("value"), value},

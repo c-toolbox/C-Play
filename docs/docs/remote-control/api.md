@@ -55,7 +55,7 @@ Endpoints are divided into two categories:
 `/slide_previous`, `/slide_next`, `/slide_skip_toggle`,
 `/load_from_audiotracks`, `/load_from_playlist`, `/load_from_sections`,
 `/load_from_slides`, `/select_from_slides`, `/slide_volume_fade_up`, `/slide_volume_fade_down`,
-`/layer_fade_up`, `/layer_fade_down`
+`/layer_fade_in`, `/layer_fade_out` (also accepted under their former names `/layer_fade_up` and `/layer_fade_down`)
 
 The additional GET-only endpoints `/tcp/servers`, `/tcp/commands`, `/event_topics` and `/events`, and POST-only endpoints `/tcp/connect`, `/tcp/disconnect`, `/tcp/trigger` and `/tcp/command`, are documented in [TCP connection and update control](#tcp-connection-and-update-control) and [Change subscriptions](#change-subscriptions) at the bottom of this page. The endpoints used by the presenter and movie views (`/presentation_state`, `/slide_notes`, `/presentation_recent`, `/presentation_open_recent`, `/movie_state`, `/movie_cue`, `/movie_recent`, `/movie_open_recent` and others) are documented in [Presenter view and movie view](/remote-control/web-views#http-endpoints).
 
@@ -238,8 +238,8 @@ If neither sublayer param is provided, the parent layer is used. If the parent l
 |----------|--------|-------------------|-------------|---------|
 | `/layer_volume` | GET, POST | `level=` *(optional)* — `0`–`100` | Get or set layer volume | Volume level (0–100) |
 | `/layer_visibility` | GET, POST | `value=` *(optional)* — `0`–`100` | Get or set layer visibility | Visibility (0–100) |
-| `/layer_fade_up` | POST | — | Show the layer as double-clicking it does: plays its entrance effects when it has any, otherwise fades its visibility up to 100 over the fade duration | `"Fading layer up"` or error |
-| `/layer_fade_down` | POST | — | Hide the layer as double-clicking it does: plays its exit effects when it has any, otherwise fades its visibility down to 0 over the fade duration | `"Fading layer down"` or error |
+| `/layer_fade_in` | POST | — | Show the layer as double-clicking it does: plays its entrance effects when it has any, otherwise fades its visibility up to 100 over the fade duration. Formerly `/layer_fade_up`, which still works | `"Fading layer in"` or error |
+| `/layer_fade_out` | POST | — | Hide the layer as double-clicking it does: plays its exit effects when it has any, otherwise fades its visibility down to 0 over the fade duration. Formerly `/layer_fade_down`, which still works | `"Fading layer out"` or error |
 | `/layer_plane` | GET, POST | `azimuth=`, `elevation=`, `roll=`, `distance=`, `horizontal=`, `vertical=`, `circular=`, `centreDegrees=`, `widthDegrees=` *(any combination)* | Get or set layer plane parameters. Send a param with no value to read. | One value per param, newline-separated |
 
 `circular` accepts `0`, `1`, `false` or `true`. `centreDegrees` accepts finite, fractional and unwrapped angles; `widthDegrees` must be greater than 0 and at most 360. Empty values leave these new fields unchanged and return their current values. Nonempty invalid values return HTTP 400 before applying the plane update. The existing `horizontal` parameter keeps its centimetre meaning; use `centreDegrees` for circular placement. The shared mapping must also be enabled in [Grid Settings](/settings/grid#circular-surface-mapping).
@@ -393,7 +393,7 @@ These HTTP endpoints manage the outgoing [TCP Control Client](tcp.md#tcp-control
 
 Obtain IDs from `/tcp/servers` and `/tcp/commands`. Server IDs are endpoints such as `127.0.0.1:9000` or `[2001:db8::1]:9000`; command IDs are stable saved identifiers. `/tcp/trigger` requires the command to belong to the specified server. `/tcp/command` changes only the width of an existing command; it does not create a command or send it.
 
-With `command_id=all`, C-Play reads one cached state snapshot and dispatches each command on that server with a nonempty `eventTopics` selection once. Commands without event topics are excluded. The response reports `success`, `accepted` and `rejected` counts, and a `message`. A full update requires an active event feed and a connected TCP server. This is useful after startup or reconnect, since changes missed while disconnected are not replayed.
+With `command_id=all`, C-Play reads one cached state snapshot and dispatches each command on that server with a nonempty `eventTopics` selection once. Commands without event topics are excluded. The response reports `success`, `accepted` and `rejected` counts, and a `message`. A full update requires an active event feed and a connected TCP server. C-Play sends the same full update automatically whenever a server connection is established or restored; requesting it manually is useful when the server needs a fresh state at another time.
 
 `charsPerItem=0` sends arrays and objects as compact JSON for commands using `eventPayload: "value"`. Positive widths send numbered, padded or truncated list labels concatenated into one frame; the packaged Medialon list commands use 40. Scalars retain their usual value format. See [EventModel formatting](tcp.md#medialon-event-variables-and-eventmodel) for details.
 

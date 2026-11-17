@@ -131,11 +131,11 @@ Notifications use the server's delimiter or length-prefix framing:
 
 For a complete topic list, call HTTP `GET /event_topics` or use the list in [TCP control settings](/settings/tcp_control#reusable-tcp-commands). Topic names match API endpoints without the leading `/`, with additional `pause`, `mute` and `triggered_slide` topics. `playing_in_slides` follows the selected slide, as the existing HTTP endpoint does; `triggered_slide` follows the slide actually triggered. Slide index `-1` denotes the master slide.
 
-Changes are sampled on the ready master's Qt thread every 100 ms, regardless of whether they come from the UI, playback, a timeline, or remote control. Rapid changes are coalesced to the latest sampled state. Startup establishes a baseline without triggering commands. Notifications and automatic commands require an enabled, connected server; they are never queued or replayed after reconnect.
+Changes are sampled on the ready master's Qt thread every 100 ms, regardless of whether they come from the UI, playback, a timeline, or remote control. Rapid changes are coalesced to the latest sampled state. Changes found in the same sample are sent in the order `GET /event_topics` lists the topics. Startup establishes a baseline without triggering commands. Notifications and automatic commands require an enabled, connected server; they are never queued or replayed after reconnect.
 
 #### Medialon event variables and EventModel
 
-`data/EventModel.json` is the shared definition for all 27 event commands and their Medialon monitoring variables. New installations receive these commands through `data/predefined-tcp-control.json`. For an existing project, select a saved server in **TCP control**, enter the EventModel JSON path, and click **Import EventModel**. Import merges commands into that server, keeps unrelated commands, and uses stable IDs; importing again updates the same entries. Configure the server for delimiter framing with `sendTerminatorHex: "0d"` (CR), then enable it. Frames end at CR so that the LF row separators in formatted lists stay inside the value; a server still using `0d0a` makes the driver drop list frames. Server JSON notifications can remain disabled because the imported commands send the monitoring frames themselves.
+`data/EventModel.json` is the shared definition for all 28 event commands and their Medialon monitoring variables. New installations receive these commands through `data/predefined-tcp-control.json`. For an existing project, select a saved server in **TCP control**, enter the EventModel JSON path, and click **Import EventModel**. Import merges commands into that server, keeps unrelated commands, and uses stable IDs; importing again updates the same entries. Configure the server for delimiter framing with `sendTerminatorHex: "0d"` (CR), then enable it. Frames end at CR so that the LF row separators in formatted lists stay inside the value; a server still using `0d0a` makes the driver drop list frames. Server JSON notifications can remain disabled because the imported commands send the monitoring frames themselves.
 
 Generate the matching driver from the same model:
 
@@ -150,12 +150,12 @@ The ready-to-use driver is `help/http_server/CPlay_Control_Events.mllc`. Install
 | --- | --- |
 | `audiotracks`, `playlist`, `sections`, `slides`, `layers` | String `CPlay_<topic>`: actual list values, formatted using the command's `charsPerItem`. |
 | `pause`, `auto_play`, `mute`, `sync_image_volume_fade` | Integer `CPlay_<topic>`: current boolean as 0/1. |
-| `volume`, `visibility`, stereo/grid/EOF/loop modes, playing indices, `triggered_slide` | Integer `CPlay_<topic>`: current value, including negative indices. |
+| `volume`, `visibility`, stereo/grid/EOF/loop modes, playing indices, `triggered_slide`, `selected_slide` | Integer `CPlay_<topic>`: current value, including negative indices. |
 | `position`, `remaining`, `duration`, `speed` | String `CPlay_<topic>`: decimal value preserving fractional precision. LLC has no floating-point variable type. |
 | `media_title`, `slide_name` | String `CPlay_<topic>`: current UI text; line breaks become spaces. |
-| `layer_states` | String `CPlay_layer_states`: compact layer states of the selected slide, for example `slide=2;0:ON;1:OFF;2:IN` (see [Layer states](#layer-states)). |
+| `layer_states` | String `CPlay_layer_states`: layer states of the selected slide, one 38-character row per layer such as `1. Logo` with `ON` right-aligned (see [Layer states](#layer-states)). |
 
-For example, volume changes send `cplay volume 75`, followed by CR. Playlist changes send the list itself to `CPlay_playlist`, rather than a change counter. All 27 event commands use `eventPayload: "value"`.
+For example, volume changes send `cplay volume 75`, followed by CR. Playlist changes send the list itself to `CPlay_playlist`, rather than a change counter. All 28 event commands use `eventPayload: "value"`.
 
 Reusable commands persist `eventPayload`, defaulting to `fixed` for manual device/task commands. `value` appends the current value to the saved payload prefix and requires text encoding and exactly one specific `eventTopics` entry. Automatic dispatch uses the event's value; manually triggering the command reads the current cached value, including lists. Older saved `change` commands migrate to `value` on load, with `charsPerItem: 40` unless explicitly set. Reimport the updated EventModel and install the regenerated LLC driver to use the new collection variable names and types.
 
@@ -163,11 +163,11 @@ Reusable commands persist `eventPayload`, defaulting to `fixed` for manual devic
 
 - `0` sends arrays and objects as full compact JSON, retaining their fields. Scalars are unaffected: booleans send 0/1, numbers preserve fractional precision, and strings send their text with CR/LF replaced by spaces.
 - A positive width sends `playlist`, `sections`, `audiotracks` and `slides` exactly as the REST `/playlist`, `/sections`, `/audiotracks` and `/slides` endpoints return them with the same `charsPerItem`: numbered rows separated by LF, playlist and section rows ending with their duration, and the slide list excluding the master slide. `layers` is sent as the REST `/layers` endpoint returns it for the currently triggered slide, or for the master slide when no slide is triggered; it is also resent whenever `triggered_slide` changes. Any other list sends numbered labels separated by LF, each exactly that many Unicode characters, padded with spaces or truncated with `... ` when the width allows. Their labels prefer `listTitle`, `shortText`, `title`, `name`, `text`, `language`, `video`, then `path`; rows without these fields use their JSON representation. Use a send terminator without LF (the Medialon driver expects CR, `0d`) when lists contain LF row separators.
-- The packaged list commands use `40`; other event commands use `0`. Fixed-width labels intentionally limit list details; use width `0` or the existing REST list/JSON endpoints when full detail is needed. The setting is available in the command editor and through REST, and persists across restarts.
+- The packaged list commands use `40`, `layer_states` uses `38`, and other event commands use `0`. Fixed-width labels intentionally limit list details; use width `0` or the existing REST list/JSON endpoints when full detail is needed. The setting is available in the command editor and through REST, and persists across restarts.
 
 #### Layer states
 
-The `layer_states` topic tells a show controller which layers of the selected slide are on, off or in transition, without parsing the full `layers` value. It covers the layers of the slide `playing_in_slides` reports, or of the master slide when that is `-1`. Each layer has one of four states:
+The `layer_states` topic tells a show controller which layers of the selected slide are on, off or in transition, without parsing the full `layers` value. It covers the layers of the selected slide, or of the master slide when the selected index is `-1`. The `selected_slide` topic (Medialon variable `CPlay_selected_slide`) sends that slide index as its own integer; it has the same value as `playing_in_slides`. When the selection changes, `selected_slide` is sent before `layer_states`, in the same sample. Each layer has one of four states:
 
 | State | Meaning |
 | --- | --- |
@@ -176,16 +176,16 @@ The `layer_states` topic tells a show controller which layers of the selected sl
 | `IN` | Transitioning on: fading up, playing its entrance, or its visibility rising (slide transition, timeline, remote visibility change). |
 | `OUT` | Transitioning off: fading down, playing its exit, or its visibility falling. |
 
-Fades and entrance/exit effects started on a layer (double-click, `/layer_fade_up`, `/layer_fade_down`) are known directly. Other visibility changes are detected as visibility moving between two 100 ms samples, so an instant visibility change shows `IN` or `OUT` for one sample. Duplicate sublayers are not listed separately; their parent layer's state is reported. Because the value holds states rather than visibility levels, a fade sends two changes (`OFF` → `IN` → `ON`) instead of one per sample. Selecting another slide changes the value too, since it then describes that slide.
+Fades and entrance/exit effects started on a layer (double-click, `/layer_fade_in`, `/layer_fade_out`) are known directly. Other visibility changes are detected as visibility moving between two 100 ms samples, so an instant visibility change shows `IN` or `OUT` for one sample. Duplicate sublayers are not listed separately; their parent layer's state is reported. Because the value holds states rather than visibility levels, a fade sends two changes (`OFF` → `IN` → `ON`) instead of one per sample. Selecting another slide changes the value too, since it then describes that slide.
 
 What is sent depends on the command's `charsPerItem`:
 
-- `0` (the packaged `Medialon: layer_states` command) sends one line, `slide=<index>` followed by `;<layer_idx>:<state>` per layer. `layer_idx` is zero-based, as the `layer_idx=` parameter of the [layer control endpoints](api.md#layer-control) expects. For example `cplay layer_states slide=2;0:ON;1:OFF;2:IN`.
-- A positive width sends one row per layer separated by LF, each exactly that many characters: the numbered title, then the state right-aligned in the last 4 characters, for example `1. Logo                             ON`.
+- `0` sends one line, `slide=<index>` followed by `;<layer_idx>:<state>` per layer. `layer_idx` is zero-based, as the `layer_idx=` parameter of the [layer control endpoints](api.md#layer-control) expects. For example `cplay layer_states slide=2;0:ON;1:OFF;2:IN`.
+- A positive width (the packaged `Medialon: layer_states` command uses `38`) sends one row per layer separated by LF, each exactly that many characters: the numbered title, then the state right-aligned in the last 4 characters, for example `1. Logo                             ON`.
 
 JSON notifications and subscriptions receive the structured value, for example `{"slide":2,"layers":[{"index":0,"title":"Logo","state":"ON"},{"index":1,"title":"Intro video","state":"IN"}]}`. HTTP `GET /layer_states?charsPerItem=0` returns the same text as the TCP command for initialization or polling.
 
-Startup and reconnect do not replay events. For initialization, connect and request a full update through [TCP REST control](api.md#tcp-connection-and-update-control). Full updates read one cached snapshot (sampled every 100 ms) and dispatch each event command on the selected server once. Manual-only task and device commands are excluded.
+Each time C-Play connects or reconnects to a server, it automatically sends a full update to that server, so the server starts from the current state. Events that changed while disconnected are not replayed individually; the full update carries their current values. A full update can also be requested at any time through [TCP REST control](api.md#tcp-connection-and-update-control). Full updates read one cached snapshot (sampled every 100 ms) and dispatch each event command on the selected server once. Manual-only task and device commands are excluded.
 
 Each EventModel command also supplies `monitoringVariable` and `monitoringType` for the generator. Keep the model, generated driver, and predefined commands aligned when customizing the protocol. Existing saved TCP configurations take precedence over predefined files and require an explicit import.
 
@@ -225,7 +225,7 @@ python help/http_server/generate_control_client.py --address 192.168.1.10 --port
 
 Import `help/http_server/CPlay_Control_Client.mllc` into Medialon's Low Level Communicator drivers and create a device using **C-Play TCP Control Client**. Set the address to the C-Play master. The checked-in driver defaults to `127.0.0.1:7008`. It uses TCP/IP Client mode with auto reconnection, and exposes one command for each REST action. The existing **C-Play Control Events** driver remains the separate Medialon server for outgoing state updates.
 
-The shared `data/TcpControlActions.json` catalog defines all 43 actions and is embedded in C-Play. The generator uses this same catalog. Commands include playback, seeking, auto-play, speed, volume, fades, background/foreground visibility, view mode, list selections, spin, orientation reset, surface transition, slide navigation/reset/selection, layer volume/visibility/fade up/fade down/plane properties, quitting, and outgoing TCP connect/disconnect/trigger/command-width changes. Information-only endpoints are unavailable, including REST POST endpoints that only retrieve values.
+The shared `data/TcpControlActions.json` catalog defines all 43 actions and is embedded in C-Play. The generator uses this same catalog. Commands include playback, seeking, auto-play, speed, volume, fades, background/foreground visibility, view mode, list selections, spin, orientation reset, surface transition, slide navigation/reset/selection, layer volume/visibility/fade in/fade out/plane properties, quitting, and outgoing TCP connect/disconnect/trigger/command-width changes. Information-only endpoints are unavailable, including REST POST endpoints that only retrieve values. An action can list former paths in `aliases`; the listener still accepts them (for example `/layer_fade_up` for `/layer_fade_in`), while the generated driver uses the current path.
 
 ### Command format and replies
 

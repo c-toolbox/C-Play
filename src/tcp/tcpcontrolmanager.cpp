@@ -422,6 +422,13 @@ void TcpControlManager::reconcile() {
                 if (state != TcpControlClient::Connected) m_subscriptions.remove(id);
                 Q_EMIT serversChanged();
                 Q_EMIT connectionStateChanged(id, state);
+                // A new or restored connection gets the full current state, like the "all" command.
+                // Queued so connection-state handlers finish before the first payload is written.
+                if (state == TcpControlClient::Connected)
+                    QMetaObject::invokeMethod(this, [this, id] {
+                        auto *current = m_clients.value(id);
+                        if (m_active && m_eventFeed && current && current->isConnected()) triggerAll(id);
+                    }, Qt::QueuedConnection);
             });
             connect(client, &TcpControlClient::lastErrorChanged, this, &TcpControlManager::serversChanged);
             connect(client, &TcpControlClient::errorOccurred, this, [this, id](const QString &reason) {

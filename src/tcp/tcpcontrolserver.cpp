@@ -28,6 +28,9 @@ TcpControlServer::TcpControlServer(QObject *parent) : QObject(parent) {
                 .value(QStringLiteral("commands")).toArray()) {
             const auto action = entry.toObject();
             m_actions.insert(action.value(QStringLiteral("path")).toString(), action);
+            // Former paths of renamed actions keep working and run the action under its current path.
+            for (const auto &alias : action.value(QStringLiteral("aliases")).toArray())
+                m_actions.insert(alias.toString(), action);
         }
     }
     connect(&m_server, &QTcpServer::newConnection, this, [this] {
@@ -115,6 +118,7 @@ QJsonObject TcpControlServer::execute(const QByteArray &line) {
     }
     if (!m_actions.contains(path)) return failure(tr("Unsupported action (information queries are unavailable)"));
     const auto action = m_actions.value(path);
+    path = action.value(QStringLiteral("path")).toString();
     for (const auto &name : action.value(QStringLiteral("required")).toArray()) {
         if (!parameters.contains(name.toString()) || parameters.value(name.toString()).toString().isEmpty())
             return failure(tr("Missing action parameter: %1").arg(name.toString()));

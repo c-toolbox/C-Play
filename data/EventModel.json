@@ -412,6 +412,21 @@
             "charsPerItem": 40
         },
         {
+            "id": "medialon-event-selected_slide",
+            "name": "Medialon: selected_slide",
+            "serverId": "127.0.0.1:9000",
+            "encoding": "text",
+            "payload": "cplay selected_slide ",
+            "raw": false,
+            "eventTopics": [
+                "selected_slide"
+            ],
+            "eventPayload": "value",
+            "monitoringVariable": "CPlay_selected_slide",
+            "monitoringType": "integer",
+            "charsPerItem": 0
+        },
+        {
             "id": "medialon-event-layer_states",
             "name": "Medialon: layer_states",
             "serverId": "127.0.0.1:9000",
@@ -424,7 +439,7 @@
             "eventPayload": "value",
             "monitoringVariable": "CPlay_layer_states",
             "monitoringType": "string",
-            "charsPerItem": 0
+            "charsPerItem": 38
         }
     ]
 }
