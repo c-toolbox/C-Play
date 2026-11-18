@@ -256,7 +256,8 @@ Kirigami.ApplicationWindow {
 
     // fromDrop: a dropped media file gets its grid mode guessed from the video size.
     function openFile(path, fromDrop) {
-        var openFileExt = playerController.returnFileExtension(path);
+        // path is often a url; pass strings to the C++ helpers.
+        var openFileExt = playerController.returnFileExtension(path.toString());
         if(openFileExt == "cplaypres"){
             slides.presentationToLoad = path.toString();
             slides.openCPlayPresentation();
@@ -266,7 +267,7 @@ Kirigami.ApplicationWindow {
         && openFileExt != "cplay_file" && openFileExt != "cplay_list" 
         && openFileExt != "fdv" && openFileExt != "playlist"
         && openFileExt != "cplaymulti"){
-            openFileValuesDialogLabel.text = playerController.returnFileName(path);
+            openFileValuesDialogLabel.text = playerController.returnFileName(path.toString());
             newMediaFileToOpen = path;
             openFileValuesDialog.open();
             if (fromDrop === true)
@@ -1524,6 +1525,7 @@ Kirigami.ApplicationWindow {
         title: "Open C-Playlist"
 
         onAccepted: {
+            loadNotice.expect(openCPlayPlaylistDialog.selectedFile);
             mpv.loadFile(openCPlayPlaylistDialog.selectedFile.toString());
         }
         onRejected: mpv.focus = true

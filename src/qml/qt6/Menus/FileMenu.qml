@@ -42,7 +42,10 @@ Menu {
             delegate: MenuItem {
                 text: modelData
 
-                onTriggered: mpv.loadFile(modelData)
+                onTriggered: {
+                    loadNotice.expect(modelData);
+                    mpv.loadFile(modelData);
+                }
             }
 
             onObjectAdded: function(index, object) {
@@ -79,7 +82,10 @@ Menu {
             delegate: MenuItem {
                 text: modelData
 
-                onTriggered: mpv.loadFile(modelData)
+                onTriggered: {
+                    loadNotice.expect(modelData);
+                    mpv.loadFile(modelData);
+                }
             }
 
             onObjectAdded: function(index, object) {
@@ -188,6 +194,7 @@ Menu {
                         slides.openCPlayPresentation();
                     }
                     else {
+                        loadNotice.expect(modelData.path);
                         mpv.loadFile(modelData.path);
                     }
                 }

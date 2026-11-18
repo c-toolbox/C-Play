@@ -27,6 +27,9 @@ Pane {
     // Set by expect() and cleared once the load succeeded or failed, so loads that the
     // user did not start (end of file continue, sections, ...) show no notice.
     property string expectedFileName: ""
+    // Tracked separately from the name, so a load the user started always shows the
+    // notice, also when no file name could be resolved from the path.
+    property bool expecting: false
     property bool opened: false
     property bool failed: false
     property string fileName: ""
@@ -39,19 +42,27 @@ Pane {
     readonly property bool nodesProblem: hasNodes && (mpv.nodesLoadFailed.length > 0 || mpv.nodesLoadTimedOut)
     readonly property bool keepOpen: (!failed && visibilityIsZero) || nodesWaiting || nodesProblem
 
+    // path can be a url (file dialogs, drag and drop) or a string; it is passed on as a
+    // string, since a url does not reliably convert to the QString argument.
     function expect(path) {
-        if (UserInterfaceSettings.showLoadNotice)
-            expectedFileName = playerController.returnFileName(path);
+        if (!UserInterfaceSettings.showLoadNotice)
+            return;
+        const pathString = String(path);
+        expectedFileName = playerController.returnFileName(pathString.replace(/^file:\/\/\//, ""));
+        expecting = true;
     }
 
     function expectPlaylistItem(index) {
-        if (UserInterfaceSettings.showLoadNotice)
-            expectedFileName = mpv.playlistModel.mediaTitle(index);
+        if (!UserInterfaceSettings.showLoadNotice)
+            return;
+        expectedFileName = mpv.playlistModel.mediaTitle(index);
+        expecting = true;
     }
 
     function show(loadFailed) {
         fileName = (!loadFailed && mpv.mediaTitle !== "") ? mpv.mediaTitle : expectedFileName;
         expectedFileName = "";
+        expecting = false;
         failed = loadFailed;
         opened = true;
         hideTimer.restart();
@@ -73,11 +84,11 @@ Pane {
 
     Connections {
         function onFileLoaded() {
-            if (root.expectedFileName !== "")
+            if (root.expecting)
                 root.show(false);
         }
         function onEndFile(reason) {
-            if (reason === "error" && root.expectedFileName !== "")
+            if (reason === "error" && root.expecting)
                 root.show(true);
         }
 
