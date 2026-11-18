@@ -82,13 +82,119 @@ Kirigami.ApplicationWindow {
         return (v === undefined || v === null) ? "-" : Number(v).toFixed(digits);
     }
 
+    // --- node telemetry: cell summaries and hover details ------------------------------
+
+    function layerName(d) {
+        const name = d.layer || qsTr("video layer");
+        return d.file ? name + " (" + d.file + ")" : name;
+    }
+
+    // Short decoder label: "Vulkan HW", "Vulkan SW", "d3d11va", "SW".
+    function decoderLabel(d) {
+        if (d.engine === "vulkan")
+            return d.hw ? qsTr("Vulkan HW") : qsTr("Vulkan SW");
+        return d.hw ? d.hwdec : qsTr("SW");
+    }
+
+    function decoderSummary(d) {
+        const codec = (d.codec || "?").toUpperCase();
+        return codec + " · " + decoderLabel(d);
+    }
+
+    function decoderCell(r) {
+        const layers = r.layers || [];
+        if (layers.length === 0) // node without per-layer details (older build) or nothing loaded
+            return r.layerCount > 0 ? ((r.hwCurrent && r.hwCurrent !== "no" ? r.hwCurrent : "sw") + " / " + (r.videoCodec || "-")) : "-";
+        const first = decoderSummary(layers[0]);
+        const others = layers.slice(1).filter(d => decoderSummary(d) !== first).length;
+        return others > 0 ? first + " +" + others : first;
+    }
+
+    function decoderTip(r) {
+        const layers = r.layers || [];
+        if (layers.length === 0)
+            return qsTr("Decoder and codec of the first video layer.\nNo per-layer details from this node.");
+        const blocks = [];
+        for (const d of layers) {
+            const lines = [layerName(d)];
+            const size = d.width > 0 && d.height > 0 ? d.width + "×" + d.height : "";
+            const rate = d.nominalFps > 0 ? fmt(d.nominalFps, 3) + " fps" : "";
+            if (d.engine === "vulkan") {
+                lines.push(qsTr("  Engine: Vulkan engine (FFmpeg + libplacebo)"));
+                lines.push(d.hw ? qsTr("  Decoding: hardware (Vulkan Video)")
+                                : qsTr("  Decoding: software (CPU), no Vulkan decoder for this stream"));
+                lines.push(d.upload === "interop" ? qsTr("  To OpenGL: zero-copy interop (video memory)")
+                                                  : qsTr("  To OpenGL: host memory upload (slower fallback)"));
+                lines.push(qsTr("  Codec: %1").arg([d.codec || "?", size, rate].filter(s => s).join(" · ")));
+                if (d.outputFormat)
+                    lines.push(qsTr("  Output: %1").arg(d.outputFormat));
+            } else {
+                lines.push(qsTr("  Engine: mpv"));
+                lines.push(d.hw ? qsTr("  Decoding: hardware (%1)").arg(d.hwdec)
+                                : qsTr("  Decoding: software (CPU)"));
+                const codec = d.codecLong && d.codecLong !== d.codec ? (d.codec || "?") + " (" + d.codecLong + ")" : (d.codec || "?");
+                lines.push(qsTr("  Codec: %1").arg([codec, size, rate].filter(s => s).join(" · ")));
+                if (d.pixfmt)
+                    lines.push(qsTr("  Pixel format: %1").arg(d.hwPixfmt ? d.pixfmt + " (hw: " + d.hwPixfmt + ")" : d.pixfmt));
+            }
+            blocks.push(lines.join("\n"));
+        }
+        return blocks.join("\n\n");
+    }
+
+    function fpsTip(r) {
+        const lines = [qsTr("Lowest frame rate shown across the video layers (worst case).")];
+        for (const d of (r.layers || [])) {
+            const shown = d.fps >= 0 ? fmt(d.fps, 1) : qsTr("measuring");
+            const nominal = d.nominalFps > 0 ? qsTr(" of %1").arg(fmt(d.nominalFps, 3)) : "";
+            lines.push("  " + layerName(d) + ": " + shown + nominal + " fps");
+        }
+        return lines.join("\n");
+    }
+
+    function voDropsTip(r) {
+        const lines = [qsTr("Frames decoded but dropped because they were late for display, since the previous report.")];
+        for (const d of (r.layers || []))
+            lines.push("  " + layerName(d) + ": " + (d.voDrops ?? 0));
+        return lines.join("\n");
+    }
+
+    function decDropsTip(r) {
+        const lines = [qsTr("Frames the decoder skipped to keep up, since the previous report.")];
+        for (const d of (r.layers || [])) {
+            if (d.engine === "vulkan")
+                lines.push("  " + layerName(d) + ": " + qsTr("n/a (the Vulkan engine counts late frames under VO drops)"));
+            else
+                lines.push("  " + layerName(d) + ": " + (d.decDrops ?? 0));
+        }
+        return lines.join("\n");
+    }
+
+    function layersTip(r) {
+        const layers = r.layers || [];
+        if (layers.length === 0)
+            return qsTr("Video layers with media loaded.");
+        return layers.map(d => layerName(d) + " — " + (d.engine === "vulkan" ? qsTr("Vulkan engine") : qsTr("mpv"))).join("\n");
+    }
+
+    function statusTip(r) {
+        if (r.isMaster)
+            return qsTr("This computer (the master's own playback).");
+        if (!r.lastSeenMs)
+            return qsTr("No report received.");
+        const ago = Math.max(0, (Date.now() - r.lastSeenMs) / 1000);
+        return qsTr("Last report %1 s ago.").arg(fmt(ago, 1));
+    }
+
     function updateNodeTable() {
-        nodeModel.clear();
-        const rows = playerController.nodeTelemetry;
-        if (!rows)
-            return;
-        for (const r of rows) {
-            nodeModel.append({
+        const rows = playerController.nodeTelemetry || [];
+        // Rows are updated in place (set), not cleared: recreated delegates would close the
+        // tooltip being read on every report.
+        while (nodeModel.count > rows.length)
+            nodeModel.remove(nodeModel.count - 1);
+        for (let i = 0; i < rows.length; ++i) {
+            const r = rows[i];
+            const entry = {
                 "rowName": r.name,
                 "rowOnline": r.online,
                 "rowFps": r.online ? fmt(r.fps, 1) : "-",
@@ -96,11 +202,31 @@ Kirigami.ApplicationWindow {
                 "rowDecDrops": r.online ? String(r.decoderDrops) : "-",
                 "rowOffset": r.online ? fmt(r.syncOffsetMs, 1) + " ms" : "-",
                 "rowGpu": (r.online && r.gpuLoad >= 0) ? fmt(r.gpuLoad, 0) + " %" : "n/a",
-                "rowDecoder": r.online ? ((r.hwCurrent && r.hwCurrent !== "no" ? r.hwCurrent : "sw") + " / " + (r.videoCodec || "-")) : "-",
+                "rowDecoder": r.online ? decoderCell(r) : "-",
                 "rowLayers": r.online ? String(r.layerCount) : "-",
-                "rowLatency": (r.online && r.latencyMs >= 0) ? fmt(r.latencyMs, 2) + " ms" : "n/a"
-            });
+                "rowLatency": (r.online && r.latencyMs >= 0) ? fmt(r.latencyMs, 2) + " ms" : "n/a",
+                "tipName": r.address ? qsTr("Address: %1").arg(r.address) : "",
+                "tipFps": r.online ? fpsTip(r) : "",
+                "tipVoDrops": r.online ? voDropsTip(r) : "",
+                "tipDecDrops": r.online ? decDropsTip(r) : "",
+                "tipDecoder": r.online ? decoderTip(r) : "",
+                "tipLayers": r.online ? layersTip(r) : "",
+                "tipStatus": statusTip(r)
+            };
+            if (i < nodeModel.count)
+                nodeModel.set(i, entry);
+            else
+                nodeModel.append(entry);
         }
+    }
+
+    // A table cell that shows its full details on hover.
+    component TipLabel: Label {
+        property string tip: ""
+        HoverHandler { id: tipHover }
+        ToolTip.visible: tip.length > 0 && tipHover.hovered
+        ToolTip.text: tip
+        ToolTip.delay: 300
     }
 
     Connections {
@@ -297,7 +423,7 @@ Kirigami.ApplicationWindow {
                 Label { text: qsTr("Dec drops"); font.bold: true; Layout.preferredWidth: 70 }
                 Label { text: qsTr("Sync offset"); font.bold: true; Layout.preferredWidth: 82 }
                 Label { text: qsTr("GPU"); font.bold: true; Layout.preferredWidth: 46 }
-                Label { text: qsTr("Decoder"); font.bold: true; Layout.preferredWidth: 120 }
+                Label { text: qsTr("Decoder"); font.bold: true; Layout.preferredWidth: 170 }
                 Label { text: qsTr("Layers"); font.bold: true; Layout.preferredWidth: 48 }
                 Label { text: qsTr("Latency"); font.bold: true; Layout.preferredWidth: 76 }
                 Label { text: qsTr("Status"); font.bold: true; Layout.preferredWidth: 60 }
@@ -307,33 +433,46 @@ Kirigami.ApplicationWindow {
                 width: nodeTable.width
                 spacing: Kirigami.Units.smallSpacing
 
-                Label { text: model.rowName; elide: Text.ElideRight; Layout.fillWidth: true }
-                Label {
+                TipLabel { text: model.rowName; tip: model.tipName; elide: Text.ElideRight; Layout.fillWidth: true }
+                TipLabel {
                     text: model.rowFps
+                    tip: model.tipFps
                     Layout.preferredWidth: 52
                     color: model.rowOnline && Number(model.rowFps) < 24 ? "orange" : Kirigami.Theme.textColor
                 }
-                Label {
+                TipLabel {
                     text: model.rowVoDrops
+                    tip: model.tipVoDrops
                     Layout.preferredWidth: 70
                     color: model.rowOnline && Number(model.rowVoDrops) > 0 ? "orange" : Kirigami.Theme.textColor
                 }
-                Label {
+                TipLabel {
                     text: model.rowDecDrops
+                    tip: model.tipDecDrops
                     Layout.preferredWidth: 70
                     color: model.rowOnline && Number(model.rowDecDrops) > 0 ? "orange" : Kirigami.Theme.textColor
                 }
-                Label {
+                TipLabel {
                     text: model.rowOffset
+                    tip: model.rowOnline ? qsTr("Distance between this node's playback position and the master's.\nRed above 100 ms. Not measured for live streams.") : ""
                     Layout.preferredWidth: 82
-                    color: model.rowOnline && Number(model.rowOffset) > 100 ? "crimson" : Kirigami.Theme.textColor
+                    color: model.rowOnline && parseFloat(model.rowOffset) > 100 ? "crimson" : Kirigami.Theme.textColor
                 }
-                Label { text: model.rowGpu; Layout.preferredWidth: 46 }
-                Label { text: model.rowDecoder; elide: Text.ElideRight; Layout.preferredWidth: 120 }
-                Label { text: model.rowLayers; Layout.preferredWidth: 48 }
-                Label { text: model.rowLatency; Layout.preferredWidth: 76 }
-                Label {
+                TipLabel {
+                    text: model.rowGpu
+                    tip: qsTr("GPU load of the node (Windows performance counters, n/a elsewhere).")
+                    Layout.preferredWidth: 46
+                }
+                TipLabel { text: model.rowDecoder; tip: model.tipDecoder; elide: Text.ElideRight; Layout.preferredWidth: 170 }
+                TipLabel { text: model.rowLayers; tip: model.tipLayers; Layout.preferredWidth: 48 }
+                TipLabel {
+                    text: model.rowLatency
+                    tip: qsTr("Sync round-trip time between the master and this node, measured by the master.")
+                    Layout.preferredWidth: 76
+                }
+                TipLabel {
                     text: model.rowOnline ? qsTr("online") : qsTr("offline")
+                    tip: model.tipStatus
                     Layout.preferredWidth: 60
                     color: model.rowOnline ? "lime" : "crimson"
                 }

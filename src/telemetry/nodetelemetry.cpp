@@ -15,6 +15,9 @@
 #include <nlohmann/json.hpp>
 #include <sgct/sgct.h>
 
+#include <QFileInfo>
+#include <QJsonArray>
+#include <QJsonDocument>
 #include <QMetaObject>
 #include <QTimer>
 #include <QVariantMap>
@@ -187,23 +190,27 @@ void NodeTelemetryManager::setMasterMpv(MpvObject* mpv) {
     m_masterMpv = mpv;
 }
 
-void NodeTelemetryManager::aggregateFromHandle(void* h, double& minFps, quint64& voDrops,
-                                               quint64& decDrops, QString& hw, QString& codec,
-                                               bool& cacheIdle, int& layerCount) {
+QVariantMap NodeTelemetryManager::aggregateFromHandle(void* h, double& minFps, quint64& voDrops,
+                                                      quint64& decDrops, QString& hw, QString& codec,
+                                                      bool& cacheIdle, int& layerCount) {
+    QVariantMap detail;
     auto* handle = static_cast<mpv_handle*>(h);
     if (!handle)
-        return;
+        return detail;
 
     // perf-info must be queried exactly once per interval: mpv resets its
     // measurement window on each query.
+    double layerFps = -1.0;
     const QHash<QString, QString> perfInfo = readPerfInfo(handle);
     auto fpsIt = perfInfo.constFind(QStringLiteral("estimated-vf-fps"));
     if (fpsIt == perfInfo.constEnd())
         fpsIt = perfInfo.constFind(QStringLiteral("vsync-fps"));
     if (fpsIt != perfInfo.constEnd()) {
         const double fps = leadingDouble(fpsIt.value());
-        if (fps > 0.0)
+        if (fps > 0.0) {
             minFps = std::min(minFps, fps);
+            layerFps = fps;
+        }
     }
 
     const int64_t vo = readPropertyInt64(handle, "frame-drop-count");
@@ -213,19 +220,97 @@ void NodeTelemetryManager::aggregateFromHandle(void* h, double& minFps, quint64&
         base.vo = vo; // counter reset (seek/file load)
     if (dec < base.decoder)
         base.decoder = dec;
-    voDrops += static_cast<quint64>(vo - base.vo);
-    decDrops += static_cast<quint64>(dec - base.decoder);
+    const quint64 layerVo = static_cast<quint64>(vo - base.vo);
+    const quint64 layerDec = static_cast<quint64>(dec - base.decoder);
+    voDrops += layerVo;
+    decDrops += layerDec;
     base.vo = vo;
     base.decoder = dec;
 
+    const QString hwdec = readPropertyString(handle, "hwdec-current");
+    const QString format = readPropertyString(handle, "video-format"); // short: hevc, h264, ...
+    const QString codecLong = readPropertyString(handle, "video-codec");
     if (hw.isEmpty())
-        hw = readPropertyString(handle, "hw-current");
+        hw = hwdec;
     if (codec.isEmpty())
-        codec = readPropertyString(handle, "video-codec");
+        codec = format.isEmpty() ? codecLong : format;
 
     cacheIdle = cacheIdle && readCacheIdle(handle);
 
     layerCount++;
+
+    detail.insert(QStringLiteral("engine"), QStringLiteral("mpv"));
+    detail.insert(QStringLiteral("codec"), format);
+    detail.insert(QStringLiteral("codecLong"), codecLong);
+    detail.insert(QStringLiteral("hw"), !hwdec.isEmpty() && hwdec != QStringLiteral("no"));
+    detail.insert(QStringLiteral("hwdec"), hwdec);
+    detail.insert(QStringLiteral("width"), readPropertyInt64(handle, "video-params/w"));
+    detail.insert(QStringLiteral("height"), readPropertyInt64(handle, "video-params/h"));
+    detail.insert(QStringLiteral("pixfmt"), readPropertyString(handle, "video-params/pixelformat"));
+    detail.insert(QStringLiteral("hwPixfmt"), readPropertyString(handle, "video-params/hw-pixelformat"));
+    detail.insert(QStringLiteral("nominalFps"), leadingDouble(readPropertyString(handle, "container-fps")));
+    detail.insert(QStringLiteral("fps"), layerFps);
+    detail.insert(QStringLiteral("voDrops"), layerVo);
+    detail.insert(QStringLiteral("decDrops"), layerDec);
+    detail.insert(QStringLiteral("file"), readPropertyString(handle, "filename"));
+    return detail;
+}
+
+QVariantMap NodeTelemetryManager::aggregateFromEngine(const void* layerKey,
+                                                      const MpvLayer::TelemetryEngineSample& sample,
+                                                      const EngineBaselines& prev,
+                                                      std::chrono::steady_clock::time_point now,
+                                                      double& minFps, quint64& voDrops, QString& hw,
+                                                      QString& codec, int& layerCount) {
+    // The previous collection's baseline, if this layer was seen then.
+    const auto prevIt = prev.constFind(layerKey);
+    const bool hasPrev = prevIt != prev.constEnd();
+    // The engine zeroes its counters when it opens a file: a decrease starts over.
+    const bool reset = !hasPrev || sample.framesPresented < prevIt->presented ||
+                       sample.framesDropped < prevIt->dropped;
+
+    double layerFps = -1.0;
+    quint64 layerVo = 0;
+    if (!reset) {
+        const double seconds = std::chrono::duration<double>(now - prevIt->time).count();
+        if (seconds > 0.0) {
+            layerFps = static_cast<double>(sample.framesPresented - prevIt->presented) / seconds;
+            minFps = std::min(minFps, layerFps);
+        }
+        layerVo = sample.framesDropped - prevIt->dropped;
+        voDrops += layerVo;
+    }
+    // On a reset the first interval reports no fps (rather than a bogus one) and no drops.
+
+    m_engineBaselines.insert(layerKey, {sample.framesPresented, sample.framesDropped, now});
+
+    if (hw.isEmpty()) {
+        hw = QStringLiteral("vulkan");
+        if (!sample.hwDecoding)
+            hw += QStringLiteral("-sw");
+        hw += sample.gpuInterop ? QStringLiteral("+interop") : QStringLiteral("+pbo");
+    }
+    const QString engineCodec = QString::fromStdString(sample.codec);
+    if (codec.isEmpty())
+        codec = engineCodec;
+
+    layerCount++;
+
+    QVariantMap detail;
+    detail.insert(QStringLiteral("engine"), QStringLiteral("vulkan"));
+    detail.insert(QStringLiteral("codec"), engineCodec);
+    detail.insert(QStringLiteral("hw"), sample.hwDecoding);
+    detail.insert(QStringLiteral("upload"), sample.gpuInterop ? QStringLiteral("interop")
+                                                              : QStringLiteral("host"));
+    detail.insert(QStringLiteral("width"), sample.width);
+    detail.insert(QStringLiteral("height"), sample.height);
+    detail.insert(QStringLiteral("outputFormat"), QString::fromStdString(sample.outputFormat));
+    detail.insert(QStringLiteral("nominalFps"), sample.nominalFps);
+    detail.insert(QStringLiteral("fps"), layerFps);
+    detail.insert(QStringLiteral("voDrops"), layerVo);
+    detail.insert(QStringLiteral("file"),
+                  QFileInfo(QString::fromStdString(sample.file)).fileName());
+    return detail;
 }
 
 void NodeTelemetryManager::refreshMasterRow() {
@@ -254,8 +339,9 @@ void NodeTelemetryManager::refreshMasterRow() {
     // Only report metrics while the master actually has media loaded.
     const QString path = readPropertyString(handle, "path");
     if (!path.isEmpty())
-        aggregateFromHandle(handle, minFps, row.voDrops, row.decoderDrops, row.hwCurrent,
-                            row.videoCodec, cacheIdle, row.layerCount);
+        row.layers.append(aggregateFromHandle(handle, minFps, row.voDrops, row.decoderDrops,
+                                              row.hwCurrent, row.videoCodec, cacheIdle,
+                                              row.layerCount));
 
     row.fps = (minFps == std::numeric_limits<double>::max()) ? 0.0 : minFps;
     row.cacheIdle = cacheIdle;
@@ -354,6 +440,10 @@ void NodeTelemetryManager::handleNodeData(void* data, int length, int /*packageI
         row.hwCurrent = QString::fromStdString(root.value("hw", std::string()));
         row.videoCodec = QString::fromStdString(root.value("codec", std::string()));
         row.cacheIdle = root.value("cacheIdle", true);
+        if (root.contains("details") && root["details"].is_array()) {
+            const QJsonDocument doc = QJsonDocument::fromJson(QByteArray::fromStdString(root["details"].dump()));
+            row.layers = doc.array().toVariantList();
+        }
 
         // Network latency: read the sync connection loopTime for this node (master-side,
         // no node work).
@@ -469,6 +559,8 @@ QVariantList NodeTelemetryManager::telemetryList() const {
         m.insert(QStringLiteral("cacheIdle"), r.cacheIdle);
         m.insert(QStringLiteral("layerCount"), r.layerCount);
         m.insert(QStringLiteral("latencyMs"), r.latencyMs);
+        m.insert(QStringLiteral("lastSeenMs"), r.lastSeenMs);
+        m.insert(QStringLiteral("layers"), r.layers);
         list.append(m);
     }
     return list;
@@ -499,8 +591,13 @@ void NodeTelemetryManager::collectAndSend(const std::vector<std::shared_ptr<Base
     QString hw, codec;
     bool cacheIdle = true;
 
-    // Recursively collect active mpv layers, descending into MultiVideoLayer sub-players.
+    // Recursively collect active video layers, descending into MultiVideoLayer sub-players.
+    // Layers whose video comes from another engine (Vulkan) are read from that engine:
+    // their mpv is idle or audio only, so its handle has no video stats.
     std::vector<MpvLayer*> activeLayers;
+    QVariantList details;
+    EngineBaselines prevEngineBaselines;
+    prevEngineBaselines.swap(m_engineBaselines);
     std::function<void(const std::vector<std::shared_ptr<BaseLayer>>&)> walk =
         [&](const std::vector<std::shared_ptr<BaseLayer>>& ls) {
             for (const auto& layer : ls) {
@@ -511,15 +608,27 @@ void NodeTelemetryManager::collectAndSend(const std::vector<std::shared_ptr<Base
                     continue;
                 }
                 auto* mpv = dynamic_cast<MpvLayer*>(layer.get());
-                if (mpv && mpv->telemetryActive())
+                if (!mpv)
+                    continue;
+                MpvLayer::TelemetryEngineSample sample;
+                QVariantMap detail;
+                if (mpv->telemetryEngineSample(sample)) {
                     activeLayers.push_back(mpv);
+                    detail = aggregateFromEngine(mpv, sample, prevEngineBaselines, now, minFps,
+                                                 voDrops, hw, codec, layerCount);
+                } else if (mpv->telemetryActive()) {
+                    activeLayers.push_back(mpv);
+                    detail = aggregateFromHandle(mpv->telemetryHandle(), minFps, voDrops,
+                                                 decDrops, hw, codec, cacheIdle, layerCount);
+                } else {
+                    continue;
+                }
+                const QString title = QString::fromStdString(mpv->title());
+                detail.insert(QStringLiteral("layer"), title);
+                details.append(detail);
             }
         };
     walk(layers);
-
-    for (MpvLayer* mpv : activeLayers)
-        aggregateFromHandle(mpv->telemetryHandle(), minFps, voDrops, decDrops, hw, codec,
-                            cacheIdle, layerCount);
 
     // Sync offset: node playback position vs the master's synced timePosition. Live
     // streams have no meaningful offset against the master's file position.
@@ -551,6 +660,12 @@ void NodeTelemetryManager::collectAndSend(const std::vector<std::shared_ptr<Base
     root["hw"] = hw.toStdString();
     root["codec"] = codec.toStdString();
     root["cacheIdle"] = cacheIdle;
+    // Per-layer details for the master's tooltips (QVariant -> JSON through QJsonArray).
+    json detailsJson = json::parse(
+        QJsonDocument(QJsonArray::fromVariantList(details)).toJson(QJsonDocument::Compact).toStdString(),
+        nullptr, false);
+    if (!detailsJson.is_discarded())
+        root["details"] = std::move(detailsJson);
 
     const std::string s = root.dump();
     try {

@@ -12,6 +12,7 @@
 #include <QHash>
 #include <QString>
 #include <QVariantList>
+#include <QVariantMap>
 
 #include <atomic>
 #include <chrono>
@@ -19,6 +20,7 @@
 #include <mutex>
 
 #include <layers/baselayer.h>
+#include <layers/mpvlayer.h>
 
 class QTimer;
 class GpuLoadProbe;
@@ -42,6 +44,9 @@ struct NodeTelemetry {
     int layerCount = 0;
     double latencyMs = -1.0;                // master-side only: sync connection loopTime
     qint64 lastSeenMs = 0;                  // master-side only
+    // Per video layer: engine (mpv/vulkan), codec, hw decoding, size, fps, drops, file.
+    // Optional in the packet (older nodes send none).
+    QVariantList layers;
 };
 
 // Collects per-node playback/GPU metrics on the cluster nodes and ships them to the
@@ -118,9 +123,27 @@ private:
 
     // Reads fps/drops/decoder state from one live mpv handle into the aggregates,
     // differencing the cumulative drop counters against per-handle baselines.
-    void aggregateFromHandle(void *handle, double &minFps, quint64 &voDrops,
-                             quint64 &decDrops, QString &hw, QString &codec,
-                             bool &cacheIdle, int &layerCount);
+    // Returns the layer's details for the master's tooltips.
+    QVariantMap aggregateFromHandle(void *handle, double &minFps, quint64 &voDrops,
+                                    quint64 &decDrops, QString &hw, QString &codec,
+                                    bool &cacheIdle, int &layerCount);
+
+    // Same aggregates from a non-mpv video engine (Vulkan engine): fps is measured as
+    // presented frames over the time since the previous sample, drops as a counter delta.
+    // Node side, render thread.
+    struct EngineBaseline {
+        uint64_t presented = 0;
+        uint64_t dropped = 0;
+        std::chrono::steady_clock::time_point time{};
+    };
+    using EngineBaselines = QHash<const void *, EngineBaseline>;
+
+    // prev: the baselines of the previous collection; the new one is stored in
+    // m_engineBaselines.
+    QVariantMap aggregateFromEngine(const void *layerKey, const MpvLayer::TelemetryEngineSample &sample,
+                                    const EngineBaselines &prev,
+                                    std::chrono::steady_clock::time_point now, double &minFps,
+                                    quint64 &voDrops, QString &hw, QString &codec, int &layerCount);
 
     struct DropBaseline {
         int64_t vo = 0;
@@ -139,6 +162,9 @@ private:
     QHash<int, int> m_clientToNode;          // DataTransfer client index -> node id
 
     QHash<void *, DropBaseline> m_baselines; // per mpv_handle cumulative-counter baselines
+    // Per engine layer baselines (render thread only). Rebuilt every collection so that
+    // destroyed layers drop out and a reused address starts over.
+    EngineBaselines m_engineBaselines;
     std::unique_ptr<GpuLoadProbe> m_gpuProbe; // node-side only
 
     MpvObject *m_masterMpv = nullptr;        // master-side only (master's own row)

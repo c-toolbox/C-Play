@@ -12,6 +12,7 @@
 #include <layers/baselayer.h>
 #include <chrono>
 #include <condition_variable>
+#include <cstdint>
 #include <mutex>
 #include <render_gl.h>
 #include <functional>
@@ -262,6 +263,24 @@ public:
     mpv_handle *telemetryHandle() const { return m_data.handle; }
     // True when this layer plays a live stream (no meaningful sync offset).
     bool telemetryIsStream() const { return m_data.isStream; }
+
+    // Video from a playback engine other than mpv (VulkanVideoLayer's Vulkan engine). While
+    // such an engine plays, mpv is idle or audio only and its handle says nothing about the
+    // video, so telemetry reads this instead. Counters are cumulative since the file opened.
+    struct TelemetryEngineSample {
+        uint64_t framesPresented = 0;
+        uint64_t framesDropped = 0;
+        bool hwDecoding = false;
+        bool gpuInterop = false;
+        std::string codec;
+        std::string file;          // the file the engine plays
+        int width = 0;             // output frame size
+        int height = 0;
+        double nominalFps = 0.0;   // the stream's frame rate
+        std::string outputFormat;  // output pixel format (rgba8, rgba16, rgbaf16)
+    };
+    // Returns false when mpv renders the video (the default): read telemetryHandle() then.
+    virtual bool telemetryEngineSample(TelemetryEngineSample &) const { return false; }
 
 protected:
     mpvData m_data;
