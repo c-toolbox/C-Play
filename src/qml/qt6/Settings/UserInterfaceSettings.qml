@@ -153,6 +153,33 @@ SettingsBasePage {
                 height: 1
                 width: 1
             }
+            RowLayout {
+                CheckBox {
+                    checked: playerController.nodeWindowsHideInsteadOfFade
+                    text: qsTr("Hide node windows instead of fading their transparency")
+                    enabled: ConfigModel.nodeWindowTransparencySupported
+
+                    onCheckedChanged: {
+                        // Synced to the nodes and applied at once; no restart needed.
+                        playerController.nodeWindowsHideInsteadOfFade = checked;
+                        UserInterfaceSettings.windowHideInsteadOfFade = checked;
+                        UserInterfaceSettings.save();
+                    }
+                }
+                LabelWithTooltip {
+                    Layout.fillWidth: true
+                    elide: Text.ElideRight
+                    text: qsTr("Fades the node output to black, then hides the node windows, and shows them again before fading back up. Works on every system, as it does not use desktop transparency, and replaces the opacity mode while checked. Applies immediately. Fullscreen node windows cannot be hidden: they fade to black.")
+                }
+            }
+            Item {
+                Layout.fillWidth: true
+            }
+
+            Item {
+                height: 1
+                width: 1
+            }
             CheckBox {
                 checked: UserInterfaceSettings.windowOnTopAtStartup
                 text: qsTr("Node windows always on top at startup")

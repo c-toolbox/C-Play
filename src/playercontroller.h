@@ -60,6 +60,11 @@ public:
         WRITE setNodeWindowOpacityContentBased
         NOTIFY nodeWindowOpacityContentBasedChanged)
 
+    Q_PROPERTY(bool nodeWindowsHideInsteadOfFade
+        READ nodeWindowsHideInsteadOfFade
+        WRITE setNodeWindowsHideInsteadOfFade
+        NOTIFY nodeWindowsHideInsteadOfFadeChanged)
+
     Q_PROPERTY(bool syncProperties
         READ syncProperties
         WRITE setSyncProperties
@@ -197,6 +202,9 @@ public Q_SLOTS:
     bool nodeWindowOpacityContentBased();
     void setNodeWindowOpacityContentBased(bool value);
 
+    bool nodeWindowsHideInsteadOfFade();
+    void setNodeWindowsHideInsteadOfFade(bool value);
+
     bool syncProperties();
     void setSyncProperties(bool value);
 
@@ -239,6 +247,7 @@ Q_SIGNALS:
     void nodeWindowOnTopChanged();
     void nodeWindowOpacityChanged();
     void nodeWindowOpacityContentBasedChanged();
+    void nodeWindowsHideInsteadOfFadeChanged();
     void syncPropertiesChanged();
     void nodeTelemetryChanged();
     void nodeLoadFailuresChanged();

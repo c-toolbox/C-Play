@@ -504,7 +504,7 @@ struct GlUniformSetter {
 
 void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* layer, sgct::FrustumMode currentEye, float angle,
                                  const BaseLayer* fxSource) {
-    const float alpha = layer->renderAlpha();
+    const float alpha = layer->renderAlpha() * globalAlpha;
     const glm::vec3 rot = layer->renderRotate();
     const glm::vec3 trans = layer->renderTranslate();
     const cplay::anim::LayerAnimState &anim = layer->animState();

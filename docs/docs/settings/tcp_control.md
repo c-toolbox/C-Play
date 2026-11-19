@@ -22,6 +22,7 @@ Each enabled server keeps its own outgoing connection on the master. Select a se
 
 * **Name** / **Host** / **Port** — Label and endpoint of the server. The endpoint (`host:port`) is the server's ID.
 * **Enabled** — Connect to this server (keeps it disconnected across restarts when off).
+* **Connect on startup** — Connect when C-Play starts (default on). When off, the server stays disconnected until you click **Connect**, or connect it via REST or TCP control. Only available when the server is enabled.
 * **Receive C-Play control commands** — Parse incoming JSON `operation` / `parameter` commands from this server.
 * **Send change notifications** — Comma-separated event topics sent to this server when they change; `*` for all, empty disables notifications.
 * **Automatic reconnect** — Reconnect after a lost connection, using the retry delays below.
@@ -45,6 +46,7 @@ Commands defined here are triggered by [TCP layers](/media/layers#tcp) in presen
 * **Trigger on changes** — Event topics that send this command automatically; empty = manual or layer triggering only.
 * **Event payload** — *Fixed payload*, or include the changed value.
 * **Characters per list item** — Pads or shortens each list label in value payloads to this width; 0 sends full lists.
+* **Time format** — Format of the time value appended to the payload, for example `hh:mm:ss` or `hh:mm:ss/zz` (at most 64 characters). Empty sends seconds. Only for commands that append the current value and trigger on *position*, *remaining* or *duration*. With a coarse format, *position* commands are only sent when the formatted text changes.
 * **Command text** — The payload to send.
 
 Use **Save command**, **Delete command**, and **Trigger saved command** to manage and test the selected command. The bottom of the page shows the last command result, connection errors, and the path of the saved configuration (`tcp-control.json`). See [Configuration and persistence](/remote-control/tcp#configuration-and-persistence).

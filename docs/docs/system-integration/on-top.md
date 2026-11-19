@@ -48,6 +48,17 @@ This is a local-compositing technique. The application behind C-Play is not capt
 
 Choose **Node window opacity mode** in [Window & UI settings](/settings/window_and_ui#node-window-behavior): **Complete window** fades the content and window together; **Content-based (alpha channel)** fades the background while preserving rendered content's alpha. Use the latter for overlays that must remain visible above another application. Reconnect and restart nodes after changing the mode, as described in the settings guide.
 
+If you only need to switch between C-Play and the application, check **Hide node windows instead of fading their transparency** in the same settings. C-Play then fades its output to black and hides the node windows, which works on every system because it does not depend on desktop transparency. The application appears at once when the fade reaches 0, rather than fading in.
+
+### When the application behind does not show
+
+* **The node window has the keyboard focus.** Graphics drivers show a focused window that covers its monitor directly, outside desktop composition, so transparency and fades stop until another window is activated. C-Play prevents this for windowed node windows that cover their monitor (see [Window & UI settings](/settings/window_and_ui#node-window-behavior)). If another program activates the node window anyway, the node log reports it.
+* **The node window is fullscreen.** Use windowed node windows; fullscreen windows have no desktop behind them.
+* **NVIDIA "Vulkan/OpenGL present method".** Keep it at *Auto* or *Prefer native*. *Prefer layered on DXGI Swapchain* is reported to make transparent OpenGL windows opaque, as are systems where one GPU renders and another drives the display.
+* **Locked session or display turned off.** Nothing is composed then; unlock the session and wake the display.
+
+To test a node machine, build and run the transparency probe in the C-Play repository's `tools/transparency-probe` folder. It reports which of these cases apply. If transparency cannot be made reliable on a system, use **Hide node windows instead of fading their transparency**, which does not depend on any of them.
+
 ## Use C-Play layers above another app
 
 Presentation layers can be used as overlays while the background application keeps running. For example, a master-slide layer can act as a persistent background or mask, while a normal slide layer can show titles, logos, timers, or mapped media above the live application.

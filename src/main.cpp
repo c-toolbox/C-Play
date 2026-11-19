@@ -36,8 +36,10 @@
 #include <KConfigGroup>
 #include <algorithm>
 #include <atomic>
+#include <chrono>
 #include <cstdio>
 #include <mutex>
+#include <thread>
 #include <slidesmodel.h>
 #include <telemetry/nodetelemetry.h>
 #include <telemetry/nodeloaderverifier.h>
@@ -91,6 +93,18 @@ bool nodeWindowContentBased = false;
 // Set in postSyncPreDraw(): the background color fills the viewport in draw().
 bool nodeBackgroundColorShown = false;
 bool savedWindowContentBased = false;
+
+// Node windows hidden by "hide instead of fading", indexed like thisNode().windows(), so
+// fading up or leaving that mode shows exactly those again (the cluster configuration can
+// hide windows too).
+struct FadeHiddenWindow {
+    bool hidden = false;
+    bool renderWhileHidden = false; // the window's own setting, restored when it is shown
+};
+std::vector<FadeHiddenWindow> fadeHiddenWindows;
+// Every node window is hidden by that mode (see throttleWhileHidden()).
+bool nodeWindowsAllHidden = false;
+float nodeDisplayRefreshRate = 60.f;
 
 struct PendingLayerPacket {
     uint32_t id = 0;
@@ -205,9 +219,22 @@ static const NodeMainVideo& resolveNodeMainVideo() {
     return nodeMainVideo;
 }
 
+#ifdef WIN32
+static void keepNodeWindowsComposed(bool startup);
+#endif // WIN32
+
 static void initOGL(GLFWwindow *) {
     if (Engine::instance().isMaster())
         return;
+
+#ifdef WIN32
+    // The windows exist and have their configured position and size now.
+    keepNodeWindowsComposed(true);
+#endif // WIN32
+
+    // Frame rate cap while every node window is hidden (see throttleWhileHidden()).
+    if (const GLFWvidmode* mode = glfwGetVideoMode(glfwGetPrimaryMonitor()); mode && mode->refreshRate > 0)
+        nodeDisplayRefreshRate = static_cast<float>(mode->refreshRate);
 
     // Create standard layers
     backgroundImageLayer = std::make_shared<ImageLayer>("background");
@@ -393,6 +420,7 @@ static std::vector<std::byte> encode() {
             serializeObject(data, SyncHelper::instance().variables.windowOnTop);
             serializeObject(data, SyncHelper::instance().variables.windowOpacity);
             serializeObject(data, SyncHelper::instance().variables.windowOpacityContentBased);
+            serializeObject(data, SyncHelper::instance().variables.windowHideInsteadOfFade);
 
             // Screenshot
             serializeObject(data, SyncHelper::instance().variables.takeScreenshot);
@@ -782,6 +810,7 @@ static void decode(const std::vector<std::byte> &data) {
             deserializeObject(data, pos, SyncHelper::instance().variables.windowOnTop);
             deserializeObject(data, pos, SyncHelper::instance().variables.windowOpacity);
             deserializeObject(data, pos, SyncHelper::instance().variables.windowOpacityContentBased);
+            deserializeObject(data, pos, SyncHelper::instance().variables.windowHideInsteadOfFade);
 
             // Screenshot
             if (!safeToRead()) return;
@@ -951,24 +980,86 @@ static void syncNodeWindowFeatures() {
             "Node window opacity mode changed; restart this node to apply it");
     }
 
-    for (const std::unique_ptr<Window> &win : Engine::instance().thisNode().windows()) {
+    // "Hide instead of fading" uses no window transparency, so it works on every system:
+    // draw() fades the content to black with the opacity, and the windows are hidden at 0
+    // and shown again above it.
+    const bool hideInsteadOfFade = SyncHelper::instance().variables.windowHideInsteadOfFade;
+    const std::vector<std::unique_ptr<Window>>& windows = Engine::instance().thisNode().windows();
+    if (fadeHiddenWindows.size() != windows.size()) {
+        fadeHiddenWindows.assign(windows.size(), FadeHiddenWindow{});
+    }
+
+    bool anyVisible = false;
+    bool anyHiddenByFade = false;
+    for (size_t i = 0; i < windows.size(); i++) {
+        Window& win = *windows[i];
+        GLFWwindow* handle = win.windowHandle();
+
         // Never apply whole-window opacity to a transparent framebuffer, even if
         // the master requests a different mode while this node is running.
-        if (!nodeWindowContentBased &&
-            !glfwGetWindowAttrib(win->windowHandle(), GLFW_TRANSPARENT_FRAMEBUFFER)) {
+        if (!nodeWindowContentBased && !glfwGetWindowAttrib(handle, GLFW_TRANSPARENT_FRAMEBUFFER)) {
+            const float windowOpacity = hideInsteadOfFade ? 1.f : targetOpacity;
             // Compare with a small epsilon: layered window alpha is quantized to 1/255,
             // so an exact float comparison would re-apply the same value every frame.
-            const float currentOpacity = glfwGetWindowOpacity(win->windowHandle());
-            const float opacityDiff = currentOpacity - targetOpacity;
+            const float currentOpacity = glfwGetWindowOpacity(handle);
+            const float opacityDiff = currentOpacity - windowOpacity;
             if (opacityDiff > 1.f / 256.f || opacityDiff < -1.f / 256.f) {
-                glfwSetWindowOpacity(win->windowHandle(), targetOpacity);
+                glfwSetWindowOpacity(handle, windowOpacity);
             }
         }
 
-        if (newWinOnTop != glfwGetWindowAttrib(win->windowHandle(), GLFW_FLOATING)) {
-            glfwSetWindowAttrib(win->windowHandle(), GLFW_FLOATING, newWinOnTop);
+        // GLFW cannot hide fullscreen windows: those fade to black and stay black.
+        FadeHiddenWindow& state = fadeHiddenWindows[i];
+        const bool hide = hideInsteadOfFade && targetOpacity <= 0.f && !glfwGetWindowMonitor(handle);
+        if (hide && !state.hidden && win.isVisible()) {
+            // Keep rendering and swapping while hidden, so frame pacing, video timing and
+            // swap groups stay the same as when the window is shown.
+            state.hidden = true;
+            state.renderWhileHidden = win.isRenderingWhileHidden();
+            win.setRenderWhileHidden(true);
+            win.setVisible(false);
+        }
+        else if (!hide && state.hidden) {
+            state.hidden = false;
+            // Shown without taking the focus: node windows are created with
+            // GLFW_FOCUS_ON_SHOW off (see preWindow).
+            win.setVisible(true);
+            win.setRenderWhileHidden(state.renderWhileHidden);
+#ifdef WIN32
+            // Back in front of the windows activated while it was hidden, within the
+            // always-on-top band when on-top is enabled.
+            SetWindowPos(glfwGetWin32Window(handle),
+                         glfwGetWindowAttrib(handle, GLFW_FLOATING) ? HWND_TOPMOST : HWND_TOP,
+                         0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+#endif // WIN32
+        }
+        anyVisible = anyVisible || win.isVisible();
+        anyHiddenByFade = anyHiddenByFade || state.hidden;
+
+        if (newWinOnTop != glfwGetWindowAttrib(handle, GLFW_FLOATING)) {
+            glfwSetWindowAttrib(handle, GLFW_FLOATING, newWinOnTop);
         }
     }
+    nodeWindowsAllHidden = anyHiddenByFade && !anyVisible;
+}
+
+// With every node window hidden by "hide instead of fading", SGCT still swaps them, but
+// whether swapping a hidden window waits for the display depends on the driver (NVIDIA's
+// does). If it does not, this node, and the master that waits for it, would render as fast
+// as possible: cap the frame rate at the display refresh rate. Frames that already waited
+// for the display are left alone.
+static void throttleWhileHidden() {
+    using Clock = std::chrono::steady_clock;
+    static Clock::time_point lastFrame = Clock::now();
+    const Clock::time_point now = Clock::now();
+    if (nodeWindowsAllHidden) {
+        const std::chrono::duration<double> period(1.0 / nodeDisplayRefreshRate);
+        const Clock::duration elapsed = now - lastFrame;
+        if (elapsed < period / 2) {
+            std::this_thread::sleep_for(period - elapsed);
+        }
+    }
+    lastFrame = Clock::now();
 }
 
 // Keeps node windows at the very top of the Z-order while they are floating (on-top).
@@ -1012,6 +1103,91 @@ static void assertNodeWindowsTopmost() {
             break; // only the nearest covering window matters
         }
     }
+}
+
+// True when the window's client area is exactly the rectangle of its monitor.
+static bool nodeWindowCoversMonitor(HWND handle) {
+    RECT client{};
+    if (!GetClientRect(handle, &client))
+        return false;
+    POINT topLeft{client.left, client.top};
+    POINT bottomRight{client.right, client.bottom};
+    if (!ClientToScreen(handle, &topLeft) || !ClientToScreen(handle, &bottomRight))
+        return false;
+    MONITORINFO info{};
+    info.cbSize = sizeof(info);
+    if (!GetMonitorInfoW(MonitorFromWindow(handle, MONITOR_DEFAULTTONEAREST), &info))
+        return false;
+    return topLeft.x == info.rcMonitor.left && topLeft.y == info.rcMonitor.top &&
+           bottomRight.x == info.rcMonitor.right && bottomRight.y == info.rcMonitor.bottom;
+}
+
+// GPU drivers stop compositing a window that exactly covers its monitor while it is the
+// foreground window: they put its frames on the display directly, so the desktop no longer
+// shows through (content-based mode) and window opacity fades have no visible effect
+// (complete-window mode). It works again as soon as another window is activated, which is
+// why node window transparency looked intermittent. Measured with tools/transparency-probe:
+// a covering window that is focused or clicked loses composition, one that cannot be
+// activated keeps it, in both modes.
+// Windowed node windows that cover their monitor are therefore created without focus (see
+// preWindow) and made non-activatable here: clicking them does not activate them, and they
+// are not in the taskbar or Alt+Tab. Fullscreen windows keep the normal behaviour, as do
+// nodes using NVIDIA swap groups, which rely on that direct presentation. Checked at
+// startup and then once per second, in case a window is resized or monitors change.
+static void keepNodeWindowsComposed(bool startup) {
+    static ULONGLONG lastCheck = 0;
+    static HWND reportedFocus = nullptr;
+    const ULONGLONG now = GetTickCount64();
+    if (!startup && now - lastCheck < 1000u)
+        return;
+    lastCheck = now;
+
+    const bool swapGroups = Engine::instance().thisNode().isUsingSwapGroups();
+    bool coveringWindowFocused = false;
+    const std::vector<std::unique_ptr<Window>>& windows = Engine::instance().thisNode().windows();
+    for (size_t i = 0; i < windows.size(); i++) {
+        GLFWwindow* glfwWindow = windows[i]->windowHandle();
+        HWND handle = glfwWindow ? glfwGetWin32Window(glfwWindow) : nullptr;
+        if (!handle || glfwGetWindowMonitor(glfwWindow) || !nodeWindowCoversMonitor(handle))
+            continue;
+
+        if (swapGroups) {
+            if (startup) {
+                Log::Warning(std::format(
+                    "Node window {} covers its monitor and this node uses swap groups: it keeps the normal "
+                    "focus behaviour, so transparency and opacity fades do not show while it has focus", i));
+            }
+            continue;
+        }
+
+        const LONG_PTR exStyle = GetWindowLongPtrW(handle, GWL_EXSTYLE);
+        const LONG_PTR wanted = (exStyle | WS_EX_NOACTIVATE) & ~static_cast<LONG_PTR>(WS_EX_APPWINDOW);
+        if (exStyle != wanted) {
+            // The taskbar and Alt+Tab only pick up the changed style when the window is shown again.
+            const bool visible = IsWindowVisible(handle) != FALSE;
+            if (visible)
+                ShowWindow(handle, SW_HIDE);
+            SetWindowLongPtrW(handle, GWL_EXSTYLE, wanted);
+            if (visible)
+                ShowWindow(handle, SW_SHOWNA);
+            Log::Info(std::format(
+                "Node window {} covers its monitor: made non-activatable so it stays in desktop composition "
+                "(node window transparency and opacity fades)", i));
+        }
+
+        // Something can still activate it programmatically; report it once per occurrence.
+        if (handle == GetForegroundWindow()) {
+            coveringWindowFocused = true;
+            if (reportedFocus != handle) {
+                reportedFocus = handle;
+                Log::Warning(std::format(
+                    "Node window {} has the keyboard focus while it covers its monitor: transparency and "
+                    "opacity fades may not show until another window is activated", i));
+            }
+        }
+    }
+    if (!coveringWindowFocused)
+        reportedFocus = nullptr;
 }
 #endif // WIN32
 
@@ -1160,6 +1336,7 @@ static void postSyncPreDraw() {
 
 #ifdef WIN32
         assertNodeWindowsTopmost();
+        keepNodeWindowsComposed(false);
 #endif // WIN32
 
         if (!backgroundImageLayer || !foregroundImageLayer || !overlayImageLayer
@@ -1634,11 +1811,17 @@ static void draw(const RenderData &data) {
     // content keeps its own per-pixel alpha.
     // In background color mode the color, faded by the background visibility, is drawn over
     // that clear in the same pass (premultiplied, as rendered content).
+    // "Hide instead of fading" keeps the clear opaque and fades everything to black with the
+    // opacity instead (the windows are hidden at 0, see syncNodeWindowFeatures()).
+    const bool hideInsteadOfFade = SyncHelper::instance().variables.windowHideInsteadOfFade;
+    const float fadeToBlack = hideInsteadOfFade ?
+        std::clamp(SyncHelper::instance().variables.windowOpacity, 0.f, 1.f) : 1.f;
     glEnable(GL_SCISSOR_TEST);
-    float clearAlpha = nodeWindowContentBased ? SyncHelper::instance().variables.windowOpacity : 1.f;
+    float clearAlpha = nodeWindowContentBased && !hideInsteadOfFade ?
+        SyncHelper::instance().variables.windowOpacity : 1.f;
     if (nodeBackgroundColorShown) {
         const int rgb = SyncHelper::instance().variables.bgColor;
-        const float a = std::clamp(SyncHelper::instance().variables.alphaBg, 0.f, 1.f);
+        const float a = std::clamp(SyncHelper::instance().variables.alphaBg, 0.f, 1.f) * fadeToBlack;
         clearAlpha = a + clearAlpha * (1.f - a);
         glClearColor(float((rgb >> 16) & 0xFF) / 255.f * a,
                      float((rgb >> 8) & 0xFF) / 255.f * a,
@@ -1652,6 +1835,7 @@ static void draw(const RenderData &data) {
     glDisable(GL_SCISSOR_TEST);
 
     // Render layers
+    layerRender->setGlobalAlpha(fadeToBlack);
     layerRender->renderLayers(data,
                               SyncHelper::instance().variables.viewMode,
                               float(SyncHelper::instance().variables.angle));
@@ -1662,6 +1846,8 @@ static void draw(const RenderData &data) {
 static void postDraw() {
     if (shuttingDown || Engine::instance().isMaster() || !layerRender)
         return;
+
+    throttleWhileHidden();
 
     // Report swap to all enabled layers for MPV frame sync
     for (auto &layer : layerRender->getLayers()) {
@@ -1928,6 +2114,17 @@ int main(int argc, char *argv[]) {
         if (nodeId < 0 || static_cast<size_t>(nodeId) >= clusterConfig.nodes.size()) {
             return;
         }
+
+#ifdef WIN32
+        // Node windows do not take the keyboard focus when they are created: drivers stop
+        // compositing a focused window that covers its monitor (see keepNodeWindowsComposed).
+        // GLFW focuses fullscreen windows regardless of these hints. Nodes using swap groups
+        // keep the default focus behaviour.
+        if (!clusterConfig.nodes[static_cast<size_t>(nodeId)].swapLock.value_or(false)) {
+            glfwWindowHint(GLFW_FOCUSED, GLFW_FALSE);
+            glfwWindowHint(GLFW_FOCUS_ON_SHOW, GLFW_FALSE);
+        }
+#endif // WIN32
 
         if (nodeWindowContentBased &&
             !ConfigModel::instance().nodeHasFullScreenWindow(nodeId)) {

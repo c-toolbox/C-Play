@@ -661,6 +661,9 @@ public:
         bool windowOnTop;
         float windowOpacity;
         bool windowOpacityContentBased;
+        // Nodes fade their content to black and hide their windows instead of using
+        // window transparency (works without desktop composition).
+        bool windowHideInsteadOfFade;
         bool takeScreenshot;
         std::string screenshotPath;
         bool captureBackBuffer;
@@ -803,6 +806,7 @@ public:
         /*windowOnTop*/ false,
         /*windowOpacity*/ 1.f,
         /*windowOpacityContentBased*/ false,
+        /*windowHideInsteadOfFade*/ false,
         /*takeScreenshot*/ false,
         /*screenshotPath*/ "",
         /*captureBackBuffer*/ false,

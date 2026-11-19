@@ -127,6 +127,10 @@
       <label>How the node window opacity is applied: false = complete-window (uniform whole-window fade), true = content-based (alpha channel and clear color). Changing this requires restarting connected nodes.</label>
       <default>false</default>
     </entry>
+    <entry name="WindowHideInsteadOfFade" type="bool">
+      <label>Fade the node output to black and hide the node windows instead of fading their transparency. Works without desktop transparency; applies at once.</label>
+      <default>false</default>
+    </entry>
     <entry name="FloatingWindowShowsMainVideoLayer" type="bool">
       <default>true</default>
     </entry>

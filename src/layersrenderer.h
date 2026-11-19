@@ -36,8 +36,13 @@ public:
                      const BaseLayer* fxSource = nullptr);
     void renderLayers(const sgct::RenderData& data, int viewMode, float angle);
 
+    // Multiplies the alpha of every layer drawn after it, so the layers fade into the
+    // cleared background (black when fading the node output to black). 1 = no change.
+    void setGlobalAlpha(float alpha) { globalAlpha = alpha; }
+
 private:
     std::vector<std::shared_ptr<BaseLayer>> layers2render;
+    float globalAlpha = 1.f;
 
     double meshRadius;
     double meshFov;

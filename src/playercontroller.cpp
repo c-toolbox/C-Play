@@ -185,6 +185,7 @@ PlayerController::PlayerController(QObject *parent)
 
     setNodeWindowsOnTop(UserInterfaceSettings::windowOnTopAtStartup());
     setNodeWindowOpacityContentBased(UserInterfaceSettings::windowOpacityContentBased());
+    setNodeWindowsHideInsteadOfFade(UserInterfaceSettings::windowHideInsteadOfFade());
 
     // Restore the persisted node-telemetry toggle (master only; the manager ignores it on nodes).
     NodeTelemetryManager::instance().setIntervalMs(LoggingSettings::nodeTelemetryInterval());
@@ -1315,6 +1316,19 @@ void PlayerController::setNodeWindowOpacityContentBased(bool value) {
     SyncHelper::instance().variables.playerControllerNeedSync = true;
 
     Q_EMIT nodeWindowOpacityContentBasedChanged();
+}
+
+bool PlayerController::nodeWindowsHideInsteadOfFade() {
+    return SyncHelper::instance().variables.windowHideInsteadOfFade;
+}
+
+void PlayerController::setNodeWindowsHideInsteadOfFade(bool value) {
+    // Unlike the opacity mode this applies at once: nodes switch between hiding and window
+    // transparency on the next synced frame, no restart needed.
+    SyncHelper::instance().variables.windowHideInsteadOfFade = value;
+    SyncHelper::instance().variables.playerControllerNeedSync = true;
+
+    Q_EMIT nodeWindowsHideInsteadOfFadeChanged();
 }
 
 bool PlayerController::syncProperties() {
