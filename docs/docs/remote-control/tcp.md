@@ -45,7 +45,7 @@ When no saved `C-Play/tcp-control.json` exists and legacy TCP control is disable
 
 Set the host to the Showmaster Editor computer during programming or the Showmaster address during standalone operation. Replace `MyTask` with your task name, enable the server, and save it in **TCP control**. Medialon's LLC device must listen on port 9000 and dispatch received commands to project tasks.
 
-Predefined entries load into memory; saving a server or command writes the complete configuration to the user configuration path. That saved file takes precedence on later starts, even when empty or invalid. To use edited predefined entries again, back up and move the saved file out of that path before restarting. Keep IDs stable when editing examples so presentation layers retain their command references. Startup loads definitions and connects enabled servers; it does not automatically trigger commands.
+Predefined entries load into memory; saving a server or command writes the complete configuration to the user configuration path. That saved file takes precedence on later starts, even when empty or invalid. To use edited predefined entries again, back up and move the saved file out of that path before restarting. Keep IDs stable when editing examples so presentation layers retain their command references. Startup loads definitions and connects enabled servers that have `connectOnStartup`; it does not automatically trigger commands.
 
 Server fields in the JSON file are:
 
@@ -54,6 +54,7 @@ Server fields in the JSON file are:
 | `id`, `name` | derived `host:port`, required name | Endpoint identity and display name; IPv6 IDs use `[address]:port`. |
 | `host`, `port` | required | Server hostname/IP and TCP port, 1–65535. |
 | `enabled` | `true` | Maintain this connection when the master is ready. |
+| `connectOnStartup` | `true` | Connect automatically at startup and when the master becomes ready. When `false`, the server stays disconnected until **Connect**, `POST /tcp/connect`, or the TCP `/tcp/connect` action; saving keeps its current connection state. Requires `enabled`. |
 | `acceptControlCommands` | `false` | Interpret incoming frames as C-Play JSON commands. Leave off for device replies. |
 | `autoReconnect` | `true` | Retry failed connections and remote disconnects. |
 | `connectTimeoutMs` | `5000` | Timeout for hostname lookup/connection, and graceful disconnect. |

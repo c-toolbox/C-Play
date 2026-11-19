@@ -85,6 +85,8 @@ private:
     static TcpControlClient::Options options(const QVariantMap &server);
     bool persist(const QVariantList &servers, const QVariantList &commands);
     void reconcile();
+    // Servers with connectOnStartup=false start stopped until connectServer().
+    void resetManualStops();
     void error(const QString &description);
     void publishEvent(const QJsonObject &event);
     // skipUnchanged drops a time-formatted payload equal to the last one sent by that command.

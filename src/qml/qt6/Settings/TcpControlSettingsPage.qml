@@ -33,6 +33,7 @@ SettingsBasePage {
         host.text = s ? s.host : "";
         port.value = s ? s.port : 7008;
         enabled.checked = s ? s.enabled : true;
+        connectOnStartup.checked = s ? s.connectOnStartup !== false : true;
         acceptControl.checked = s ? s.acceptControlCommands : false;
         serverEventTopics.text = s && s.eventTopics ? s.eventTopics.join(", ") : "";
         reconnect.checked = s ? s.autoReconnect : true;
@@ -49,7 +50,8 @@ SettingsBasePage {
     function saveServer() {
         var previousId = serverId;
         var id = manager.saveServer({id: serverId, name: serverName.text, host: host.text,
-            port: port.value, enabled: enabled.checked, acceptControlCommands: acceptControl.checked,
+            port: port.value, enabled: enabled.checked,
+            connectOnStartup: connectOnStartup.checked, acceptControlCommands: acceptControl.checked,
             eventTopics: topics(serverEventTopics.text),
             autoReconnect: reconnect.checked, framing: framing.currentIndex,
             receiveTerminatorHex: receiveHex.text, sendTerminatorHex: sendHex.text,
@@ -73,7 +75,10 @@ SettingsBasePage {
         charsPerItem.value = c && c.charsPerItem ? c.charsPerItem : 0;
         timeFormat.text = c && c.timeFormat ? c.timeFormat : "";
     }
-    Component.onCompleted: { editServer(null); editCommand(null); }
+    Component.onCompleted: {
+        editServer(manager.servers.length ? manager.servers[0] : null);
+        editCommand(null);
+    }
     Connections {
         target: root.manager
         function onCommandTriggered(id, accepted) {
@@ -143,6 +148,11 @@ SettingsBasePage {
             DeferredSpinBox { id: port; from: 1; to: 65535; editable: true }
             Label { text: qsTr("Enabled:") }
             CheckBox { id: enabled }
+            Label { text: qsTr("Connect on startup:") }
+            CheckBox {
+                id: connectOnStartup; enabled: enabled.checked
+                text: qsTr("Otherwise connect manually, via REST or via TCP control")
+            }
             Label { text: qsTr("Receive C-Play control commands:") }
             CheckBox { id: acceptControl; text: qsTr("Parse incoming JSON commands") }
             Label { text: qsTr("Send change notifications:") }

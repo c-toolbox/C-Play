@@ -146,6 +146,7 @@ bool TcpControlManager::normalizeServer(const QVariantMap &input, QVariantMap &o
         {QStringLiteral("id"), id}, {QStringLiteral("name"), input.value(QStringLiteral("name")).toString().trimmed()},
         {QStringLiteral("host"), o.host.trimmed()}, {QStringLiteral("port"), o.port},
         {QStringLiteral("enabled"), input.value(QStringLiteral("enabled"), true).toBool()},
+        {QStringLiteral("connectOnStartup"), input.value(QStringLiteral("connectOnStartup"), true).toBool()},
         {QStringLiteral("eventTopics"), topics},
         {QStringLiteral("acceptControlCommands"), input.value(QStringLiteral("acceptControlCommands"), false).toBool()},
         {QStringLiteral("autoReconnect"), o.autoReconnect}, {QStringLiteral("connectTimeoutMs"), o.connectTimeoutMs},
@@ -283,7 +284,7 @@ bool TcpControlManager::loadConfiguration(const QString &sourcePath) {
     if (idsChanged && sourcePath.isEmpty() && !persist(servers, commands)) return false;
     m_servers = servers;
     m_commands = commands;
-    m_manualStops.clear();
+    resetManualStops();
     m_subscriptions.clear();
     m_lastError.clear();
     reconcile();
@@ -323,13 +324,18 @@ QString TcpControlManager::saveServer(const QVariantMap &profile) {
     if (index < 0) servers.append(server); else servers[index] = server;
     if (!persist(servers, commands))
         return {};
+    // Servers without connectOnStartup keep their current connection state when edited.
+    const auto *previous = m_clients.value(index >= 0 ? oldId : id);
+    const bool wasRunning = previous && previous->connectionState() != TcpControlClient::Stopped
+        && previous->connectionState() != TcpControlClient::Disconnecting;
     m_servers = servers;
     m_commands = commands;
     if (oldId != id) {
         m_manualStops.remove(oldId);
         m_subscriptions.remove(oldId);
     }
-    m_manualStops.remove(id);
+    if (server.value(QStringLiteral("connectOnStartup")).toBool() || wasRunning) m_manualStops.remove(id);
+    else m_manualStops.insert(id);
     if (!server.value(QStringLiteral("acceptControlCommands")).toBool()) m_subscriptions.remove(id);
     reconcile();
     Q_EMIT serversChanged();
@@ -413,9 +419,18 @@ void TcpControlManager::setActive(bool active) {
     m_active = active;
     if (!active) m_listener->stop();
     if (active)
-        m_manualStops.clear();
+        resetManualStops();
     reconcile();
     Q_EMIT activeChanged();
+}
+
+void TcpControlManager::resetManualStops() {
+    m_manualStops.clear();
+    for (const auto &value : m_servers) {
+        const auto server = value.toMap();
+        if (!server.value(QStringLiteral("connectOnStartup"), true).toBool())
+            m_manualStops.insert(server.value(QStringLiteral("id")).toString());
+    }
 }
 
 void TcpControlManager::reconcile() {
