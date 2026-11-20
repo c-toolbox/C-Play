@@ -97,6 +97,8 @@ SettingsBasePage {
         incomingCommandServerId = p && p.commandServerId ? p.commandServerId
             : (manager.servers.length ? manager.servers[0].id : "");
         incomingSendHex.text = p ? p.sendTerminatorHex : "0a";
+        incomingReplies.checked = p ? p.sendReplies !== false : true;
+        incomingInitialUpdate.checked = p ? p.sendInitialUpdate !== false : true;
     }
     function setIncomingTopic(topic, subscribed) {
         var excluded = incomingExcluded.filter(function(value) { return value !== topic; });
@@ -109,7 +111,8 @@ SettingsBasePage {
             eventTopics: incomingSubscribe.checked ? ["*"] : [],
             excludedTopics: incomingSubscribe.checked ? incomingExcluded : [],
             eventFormat: incomingFormat.currentIndex === 1 ? "commands" : "json",
-            commandServerId: incomingCommandServerId, sendTerminatorHex: incomingSendHex.text});
+            commandServerId: incomingCommandServerId, sendTerminatorHex: incomingSendHex.text,
+            sendReplies: incomingReplies.checked, sendInitialUpdate: incomingInitialUpdate.checked});
         if (id !== "") incomingId = id;
     }
     Component.onCompleted: {
@@ -230,6 +233,11 @@ SettingsBasePage {
                         : qsTr("Clients wait for /subscribe.")
                 }
             }
+            Label { text: qsTr("Update on connect:") }
+            CheckBox {
+                id: incomingInitialUpdate; enabled: incomingSubscribe.checked
+                text: qsTr("Send the current values when the client connects (turn off for clients that reconnect often; they request /full_update)")
+            }
             Label { text: qsTr("Update format:") }
             ComboBox { id: incomingFormat; Layout.fillWidth: true; model: [qsTr("JSON notifications"), qsTr("Event commands of a TCP server")] }
             Label { text: qsTr("Command structure from:") }
@@ -241,6 +249,11 @@ SettingsBasePage {
             }
             Label { text: qsTr("Send terminator (hex):") }
             TextField { id: incomingSendHex; Layout.fillWidth: true; placeholderText: qsTr("0a = LF, 0d = CR (Medialon)") }
+            Label { text: qsTr("Replies:") }
+            CheckBox {
+                id: incomingReplies
+                text: qsTr("Reply to every action with a JSON result (turn off for Medialon, which only needs the updates)")
+            }
         }
         RowLayout {
             Button { text: qsTr("Save client profile"); onClicked: root.saveIncoming() }

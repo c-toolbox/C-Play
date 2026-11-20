@@ -232,7 +232,7 @@ python help/http_server/generate_control_client.py --address 192.168.1.10 --port
 
 Import `help/http_server/CPlay_Control_Client.mllc` into Medialon's Low Level Communicator drivers and create a device using **C-Play TCP Control Client**. Set the address to the C-Play master. The checked-in driver defaults to `127.0.0.1:7008`. It uses TCP/IP Client mode with auto reconnection, and exposes one command for each REST action.
 
-The driver is full duplex. Besides the commands, it contains the monitoring variables of `data/EventModel.json` (`CPlay_volume`, `CPlay_playlist`, …, the same variables as **C-Play Control Events**) and a `Last_Reply` variable with the latest reply. Its received frames end at CR (`!0D`). C-Play only sends that structure to a client whose [incoming client profile](#subscriptions-and-incoming-client-profiles) uses the event commands of a server with the EventModel commands and the send terminator `0d`. The packaged default profile does this for every client. With a saved configuration whose default profile still sends JSON, edit the default profile, or add a profile for the Medialon computer's address, in **TCP control**. Generator options:
+The driver is full duplex. Besides the commands, it contains the monitoring variables of `data/EventModel.json` (`CPlay_volume`, `CPlay_playlist`, …, the same variables as **C-Play Control Events**) and a `Last_Reply` variable with the latest reply. Its received frames end at CR (`!0D`). C-Play only sends that structure to a client whose [incoming client profile](#subscriptions-and-incoming-client-profiles) uses the event commands of a server with the EventModel commands and the send terminator `0d`. Turn off the profile's replies (`sendReplies: false`): Medialon tests every received frame against its monitoring variables, and an action reply between updates can briefly set a variable such as `CPlay_volume` to 0, for example while a slider sends volume commands. `Last_Reply` then stays empty. The packaged default profile does all this for every client. With a saved configuration whose default profile still sends JSON, edit the default profile, or add a profile for the Medialon computer's address, in **TCP control**. Generator options:
 
 | Option | Default | Meaning |
 | --- | --- | --- |
@@ -303,6 +303,8 @@ What a client receives depends on the **incoming client profile** for its addres
 | `eventFormat` | `json` | `json`: the `change` notifications and `snapshot` objects of the [outgoing client's subscriptions](#subscribe-and-query-over-tcp). `commands`: the event commands of the server `commandServerId`. |
 | `commandServerId` | — | Required for `commands`. Every reusable command of this server with **Trigger on changes** topics is sent to the client for those topics, exactly as it is sent to that server: same payload prefix, appended value, `charsPerItem`, `timeFormat` and exact-wire-bytes setting. The server itself may be disabled; it then only defines the structure. |
 | `sendTerminatorHex` | `0a` | Terminator of every reply and update sent to the client, for example `0a` (LF) or `0d` (CR, for the Medialon driver). May be empty. |
+| `sendInitialUpdate` | `true` | Send the current values of the `eventTopics` subscription when the client connects. Turn off for clients that disconnect and reconnect often: each connection then only receives changes, and the client requests the current values with `/full_update` when it needs them. An explicit `/subscribe` always sends the current values. |
+| `sendReplies` | `true` | Reply to every action, including `/subscribe`, `/unsubscribe` and `/full_update`, with its JSON result. Turn off for clients that only need the updates, such as the Medialon driver. Updates are always sent. |
 
 With the `commands` format, a subscription to `volume` sends `cplay volume 75` followed by the terminator for the packaged Medialon commands. An initial value, a full update, or `/subscribe` for all topics sends each event command of the requested topics once, like the [full update](#layer-states) of a server. Automatic value commands are only sent when their final payload changes, per client. A `layers` command with a positive `charsPerItem` is also checked when `triggered_slide` changes and sent if its text changes. In JSON format, the initial values and full updates are one `snapshot` object, and changes are `change` notifications.
 
@@ -319,7 +321,8 @@ Profiles are saved in the `incomingClients` array of `tcp-control.json`:
       "excludedTopics": ["position", "remaining"],
       "eventFormat": "commands",
       "commandServerId": "127.0.0.1:9000",
-      "sendTerminatorHex": "0d"
+      "sendTerminatorHex": "0d",
+      "sendReplies": false
     }
   ]
 }

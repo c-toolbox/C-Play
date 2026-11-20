@@ -132,7 +132,7 @@ private:
     void applyIncomingProfiles();
     void applyIncomingProfile(quint64 session);
     std::optional<QJsonObject> handleIncomingRequest(quint64 session, const QString &path, const QJsonObject &parameters);
-    void subscribeIncoming(quint64 session, const QStringList &topics);
+    void subscribeIncoming(quint64 session, const QStringList &topics, bool sendValues = true);
     void sendIncomingUpdate(quint64 session, const QStringList &topics);
     void sendIncomingEvent(quint64 session, const QJsonObject &event);
     void sendIncomingCommand(quint64 session, const QVariantMap &command, const QJsonObject &event, bool skipUnchanged);

@@ -41,6 +41,8 @@ public:
     bool send(quint64 session, const QByteArray &payload, bool raw = false);
     // Terminator of replies and pushed updates; LF by default.
     void setTerminator(quint64 session, const QByteArray &terminator);
+    // Whether action replies are written to the session; pushed updates are always sent.
+    void setRepliesEnabled(quint64 session, bool enabled);
     static constexpr qsizetype MaximumMessageBytes = 65536;
     static constexpr qsizetype MaximumPendingWriteBytes = 1048576;
 Q_SIGNALS:
@@ -53,6 +55,7 @@ private:
         quint64 id = 0;
         QByteArray buffer;
         QByteArray terminator = QByteArray("\n");
+        bool replies = true;
     };
     QJsonObject execute(quint64 session, const QByteArray &line);
     void receive(QTcpSocket *socket);

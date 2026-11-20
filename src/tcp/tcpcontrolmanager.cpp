@@ -100,8 +100,11 @@ TcpControlManager::TcpControlManager(QObject *parent, const QString &path)
         m_sessions.insert(id, session);
         applyIncomingProfile(id);
         // A profile can subscribe its clients on connect, like a server's notification topics.
-        const auto topics = connectTopics(m_sessions.value(id).profile);
-        if (!topics.isEmpty()) subscribeIncoming(id, topics);
+        // Without an initial update, frequently reconnecting clients request values with /full_update.
+        const auto profile = m_sessions.value(id).profile;
+        const auto topics = connectTopics(profile);
+        if (!topics.isEmpty())
+            subscribeIncoming(id, topics, profile.value(QStringLiteral("sendInitialUpdate"), true).toBool());
         Q_EMIT incomingSessionsChanged();
     });
     connect(m_listener, &TcpControlServer::clientDisconnected, this, [this](quint64 id) {
@@ -288,7 +291,9 @@ bool TcpControlManager::normalizeIncomingClient(const QVariantMap &input, const 
     output = { {QStringLiteral("id"), address}, {QStringLiteral("name"), name},
         {QStringLiteral("address"), address}, {QStringLiteral("enabled"), isDefault || input.value(QStringLiteral("enabled"), true).toBool()},
         {QStringLiteral("eventTopics"), topics}, {QStringLiteral("eventFormat"), format},
-        {QStringLiteral("sendTerminatorHex"), sendHex.toLower()} };
+        {QStringLiteral("sendTerminatorHex"), sendHex.toLower()},
+        {QStringLiteral("sendReplies"), input.value(QStringLiteral("sendReplies"), true).toBool()},
+        {QStringLiteral("sendInitialUpdate"), input.value(QStringLiteral("sendInitialUpdate"), true).toBool()} };
     if (!excluded.isEmpty()) output.insert(QStringLiteral("excludedTopics"), excluded);
     if (format == QStringLiteral("commands")) output.insert(QStringLiteral("commandServerId"), commandServerId);
     return true;
@@ -298,7 +303,8 @@ QVariantMap TcpControlManager::builtInIncomingClient() {
     return { {QStringLiteral("id"), defaultIncomingClientId()}, {QStringLiteral("name"), tr("Default profile")},
         {QStringLiteral("address"), defaultIncomingClientId()}, {QStringLiteral("enabled"), true},
         {QStringLiteral("eventTopics"), QStringList{QStringLiteral("*")}}, {QStringLiteral("eventFormat"), QStringLiteral("json")},
-        {QStringLiteral("sendTerminatorHex"), QStringLiteral("0a")} };
+        {QStringLiteral("sendTerminatorHex"), QStringLiteral("0a")}, {QStringLiteral("sendReplies"), true},
+        {QStringLiteral("sendInitialUpdate"), true} };
 }
 
 QVariantList TcpControlManager::withDefaultIncomingClient(QVariantList incomingClients) {
@@ -810,11 +816,20 @@ void TcpControlManager::publishEvent(const QJsonObject &event) {
             && (matches(server.value(QStringLiteral("eventTopics")).toStringList()) || matches(m_subscriptions.value(id))))
             sendEventMessage(id, event);
     }
+    // Automatic dispatch skips disabled or disconnected servers without an error; such a server may
+    // only define the structure for incoming clients, and a full update follows every (re)connect.
+    const auto serverReady = [this](const QVariantMap &command) {
+        const QString serverId = command.value(QStringLiteral("serverId")).toString();
+        const int index = find(m_servers, serverId);
+        const auto *client = m_clients.value(serverId);
+        return index >= 0 && m_servers.at(index).toMap().value(QStringLiteral("enabled")).toBool()
+            && client && client->isConnected();
+    };
     // Work on a copy: commandTriggered handlers can edit configuration.
     const auto commands = m_commands;
     for (const auto &value : commands) {
         const auto command = value.toMap();
-        if (matches(command.value(QStringLiteral("eventTopics")).toStringList()))
+        if (matches(command.value(QStringLiteral("eventTopics")).toStringList()) && serverReady(command))
             dispatchCommand(command.value(QStringLiteral("id")).toString(), event, true);
     }
     // Iterate IDs: sending can disconnect a slow client, which removes its session.
@@ -826,7 +841,7 @@ void TcpControlManager::publishEvent(const QJsonObject &event) {
             const auto command = value.toMap();
             if (command.value(QStringLiteral("eventPayload")).toString() == QStringLiteral("value")
                 && command.value(QStringLiteral("charsPerItem")).toInt() > 0
-                && command.value(QStringLiteral("eventTopics")).toStringList().contains(dependent))
+                && command.value(QStringLiteral("eventTopics")).toStringList().contains(dependent) && serverReady(command))
                 dispatchCommand(command.value(QStringLiteral("id")).toString(), {}, true);
         }
         for (const auto session : sessions) {
@@ -1016,6 +1031,9 @@ void TcpControlManager::applyIncomingProfile(quint64 id) {
     const bool resubscribe = !it->profile.isEmpty() && connectTopics(profile) != connectTopics(it->profile);
     it->profile = profile;
     m_listener->setTerminator(id, QByteArray::fromHex(profile.value(QStringLiteral("sendTerminatorHex"), QStringLiteral("0a")).toByteArray()));
+    // Clients such as Medialon parse every received frame against their monitored values;
+    // without replies they only receive the updates.
+    m_listener->setRepliesEnabled(id, profile.value(QStringLiteral("sendReplies"), true).toBool());
     if (resubscribe) {
         it->topics.clear();
         const auto topics = connectTopics(profile);
@@ -1076,13 +1094,14 @@ std::optional<QJsonObject> TcpControlManager::handleIncomingRequest(quint64 id, 
     return reply(200, tr("Full update"), topics);
 }
 
-void TcpControlManager::subscribeIncoming(quint64 id, const QStringList &topics) {
+void TcpControlManager::subscribeIncoming(quint64 id, const QStringList &topics, bool sendValues) {
     const auto it = m_sessions.find(id);
     if (it == m_sessions.end()) return;
     if (topics.contains(QStringLiteral("*"))) it->topics = {QStringLiteral("*")};
     else if (!it->topics.contains(QStringLiteral("*")))
         for (const auto &topic : topics) if (!it->topics.contains(topic)) it->topics.append(topic);
     Q_EMIT incomingSessionsChanged();
+    if (!sendValues) return;
     // The subscriber starts from the current values; queued so a reply is written first.
     QMetaObject::invokeMethod(this, [this, id, topics] { sendIncomingUpdate(id, topics); }, Qt::QueuedConnection);
 }

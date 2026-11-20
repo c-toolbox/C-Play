@@ -105,6 +105,11 @@ void TcpControlServer::setTerminator(quint64 session, const QByteArray &terminat
     if (it != m_sessions.end()) it->terminator = terminator;
 }
 
+void TcpControlServer::setRepliesEnabled(quint64 session, bool enabled) {
+    const auto it = m_sessions.find(m_sockets.value(session));
+    if (it != m_sessions.end()) it->replies = enabled;
+}
+
 void TcpControlServer::receive(QTcpSocket *socket) {
     auto it = m_sessions.find(socket);
     if (it == m_sessions.end()) return;
@@ -119,7 +124,10 @@ void TcpControlServer::receive(QTcpSocket *socket) {
         QByteArray line = it->buffer.left(newline);
         it->buffer.remove(0, newline + 1);
         if (line.endsWith('\r')) line.chop(1);
-        if (!send(id, QJsonDocument(execute(id, line)).toJson(QJsonDocument::Compact))) return;
+        const auto reply = execute(id, line);
+        it = m_sessions.find(socket);
+        if (it == m_sessions.end()) return;
+        if (it->replies && !send(id, QJsonDocument(reply).toJson(QJsonDocument::Compact))) return;
     }
     if (it->buffer.size() > MaximumMessageBytes) { drop(socket); return; }
     const QPointer<QTcpSocket> guarded(socket);

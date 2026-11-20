@@ -547,7 +547,8 @@
             ],
             "eventFormat": "commands",
             "commandServerId": "127.0.0.1:9000",
-            "sendTerminatorHex": "0d"
+            "sendTerminatorHex": "0d",
+            "sendReplies": false
         }
     ]
 }
