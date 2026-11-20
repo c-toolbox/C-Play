@@ -404,6 +404,7 @@ bool TcpControlManager::loadConfiguration(const QString &sourcePath) {
     if (idsChanged && sourcePath.isEmpty() && !persist(servers, commands, incomingClients)) return false;
     m_servers = servers;
     m_commands = commands;
+    clearCommandPayloads();
     m_incomingClients = withDefaultIncomingClient(incomingClients);
     applyIncomingProfiles();
     resetManualStops();
@@ -461,6 +462,7 @@ QString TcpControlManager::saveServer(const QVariantMap &profile) {
         && previous->connectionState() != TcpControlClient::Disconnecting;
     m_servers = servers;
     m_commands = commands;
+    if (oldId != id) clearCommandPayloads();
     if (m_incomingClients != incomingClients) {
         m_incomingClients = incomingClients;
         applyIncomingProfiles();
@@ -525,6 +527,7 @@ QString TcpControlManager::saveCommand(const QVariantMap &input) {
     if (!persist(m_servers, commands))
         return {};
     m_commands = commands;
+    clearCommandPayloads(id);
     Q_EMIT commandsChanged();
     return id;
 }
@@ -538,6 +541,7 @@ bool TcpControlManager::removeCommand(const QString &id) {
     if (!persist(m_servers, commands))
         return false;
     m_commands = commands;
+    clearCommandPayloads(id);
     Q_EMIT commandsChanged();
     return true;
 }
@@ -712,9 +716,16 @@ QVariantMap TcpControlManager::triggerAll(const QString &serverId) {
         {QStringLiteral("rejected"), rejected}, {QStringLiteral("message"), failure}};
 }
 
-std::optional<QByteArray> TcpControlManager::commandPayload(const QVariantMap &item, const QJsonObject &event,
-    const QByteArray &previous, bool &unchanged) {
-    unchanged = false;
+void TcpControlManager::clearCommandPayloads(const QString &id) {
+    if (id.isEmpty()) m_lastValuePayloads.clear();
+    else m_lastValuePayloads.remove(id);
+    for (auto &session : m_sessions) {
+        if (id.isEmpty()) session.lastValuePayloads.clear();
+        else session.lastValuePayloads.remove(id);
+    }
+}
+
+std::optional<QByteArray> TcpControlManager::commandPayload(const QVariantMap &item, const QJsonObject &event) {
     QByteArray payload = item.value(QStringLiteral("encoding")).toString() == QStringLiteral("hex")
         ? QByteArray::fromHex(item.value(QStringLiteral("payload")).toByteArray()) : item.value(QStringLiteral("payload")).toString().toUtf8();
     if (item.value(QStringLiteral("eventPayload")).toString() != QStringLiteral("value"))
@@ -732,8 +743,6 @@ std::optional<QByteArray> TcpControlManager::commandPayload(const QVariantMap &i
     const QString timeFormat = item.value(QStringLiteral("timeFormat")).toString();
     if (!timeFormat.isEmpty() && value.isDouble()) {
         payload += formatSeconds(value.toDouble(), timeFormat);
-        // Position is sampled every 100 ms; a coarser format only sends when its text changes.
-        unchanged = previous == payload;
     } else {
         // Lists use the REST formatters so TCP and REST send identical text. The formatter
         // returns nullopt for width 0 except for topics with a text form at every width.
@@ -753,18 +762,19 @@ bool TcpControlManager::dispatchCommand(const QString &id, const QJsonObject &ev
         || !m_servers.at(serverIndex).toMap().value(QStringLiteral("enabled")).toBool() || !client->isConnected()) {
         error(tr("TCP command rejected: missing command or server is disabled/disconnected"));
     } else {
-        bool unchanged = false;
-        const auto payload = commandPayload(item, event, m_lastTimePayloads.value(id), unchanged);
+        const auto payload = commandPayload(item, event);
         if (!payload) {
             error(tr("Event value is unavailable"));
             Q_EMIT commandTriggered(id, false);
             return false;
         }
-        if (skipUnchanged && unchanged) return true;
+        const bool isValue = item.value(QStringLiteral("eventPayload")).toString() == QStringLiteral("value");
+        if (skipUnchanged && isValue && m_lastValuePayloads.contains(id) && m_lastValuePayloads.value(id) == *payload)
+            return true;
         accepted = item.value(QStringLiteral("raw")).toBool() ? client->sendBinary(*payload) : client->sendMessage(*payload);
         if (!accepted) error(client->lastError());
         else { m_lastError.clear(); Q_EMIT lastErrorChanged(); }
-        if (accepted && item.contains(QStringLiteral("timeFormat"))) m_lastTimePayloads.insert(id, *payload);
+        if (accepted && isValue) m_lastValuePayloads.insert(id, *payload);
     }
     Q_EMIT commandTriggered(id, accepted);
     return accepted;
@@ -817,7 +827,7 @@ void TcpControlManager::publishEvent(const QJsonObject &event) {
             if (command.value(QStringLiteral("eventPayload")).toString() == QStringLiteral("value")
                 && command.value(QStringLiteral("charsPerItem")).toInt() > 0
                 && command.value(QStringLiteral("eventTopics")).toStringList().contains(dependent))
-                dispatchCommand(command.value(QStringLiteral("id")).toString(), {});
+                dispatchCommand(command.value(QStringLiteral("id")).toString(), {}, true);
         }
         for (const auto session : sessions) {
             const auto it = m_sessions.constFind(session);
@@ -828,7 +838,7 @@ void TcpControlManager::publishEvent(const QJsonObject &event) {
                 if (command.value(QStringLiteral("eventPayload")).toString() == QStringLiteral("value")
                     && command.value(QStringLiteral("charsPerItem")).toInt() > 0
                     && command.value(QStringLiteral("eventTopics")).toStringList().contains(dependent))
-                    sendIncomingCommand(session, command, {}, false);
+                    sendIncomingCommand(session, command, {}, true);
             }
         }
     }
@@ -882,6 +892,7 @@ bool TcpControlManager::importEventModel(const QString &serverId, const QString 
     }
     if (!persist(m_servers, commands)) return false;
     m_commands = commands;
+    clearCommandPayloads();
     Q_EMIT commandsChanged();
     return true;
 }
@@ -1000,7 +1011,7 @@ void TcpControlManager::applyIncomingProfile(quint64 id) {
     const auto it = m_sessions.find(id);
     if (it == m_sessions.end()) return;
     const auto profile = incomingClientProfile(it->address);
-    if (profile != it->profile) it->lastTimePayloads.clear();
+    if (profile != it->profile) it->lastValuePayloads.clear();
     // Connected clients follow a changed on-connect subscription, replacing their own subscriptions.
     const bool resubscribe = !it->profile.isEmpty() && connectTopics(profile) != connectTopics(it->profile);
     it->profile = profile;
@@ -1117,12 +1128,14 @@ void TcpControlManager::sendIncomingCommand(quint64 id, const QVariantMap &comma
     const auto it = m_sessions.constFind(id);
     if (it == m_sessions.cend()) return;
     const QString commandId = command.value(QStringLiteral("id")).toString();
-    bool unchanged = false;
-    const auto payload = commandPayload(command, event, it->lastTimePayloads.value(commandId), unchanged);
-    if (!payload || (skipUnchanged && unchanged)) return;
+    const auto payload = commandPayload(command, event);
+    if (!payload) return;
+    const bool isValue = command.value(QStringLiteral("eventPayload")).toString() == QStringLiteral("value");
+    if (skipUnchanged && isValue && it->lastValuePayloads.contains(commandId) && it->lastValuePayloads.value(commandId) == *payload)
+        return;
     // A client that does not read its updates is disconnected, which removes its session.
     if (!m_listener->send(id, *payload, command.value(QStringLiteral("raw")).toBool())) return;
     const auto session = m_sessions.find(id);
-    if (session != m_sessions.end() && command.contains(QStringLiteral("timeFormat")))
-        session->lastTimePayloads.insert(commandId, *payload);
+    if (session != m_sessions.end() && isValue)
+        session->lastValuePayloads.insert(commandId, *payload);
 }

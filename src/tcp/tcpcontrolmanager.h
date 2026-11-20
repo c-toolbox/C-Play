@@ -111,12 +111,13 @@ private:
     void resetManualStops();
     void error(const QString &description);
     void publishEvent(const QJsonObject &event);
-    // skipUnchanged drops a time-formatted payload equal to the last one sent by that command.
+    // Automatic value updates skip payloads already sent by that command. Explicit triggers
+    // and full updates always send; fixed commands remain actions and are never deduplicated.
     bool dispatchCommand(const QString &id, const QJsonObject &event, bool skipUnchanged = false);
+    void clearCommandPayloads(const QString &id = {});
     // Wire payload of a command for an event (an empty event reads the cached value); nullopt when
-    // the value is unavailable. `unchanged` reports a time-formatted payload equal to `previous`.
-    std::optional<QByteArray> commandPayload(const QVariantMap &item, const QJsonObject &event,
-        const QByteArray &previous, bool &unchanged);
+    // the value is unavailable.
+    std::optional<QByteArray> commandPayload(const QVariantMap &item, const QJsonObject &event);
     void sendEventMessage(const QString &serverId, const QJsonObject &message);
     bool handleEventRequest(const QString &serverId, const QByteArray &payload);
 
@@ -126,7 +127,7 @@ private:
         int port = 0;
         QVariantMap profile;
         QStringList topics;
-        QHash<QString, QByteArray> lastTimePayloads;
+        QHash<QString, QByteArray> lastValuePayloads;
     };
     void applyIncomingProfiles();
     void applyIncomingProfile(quint64 session);
@@ -150,7 +151,7 @@ private:
     QHash<QString, QStringList> m_topicDependencies;
     QPointer<ControlEventFeed> m_eventFeed;
     ListFormatter m_listFormatter;
-    QHash<QString, QByteArray> m_lastTimePayloads;
+    QHash<QString, QByteArray> m_lastValuePayloads;
     bool m_active = false;
 };
 #endif
