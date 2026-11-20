@@ -59,6 +59,8 @@
 #include <QMimeDatabase>
 #include <QTimer>
 #include <QThread>
+#include <QUrl>
+#include <QDebug>
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -1792,7 +1794,18 @@ std::string LayersModel::getLayersAsFormattedString(size_t charsPerItem) const {
     return fullItemList;
 }
 
-QString LayersModel::checkAndCorrectPath(const QString &filePath, const QStringList &searchPaths) {
+// A path stored as a file URL ("file:///E:/x.png") would never be found as a file.
+static QString withoutFileScheme(const QString &path) {
+    if (path.startsWith(QStringLiteral("file:"), Qt::CaseInsensitive)) {
+        const QUrl url(path);
+        if (url.isLocalFile())
+            return url.toLocalFile();
+    }
+    return path;
+}
+
+QString LayersModel::checkAndCorrectPath(const QString &path, const QStringList &searchPaths) {
+    const QString filePath = withoutFileScheme(path);
     QFileInfo fileInfo(filePath);
     if (fileInfo.exists())
         return filePath;
@@ -1846,7 +1859,16 @@ int LayersModel::decodeLayerFromJSON(const QJsonObject &o, const QStringList &fo
                 || type == BaseLayer::PDF
 #endif //  PDF_SUPPORT
                 || type == BaseLayer::AUDIO) {
-                path = checkAndCorrectPath(path, forRelativePaths);
+                const QString foundPath = checkAndCorrectPath(path, forRelativePaths);
+                if (!foundPath.isEmpty()) {
+                    path = foundPath;
+                }
+                else if (!path.isEmpty()) {
+                    // Kept when not found: the drive or folder may only be unavailable right now,
+                    // and the layer view shows the path with a warning. Saving keeps it too.
+                    path = withoutFileScheme(path);
+                    qWarning() << "Layer" << title << "file not found:" << path;
+                }
             }
             else if (type == BaseLayer::CONTROL) {
                 // For Control layers, path holds "operation:parameter"

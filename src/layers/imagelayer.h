@@ -115,6 +115,7 @@ private:
     static const int kMaxBufferedFrames = 8;
 
     std::string m_identifier;            // Persists across image loads
+    std::string m_lastMissingFileLogged; // Missing files are retried every frame but logged once
     std::shared_ptr<ThreadContext> m_ctx; // Shared with the decode thread
     std::unique_ptr<std::thread> m_thread;
     std::mutex m_updateMutex;

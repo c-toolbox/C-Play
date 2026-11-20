@@ -49,10 +49,17 @@
 #include <QOpenGLVersionFunctionsFactory>
 #include <QQuickGraphicsDevice>
 #include <QTimer>
+#include <QCoreApplication>
+#include <QDesktopServices>
+#include <QDir>
+#include <QFileInfo>
+#include <QProcess>
+#include <QUrl>
 #include <QtCore/QRunnable>
 #include <QtQuick/qquickwindow.h>
 #include <algorithm>
 #include <array>
+#include <thread>
 #include <vector>
 
 static void* get_proc_address_qopengl_v1(void* ctx, const char* name) {
@@ -2173,6 +2180,91 @@ QString LayerQtItem::layerSourceDescription() const {
     return description + QStringLiteral("\n") + status;
 }
 
+QString LayerQtItem::layerFilePath() const {
+    if (!m_layer)
+        return QString();
+    switch (m_layer->type()) {
+    case BaseLayer::IMAGE:
+    case BaseLayer::VIDEO:
+    case BaseLayer::AUDIO:
+#ifdef PDF_SUPPORT
+    case BaseLayer::PDF:
+#endif
+#ifdef MULTI_VIDEO_LAYER
+    case BaseLayer::MULTIVIDEO:
+#endif
+        return QDir::toNativeSeparators(QString::fromStdString(m_layer->filepath()));
+    default:
+        return QString();
+    }
+}
+
+bool LayerQtItem::layerFileMissing() const {
+    return m_layerFileMissing;
+}
+
+void LayerQtItem::showLayerFileInExplorer() const {
+    const QString path = layerFilePath();
+    if (path.isEmpty())
+        return;
+    const QFileInfo fileInfo(path);
+#ifdef Q_OS_WIN
+    if (fileInfo.isFile()) {
+        QProcess::startDetached(QStringLiteral("explorer.exe"),
+            {QStringLiteral("/select,"), QDir::toNativeSeparators(fileInfo.absoluteFilePath())});
+        return;
+    }
+#endif
+    // The file itself cannot be selected: open its folder, or the closest parent that exists.
+    QString folder = fileInfo.absolutePath();
+    while (!folder.isEmpty() && !QFileInfo(folder).isDir()) {
+        const QString parent = QFileInfo(folder).absolutePath();
+        folder = (parent == folder) ? QString() : parent;
+    }
+    if (!folder.isEmpty())
+        QDesktopServices::openUrl(QUrl::fromLocalFile(folder));
+}
+
+void LayerQtItem::refreshLayerFileStatus() {
+    const QString path = layerFilePath();
+    const bool pathChanged = path != m_fileStatusPath;
+    if (pathChanged) {
+        m_fileStatusPath = path;
+        m_layerFileMissing = false; // unknown until checked, so no warning flashes meanwhile
+        m_fileCheckClock.invalidate();
+        Q_EMIT layerFileStatusChanged();
+    }
+    if (path.isEmpty() || m_fileCheckRunning)
+        return;
+    if (m_fileCheckClock.isValid() && m_fileCheckClock.elapsed() < 3000)
+        return;
+
+    m_fileCheckRunning = true;
+    m_fileCheckClock.start();
+    QPointer<LayerQtItem> guard(this);
+    std::thread([guard, path]() mutable {
+        const bool exists = QFileInfo::exists(path);
+        if (QCoreApplication *app = QCoreApplication::instance()) {
+            QMetaObject::invokeMethod(app, [guard = std::move(guard), path, exists]() {
+                if (guard)
+                    guard->applyLayerFileCheck(path, exists);
+            }, Qt::QueuedConnection);
+        }
+    }).detach();
+}
+
+void LayerQtItem::applyLayerFileCheck(const QString &path, bool exists) {
+    m_fileCheckRunning = false;
+    if (path != m_fileStatusPath) {
+        m_fileCheckClock.invalidate(); // stale: check the current path on the next tick
+        return;
+    }
+    if (m_layerFileMissing != !exists) {
+        m_layerFileMissing = !exists;
+        Q_EMIT layerFileStatusChanged();
+    }
+}
+
 QString LayerQtItem::layerError() const {
     if (!m_layer)
         return QString();
@@ -2283,6 +2375,7 @@ void LayerQtItem::handleWindowChanged(QQuickWindow *win) {
                     m_lastEmittedError = errorText;
                     Q_EMIT layerErrorChanged();
                 }
+                refreshLayerFileStatus();
 #ifdef CAPTURE_SUPPORT
                 const QString captureStatus = layerCaptureStatus();
                 if (captureStatus != m_lastEmittedCaptureStatus) {

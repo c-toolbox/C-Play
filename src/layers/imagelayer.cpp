@@ -474,6 +474,7 @@ std::string ImageLayer::loadedFile() {
 bool ImageLayer::fileIsImage(std::string &filePath, ImageLayer::ImageDecoder& decoder, std::string *error) {
     if (!filePath.empty()) {
         if (std::filesystem::exists(filePath)) {
+            m_lastMissingFileLogged.clear(); // log again should it go missing later
             std::filesystem::path bgPath = std::filesystem::path(filePath);
             if (bgPath.has_extension()) {
                 std::string bgPathExt = bgPath.extension().generic_string();
@@ -507,7 +508,12 @@ bool ImageLayer::fileIsImage(std::string &filePath, ImageLayer::ImageDecoder& de
                 if (error) *error = "unsupported image format";
             }
         } else {
-            sgct::Log::Warning(std::format("Could not find image file: {}", filePath));
+            // A missing file is retried every frame (it may be on a drive that is not
+            // available yet), so it is logged once per path.
+            if (m_lastMissingFileLogged != filePath) {
+                sgct::Log::Warning(std::format("Could not find image file: {}", filePath));
+                m_lastMissingFileLogged = filePath;
+            }
             if (error) *error = "image file not found";
         }
     } else {

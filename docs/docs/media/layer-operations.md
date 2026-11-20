@@ -13,6 +13,14 @@ After you have added a new layer, you can specify its parameters in more detail 
 
 ![Inspect view Video](/assets/ui/layers_view_video.png) &nbsp;&nbsp;&nbsp; ![Inspect view Grid Parameters](/assets/ui/layer_view_grid_parameters.png)
 
+### Source file
+
+For layers that load a file from disk (Image, Video, Audio, PDF and Multi-video), the top left corner of the Inspect view shows the file's path. The folder button next to it opens the file explorer with the file selected. Right-click the path to copy it.
+
+If the file does not exist on this computer, the path is shown in red as *File not found* with a warning icon. Check that the drive or network share is connected and that the file has not been moved or renamed. The folder button then opens the closest folder that exists. The check is repeated every few seconds, so the warning goes away once the file is available.
+
+When a presentation is loaded and a layer's file cannot be found, the layer keeps the path from the presentation file, and saving the presentation keeps it as well. An image layer loads on its own once the file is available; for other layer types, load the presentation again. In a cluster, each node also needs the file at the same path, unless the layer is [streamed from the master](#master-and-node-sources).
+
 ### Region of interest
 
 In the top right, there is a *"Region of interest (ROI)"* ![](/assets/icons/trim-to-selection-lime.svg) / ![](/assets/icons/trim-to-selection-crimson.svg) button that enables the feature below, where you can specify a certain region of your layer that should be visible. This is useful when you want to show only part of the source.

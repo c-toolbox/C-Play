@@ -1053,6 +1053,87 @@ Kirigami.ApplicationWindow {
                 }
             }
         }
+        // File of layers loaded from disk, with a warning when it does not exist on this computer
+        // and a button that shows it in the file explorer. Right-click copies the path.
+        Rectangle {
+            id: layerFileOverlay
+
+            anchors.left: parent.left
+            anchors.top: parent.top
+            anchors.margins: 8
+            width: Math.min(layerFileRow.implicitWidth + 12, parent.width - 16)
+            height: layerFileRow.implicitHeight + 4
+            radius: 4
+            color: Qt.rgba(0.1, 0.1, 0.1, 0.7)
+            border.width: layerViewItem.layerFileMissing ? 1 : 0
+            border.color: Kirigami.Theme.negativeTextColor
+            visible: layerViewItem.layerIdx !== -1 && layerViewItem.layerFilePath !== ""
+            z: 10
+
+            MouseArea {
+                anchors.fill: parent
+                acceptedButtons: Qt.RightButton
+                onClicked: (mouse) => layerFileMenu.popup(mouse.x, mouse.y)
+
+                Menu {
+                    id: layerFileMenu
+
+                    MenuItem {
+                        text: qsTr("Copy file path")
+                        onTriggered: app.copyToClipboard(layerViewItem.layerFilePath)
+                    }
+                    MenuItem {
+                        text: layerViewItem.layerFileMissing ? qsTr("Open closest existing folder") : qsTr("Show in file explorer")
+                        onTriggered: layerViewItem.showLayerFileInExplorer()
+                    }
+                }
+            }
+
+            RowLayout {
+                id: layerFileRow
+
+                anchors.fill: parent
+                anchors.leftMargin: 6
+                anchors.rightMargin: 2
+                spacing: 4
+
+                Kirigami.Icon {
+                    source: "dialog-warning"
+                    color: Kirigami.Theme.negativeTextColor
+                    visible: layerViewItem.layerFileMissing
+                    Layout.preferredWidth: Kirigami.Units.iconSizes.small
+                    Layout.preferredHeight: Kirigami.Units.iconSizes.small
+                }
+                Label {
+                    Layout.fillWidth: true
+                    font.pointSize: 9
+                    textFormat: Text.PlainText
+                    elide: Text.ElideMiddle
+                    color: layerViewItem.layerFileMissing ? Kirigami.Theme.negativeTextColor : "white"
+                    text: layerViewItem.layerFileMissing
+                          ? qsTr("File not found: %1").arg(layerViewItem.layerFilePath)
+                          : layerViewItem.layerFilePath
+
+                    HoverHandler { id: layerFileHover }
+                    ToolTip.visible: layerFileHover.hovered
+                    ToolTip.delay: 500
+                    ToolTip.text: layerViewItem.layerFileMissing
+                                  ? qsTr("%1\nThe file does not exist on this computer. Check that the drive or network share is available, or that the file has not been moved or renamed.").arg(layerViewItem.layerFilePath)
+                                  : layerViewItem.layerFilePath
+                }
+                ToolButton {
+                    icon.name: "folder-open"
+                    icon.width: Kirigami.Units.iconSizes.small
+                    icon.height: Kirigami.Units.iconSizes.small
+                    padding: 2
+                    onClicked: layerViewItem.showLayerFileInExplorer()
+
+                    ToolTip.visible: hovered
+                    ToolTip.delay: 500
+                    ToolTip.text: layerViewItem.layerFileMissing ? qsTr("Open the closest folder that exists") : qsTr("Show in file explorer")
+                }
+            }
+        }
         Rectangle {
             id: noSignalImageOverlay
 

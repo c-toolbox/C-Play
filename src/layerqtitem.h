@@ -15,6 +15,7 @@
 #include <QtQuick/QQuickItem>
 #include <QtQuick/QQuickWindow>
 #include <QColor>
+#include <QElapsedTimer>
 #include <QPointF>
 #include <QPointer>
 #include <layers/baselayer.h>
@@ -202,6 +203,10 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(QString layerSourceDescription READ layerSourceDescription NOTIFY layerSourceDescriptionChanged)
     Q_PROPERTY(QString layerSourceIdentifier READ layerSourceIdentifier NOTIFY layerSourceDescriptionChanged)
     Q_PROPERTY(QString layerSourceAudioIdentifier READ layerSourceAudioIdentifier NOTIFY layerSourceDescriptionChanged)
+    // File the layer loads from disk (image, video, audio, PDF, multi-video composition), else "".
+    Q_PROPERTY(QString layerFilePath READ layerFilePath NOTIFY layerFileStatusChanged)
+    // True when layerFilePath does not exist on this computer (checked in the background).
+    Q_PROPERTY(bool layerFileMissing READ layerFileMissing NOTIFY layerFileStatusChanged)
 #ifdef DIRECTSHOW_SUPPORT
     Q_PROPERTY(QString layerDirectShowPresetKey READ layerDirectShowPresetKey WRITE setLayerDirectShowPresetKey NOTIFY layerValueChanged)
 #endif
@@ -542,6 +547,12 @@ public:
     QString layerSourceIdentifier() const;
     QString layerSourceAudioIdentifier() const;
 
+    QString layerFilePath() const;
+    bool layerFileMissing() const;
+    // Opens the file explorer with the layer's file selected, or the nearest folder that
+    // exists when the file is missing.
+    Q_INVOKABLE void showLayerFileInExplorer() const;
+
 #ifdef DIRECTSHOW_SUPPORT
     QString layerDirectShowPresetKey() const;
     void setLayerDirectShowPresetKey(QString key);
@@ -574,6 +585,8 @@ Q_SIGNALS:
     // Emitted by the window timer when the layer's loader failure state changes.
     void layerErrorChanged();
     void layerSourceDescriptionChanged();
+    // Emitted by the window timer when the layer's file or its existence changes.
+    void layerFileStatusChanged();
 #ifdef CAPTURE_SUPPORT
     void layerCaptureStatusChanged();
 #endif
@@ -596,6 +609,10 @@ private:
     void setCurrentLayer(std::shared_ptr<BaseLayer> layer, bool ownsLayer);
     // Stops showing a slide layer that its slide removed.
     void releaseRemovedLayer();
+    // Timer-driven: checks off the GUI thread whether layerFilePath() exists, as a file on an
+    // offline network drive can block for seconds. Rechecked every few seconds.
+    void refreshLayerFileStatus();
+    void applyLayerFileCheck(const QString &path, bool exists);
 
     int m_layerIdx;
     std::shared_ptr<BaseLayer> m_layerRef;
@@ -614,6 +631,10 @@ private:
 #endif
     QString m_lastEmittedError;           // last reported loader error text (timer-polled)
     QString m_lastEmittedSourceDescription;
+    QString m_fileStatusPath;          // path the existence state below refers to
+    bool m_layerFileMissing = false;
+    bool m_fileCheckRunning = false;
+    QElapsedTimer m_fileCheckClock;    // since the last check started
     bool m_audioLevelsEnabled = false; // desired meter state, re-applied to each new layer
     bool m_updatingLayer;
     bool m_colorPickActive = false;
