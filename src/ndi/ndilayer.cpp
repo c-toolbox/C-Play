@@ -159,6 +159,7 @@ void NdiLayer::cleanup() {
     // Stream is stopped, so no audio callback can use the buffers anymore.
     NDIreceiver.SetAudio(false);
     NDIreceiver.ReleaseReceiver();
+    m_hasCapturedImage = false;
     m_gpuConversion.cleanup();
     m_receiveFormatConfigured = false;
 
@@ -202,6 +203,41 @@ void NdiLayer::initialize() {
     }
 }
 
+void NdiLayer::releaseReceiver() {
+    {
+        // Close the audio stream first, so no audio callback uses the receiver's buffers.
+        std::lock_guard<std::recursive_mutex> paLock(cplay::audio::portAudioMutex());
+        if (m_audioStream) {
+            if (m_audioStreamStarted) {
+                m_audioError = cplay::audio::paStopStream(m_audioStream);
+                if (m_audioError != paNoError && m_audioError != paStreamIsStopped)
+                    cplay::audio::paAbortStream(m_audioStream);
+            }
+            if (m_audioStreamOpen)
+                cplay::audio::paCloseStream(m_audioStream);
+            m_audioStream = nullptr;
+            m_audioStreamStarted = false;
+            m_audioStreamOpen = false;
+        }
+    }
+    // Keeps the audio setting and the texture, so receiving resumes where it left off.
+    NDIreceiver.ReleaseReceiver();
+    m_hasCapturedImage = false;
+}
+
+bool NdiLayer::updateNodesOnlyPlaceholder() {
+    const bool skip = masterSkipsReceive();
+    setMasterPlaceholder(skip);
+    if (!skip)
+        return false;
+    if (m_isReady || NDIreceiver.ReceiverCreated()) {
+        releaseReceiver();
+        m_isReady = false;
+    }
+    updateMasterPlaceholder();
+    return true;
+}
+
 void NdiLayer::update(bool updateRendering) {
     std::lock_guard<std::mutex> lock(m_updateMutex);
 
@@ -210,6 +246,10 @@ void NdiLayer::update(bool updateRendering) {
         setVolume(m_volume_Dec);
         setVolumeMute(m_volumeMute_Dec);
     }
+
+    // Only the nodes receive this source: the master shows a placeholder instead.
+    if (updateNodesOnlyPlaceholder())
+        return;
 
     // Check sender amount
     int senders = NdiFinder::instance().findSenders();
@@ -249,6 +289,9 @@ void NdiLayer::update(bool updateRendering) {
 void NdiLayer::updateFrame() {
     std::lock_guard<std::mutex> lock(m_updateMutex);
 
+    if (updateNodesOnlyPlaceholder())
+        return;
+
     // Let's recieve image or audio
     if (m_isReady) {
         ReceiveData(true);
@@ -256,6 +299,8 @@ void NdiLayer::updateFrame() {
 }
 
 bool NdiLayer::ready() const {
+    if (masterPlaceholderEnabled())
+        return masterPlaceholderReady();
     return m_isReady;
 }
 

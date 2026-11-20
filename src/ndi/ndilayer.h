@@ -76,6 +76,12 @@ public:
     static void encodeNodeDefaultsForNodes(std::vector<std::byte>& data, bool full);
 
 private:
+    // Master with receiveOnNodesOnly(): releases the receiver and shows the placeholder.
+    // Returns true while the placeholder replaces the source. Caller holds m_updateMutex.
+    bool updateNodesOnlyPlaceholder();
+    // Closes the audio stream and the NDI receiver; update() reopens them. Caller holds m_updateMutex.
+    void releaseReceiver();
+
     bool ReceiveData(bool updateRendering);
     bool OpenReceiver();
     bool StartAudioStream();

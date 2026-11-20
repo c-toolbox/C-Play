@@ -2188,6 +2188,14 @@ int LayersModel::decodeLayerFromJSON(const QJsonObject &o, const QStringList &fo
             if (o.contains(QStringLiteral("existOnMasterOnly"))) {
                 m_layers[idx].first->setExistOnMasterOnly(o.value(QStringLiteral("existOnMasterOnly")).toBool());
             }
+            // Only saved when true, so absent means the master receives the source too.
+            m_layers[idx].first->setReceiveOnNodesOnly(o.value(QStringLiteral("receiveOnNodesOnly")).toBool());
+            // Source size for the placeholder's aspect ratio until a node reports it.
+            if (o.contains(QStringLiteral("receiveOnNodesOnlySourceSize"))) {
+                const QJsonArray size = o.value(QStringLiteral("receiveOnNodesOnlySourceSize")).toArray();
+                if (size.size() == 2)
+                    m_layers[idx].first->setReceiveOnNodesOnlySourceSize(size.at(0).toInt(), size.at(1).toInt());
+            }
 
             // Absent in older files: the layer keeps the slide default (set in addLayer).
             if (o.contains(QStringLiteral("hierarchy"))) {
@@ -2746,6 +2754,14 @@ QJsonObject LayersModel::encodeLayerToJSON(const std::shared_ptr<BaseLayer> &lay
 
     if (layer->existOnMasterOnly()) {
         layerData.insert(QStringLiteral("existOnMasterOnly"), QJsonValue(true));
+    }
+    if (layer->receiveOnNodesOnly() && BaseLayer::supportsReceiveOnNodesOnly(layer->type())) {
+        layerData.insert(QStringLiteral("receiveOnNodesOnly"), QJsonValue(true));
+        int sourceWidth = 0;
+        int sourceHeight = 0;
+        layer->receiveOnNodesOnlySourceSize(sourceWidth, sourceHeight);
+        if (sourceWidth > 0 && sourceHeight > 0)
+            layerData.insert(QStringLiteral("receiveOnNodesOnlySourceSize"), QJsonArray{sourceWidth, sourceHeight});
     }
 
     if (layer->hierarchy() != m_layerHierachy) {

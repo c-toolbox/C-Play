@@ -266,6 +266,24 @@ public:
     // User controlled flag deciding if the layer should be synced to the nodes.
     void setExistOnMasterOnly(bool value);
 
+    // Live source layers (NDI, OMT, Stream, YouTube and WebRTC): only the nodes receive and
+    // decode the source, while the master shows a placeholder with the layer title. Saved with
+    // the layer and synced to the nodes, which adapt to the master not playing the source (a
+    // WebRTC layer pulls directly instead of through the master relay, a YouTube layer no
+    // longer follows the master's playback position). No effect on a master-only layer.
+    static bool supportsReceiveOnNodesOnly(LayerType type);
+    bool receiveOnNodesOnly() const;
+    void setReceiveOnNodesOnly(bool enabled);
+    // The option is in effect: set, supported by the layer type, and the layer exists on the nodes.
+    bool receiveOnNodesOnlyActive() const;
+    // True for the master copy of a layer that must not receive its source (see above).
+    bool masterSkipsReceive() const;
+    // Source frame size the master placeholder takes its aspect ratio from while only the
+    // nodes receive: reported by a node, else the size last received on the master, else
+    // the size saved with the presentation. 0x0 = unknown. Any thread.
+    void receiveOnNodesOnlySourceSize(int& width, int& height) const;
+    void setReceiveOnNodesOnlySourceSize(int width, int height);
+
     virtual int eofMode() const;
     virtual void setEOFMode(int eofMode);
     virtual void setTimePause(bool paused, bool updateTime = true);
@@ -692,6 +710,10 @@ protected:
     std::mutex m_textureFenceMutex;
     struct __GLsync *m_textureFence = nullptr; // Signals when the latest texture write is complete
     bool m_existOnMasterOnly;
+    // See receiveOnNodesOnly(). Set on the GUI thread, read by the render and media threads.
+    std::atomic_bool m_receiveOnNodesOnly{false};
+    // See receiveOnNodesOnlySourceSize(). Packed as (width << 32) | height to update atomically.
+    mutable std::atomic<uint64_t> m_receiveOnNodesOnlySourceSize{0};
     bool m_shouldUpdate;
     bool m_shouldUpdateFrame;
     bool m_shouldPreLoad;

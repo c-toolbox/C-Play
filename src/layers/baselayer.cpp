@@ -761,6 +761,73 @@ void BaseLayer::setExistOnMasterOnly(bool value) {
     setNeedSync();
 }
 
+bool BaseLayer::supportsReceiveOnNodesOnly(LayerType type) {
+    switch (type) {
+#ifdef NDI_SUPPORT
+    case NDI:
+#endif
+#ifdef OMT_SUPPORT
+    case OMT:
+#endif
+#ifdef STREAM_LAYER
+    case STREAM:
+#endif
+#ifdef YOUTUBE_LAYER
+    case YOUTUBE:
+#endif
+#ifdef WEBRTC_LAYER
+    case WEBRTC:
+#endif
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool BaseLayer::receiveOnNodesOnly() const {
+    return m_receiveOnNodesOnly.load();
+}
+
+void BaseLayer::setReceiveOnNodesOnly(bool enabled) {
+    if (m_receiveOnNodesOnly.exchange(enabled) != enabled)
+        setNeedSync();
+}
+
+bool BaseLayer::receiveOnNodesOnlyActive() const {
+    // A node has the layer, so existOnMasterOnly() is only true for a master copy.
+    return m_receiveOnNodesOnly.load() && supportsReceiveOnNodesOnly(m_type) && !existOnMasterOnly();
+}
+
+bool BaseLayer::masterSkipsReceive() const {
+    return isMaster() && receiveOnNodesOnlyActive();
+}
+
+namespace {
+uint64_t packSize(int width, int height) {
+    return (static_cast<uint64_t>(static_cast<uint32_t>(width)) << 32) | static_cast<uint32_t>(height);
+}
+}
+
+void BaseLayer::receiveOnNodesOnlySourceSize(int& width, int& height) const {
+    // What a node receives now wins over a size remembered from before.
+    if (isMaster() && receiveOnNodesOnlyActive() && NodeCaptureInventory::isReady()) {
+        for (const auto& [role, s] : NodeCaptureInventory::instance().layerStatuses(identifier())) {
+            if (s.nodeOnline && s.ok && s.width > 0 && s.height > 0) {
+                m_receiveOnNodesOnlySourceSize.store(packSize(s.width, s.height));
+                break;
+            }
+        }
+    }
+    const uint64_t size = m_receiveOnNodesOnlySourceSize.load();
+    width = static_cast<int>(size >> 32);
+    height = static_cast<int>(size & 0xffffffffu);
+}
+
+void BaseLayer::setReceiveOnNodesOnlySourceSize(int width, int height) {
+    if (width > 0 && height > 0)
+        m_receiveOnNodesOnlySourceSize.store(packSize(width, height));
+}
+
 int BaseLayer::eofMode() const {
     return -1;
 }
@@ -938,12 +1005,16 @@ void BaseLayer::encodeBaseCore(std::vector<std::byte>& data) const {
     sgct::serializeObject(data, m_hierachy);
     sgct::serializeObject(data, m_filepath);
     sgct::serializeObject(data, renderData.flipY);
+    sgct::serializeObject(data, m_receiveOnNodesOnly.load());
 }
 
 void BaseLayer::decodeBaseCore(const std::vector<std::byte>& data, unsigned int& pos) {
     sgct::deserializeObject(data, pos, m_hierachy);
     sgct::deserializeObject(data, pos, m_filepath);
     sgct::deserializeObject(data, pos, renderData.flipY);
+    bool receiveOnNodesOnly = false;
+    sgct::deserializeObject(data, pos, receiveOnNodesOnly);
+    m_receiveOnNodesOnly.store(receiveOnNodesOnly);
 
     // Marking as needSync means we know update has occured, which we need to clear
     m_needSync = true;
@@ -1352,6 +1423,10 @@ void BaseLayer::setMasterPlaceholder(bool enabled) {
 #else
     enabled = false;
 #endif
+    if (enabled && !m_masterPlaceholderEnabled) {
+        // The source size before the placeholder replaces it, for its aspect ratio.
+        setReceiveOnNodesOnlySourceSize(width(), height());
+    }
     if (m_masterPlaceholderEnabled.exchange(enabled) != enabled)
         setNeedSync();
 }
@@ -2757,6 +2832,9 @@ void BaseLayer::encodeBaseCoreForNdiNodes(std::vector<std::byte>& data) const {
     sgct::serializeObject(data, ndiName);
     const bool flipY = false;
     sgct::serializeObject(data, flipY);
+    // The node receives the master's NDI stream, so the master always receives the source.
+    const bool receiveOnNodesOnly = false;
+    sgct::serializeObject(data, receiveOnNodesOnly);
 }
 #endif
 
@@ -2865,6 +2943,23 @@ std::string BaseLayer::masterPlaceholderLabel() const {
 }
 
 void BaseLayer::masterPlaceholderSize(int& width, int& height) const {
+    if (receiveOnNodesOnlyActive()) {
+        int sourceWidth = 0;
+        int sourceHeight = 0;
+        receiveOnNodesOnlySourceSize(sourceWidth, sourceHeight);
+        if (sourceWidth > 0 && sourceHeight > 0) {
+            // The placeholder renders in 2D: one eye of a stereo source.
+            if (stereoMode() == SBS_3D)
+                sourceWidth = std::max(1, sourceWidth / 2);
+            else if (stereoMode() == TB_3D || stereoMode() == TBF_3D)
+                sourceHeight = std::max(1, sourceHeight / 2);
+            // Keep the source aspect ratio; the label needs no more than 1920 pixels.
+            const double scale = std::min(1.0, 1920.0 / std::max(sourceWidth, sourceHeight));
+            width = std::max(1, static_cast<int>(std::lround(sourceWidth * scale)));
+            height = std::max(1, static_cast<int>(std::lround(sourceHeight * scale)));
+            return;
+        }
+    }
     const std::string target = targetNode();
     if (target.empty()) return;
     width = 1920;

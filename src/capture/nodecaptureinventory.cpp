@@ -474,6 +474,14 @@ void NodeCaptureInventory::sendLayerStatus(const std::vector<std::shared_ptr<Bas
 #else
         const bool everyMachine = false;
 #endif
+        // Live layers only the nodes receive: the master sizes its placeholder from this report.
+        if (layer->receiveOnNodesOnlyActive()) {
+            const bool ok = layer->ready() && layer->width() > 0 && layer->height() > 0;
+            list.push_back({{"id", layer->identifier()}, {"ok", ok},
+                            {"status", ok ? "receiving" : "waiting for source"}, {"source", ""},
+                            {"w", ok ? layer->width() : 0}, {"h", ok ? layer->height() : 0}});
+            continue;
+        }
         if (!everyMachine && (target.empty() || !isThisMachine(target, false)))
             continue;
         bool ok = false;

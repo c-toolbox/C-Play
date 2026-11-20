@@ -28,9 +28,10 @@ void StreamLayer::initialize() {
 }
 
 bool StreamLayer::refreshMasterPlaceholder() {
-    bool placeholder = false;
+    // A placeholder from the predefined stream entry, or only the nodes receive this stream.
+    bool placeholder = masterSkipsReceive();
     std::string resolved;
-    if (isMaster() && !m_streamKey.empty())
+    if (!placeholder && isMaster() && !m_streamKey.empty())
         StreamPathResolver::instance().resolve(m_streamKey, true, resolved, &placeholder);
     setMasterPlaceholder(placeholder);
     if (masterPlaceholderEnabled()) {

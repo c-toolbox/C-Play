@@ -149,12 +149,47 @@ void OmtLayer::initialize() {
     }
 }
 
+void OmtLayer::releaseReceiver() {
+    {
+        std::lock_guard<std::recursive_mutex> lock(m_audioMutex);
+        std::lock_guard<std::recursive_mutex> paLock(cplay::audio::portAudioMutex());
+        if (m_audioStream && m_audioStreamOpen) {
+            if (m_audioStreamStarted)
+                cplay::audio::paStopStream(m_audioStream);
+            cplay::audio::paCloseStream(m_audioStream);
+        }
+        m_audioStream = nullptr;
+        m_audioStreamOpen = false;
+        m_audioStreamStarted = false;
+    }
+    if (m_receiver) {
+        omt_receive_destroy(m_receiver);
+        m_receiver = nullptr;
+    }
+}
+
+bool OmtLayer::updateNodesOnlyPlaceholder() {
+    const bool skip = masterSkipsReceive();
+    setMasterPlaceholder(skip);
+    if (!skip)
+        return false;
+    if (m_receiver || m_audioStreamOpen)
+        releaseReceiver();
+    m_isReady = false;
+    updateMasterPlaceholder();
+    return true;
+}
+
 void OmtLayer::update(bool updateRendering) {
     if (m_typePropertiesDecoded) {
         m_typePropertiesDecoded = false;
         setVolume(m_volume_Dec);
         setVolumeMute(m_volumeMute_Dec);
     }
+
+    // Only the nodes receive this source: the master shows a placeholder instead.
+    if (updateNodesOnlyPlaceholder())
+        return;
 
     // Check if sender exists
     if (!OmtFinder::instance().senderExists(filepath())) {
@@ -212,7 +247,7 @@ void OmtLayer::update(bool updateRendering) {
 }
 
 void OmtLayer::updateFrame() {
-    if (!m_receiver) {
+    if (updateNodesOnlyPlaceholder() || !m_receiver) {
         return;
     }
 
@@ -391,6 +426,8 @@ PaDeviceIndex OmtLayer::GetChosenApplicationAudioDevice() {
 }
 
 bool OmtLayer::ready() const {
+    if (masterPlaceholderEnabled())
+        return masterPlaceholderReady();
     return m_isReady;
 }
 

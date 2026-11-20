@@ -1128,6 +1128,22 @@ void LayerQtItem::setLayerExistOnMasterOnly(bool value) {
     }
 }
 
+bool LayerQtItem::layerSupportsReceiveOnNodesOnly() const {
+    return m_layer && BaseLayer::supportsReceiveOnNodesOnly(m_layer->type());
+}
+
+bool LayerQtItem::layerReceiveOnNodesOnly() const {
+    return m_layer && m_layer->receiveOnNodesOnly();
+}
+
+void LayerQtItem::setLayerReceiveOnNodesOnly(bool enabled) {
+    if (m_layer && m_layer->isEnabled() && m_layer->receiveOnNodesOnly() != enabled) {
+        m_layer->setReceiveOnNodesOnly(enabled);
+        Q_EMIT layerValueChanged();
+        Q_EMIT layerNeedsSave();
+    }
+}
+
 QString LayerQtItem::layerNdiSenderName() const {
     if (m_layer) {
         return QString::fromStdString(m_layer->ndiSenderName());

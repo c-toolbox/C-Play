@@ -112,6 +112,10 @@ public:
         double timeToSet = 0;
         int timeThresholdSetSkips = 0;
         bool timeIsDirty = false;
+        // Node: the master does not play this layer (receiveOnNodesOnly), so its position is no
+        // time reference. Only explicit seeks and pause/play are followed. Written by the render
+        // thread, read by the mpv event thread.
+        std::atomic_bool freeRunning = false;
         bool typePropertiesDecode = false;
         std::atomic_bool threadRunning = false;
         std::atomic_bool initializationDone = false;

@@ -32,7 +32,32 @@ bool YoutubeLayer::usesYtdl() const {
     return true;
 }
 
+bool YoutubeLayer::refreshMasterPlaceholder() {
+    // Only the nodes open the video: the master unloads it and shows a placeholder. Play,
+    // pause and seeks are still synced; the nodes play on their own clock meanwhile.
+    setMasterPlaceholder(masterSkipsReceive());
+    if (masterPlaceholderEnabled()) {
+        unload();
+        return updateMasterPlaceholder();
+    }
+    return false;
+}
+
+void YoutubeLayer::update(bool updateRendering) {
+    if (refreshMasterPlaceholder())
+        return;
+    VideoLayer::update(updateRendering);
+}
+
+void YoutubeLayer::updateFrame() {
+    if (refreshMasterPlaceholder())
+        return;
+    VideoLayer::updateFrame();
+}
+
 bool YoutubeLayer::ready() const {
+    if (masterPlaceholderEnabled())
+        return masterPlaceholderReady();
     // Same readiness as a Video layer (loaded + rendering active), plus a load that ended in
     // an error (MPV_EVENT_END_FILE reason=error - e.g. an invalid URL, a removed video, or a
     // missing yt-dlp on this machine) is never "ready", so the layer status drops to 0 and

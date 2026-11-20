@@ -339,11 +339,69 @@ void WebRTCLayer::initialize() {
 }
 
 void WebRTCLayer::update(bool updateRendering) {
+    // Only the nodes receive this stream: the master shows a placeholder instead.
+    if (updateNodesOnlyPlaceholder()) {
+        return;
+    }
+
     ensureStarted();
+    if (!isMaster()) {
+        ensureTransportMatches();
+    }
 
     if (updateRendering && ready()) {
         updateFrame();
     }
+}
+
+bool WebRTCLayer::updateNodesOnlyPlaceholder() {
+    const bool skip = masterSkipsReceive();
+    setMasterPlaceholder(skip);
+    if (!skip) {
+        return false;
+    }
+
+    // The session and its QObjects live on the main thread.
+    if (m_shouldRun.load(std::memory_order_relaxed) && !m_nodesOnlyStopPending.exchange(true)) {
+        std::weak_ptr<std::atomic<bool>> weakAlive = m_alive;
+        QMetaObject::invokeMethod(qApp, [this, weakAlive] {
+            auto alive = weakAlive.lock();
+            if (!alive || !*alive) {
+                return;
+            }
+            m_nodesOnlyStopPending.store(false);
+            if (masterSkipsReceive()) {
+                stop();
+                // Not a user stop: the stream starts again once the master receives it.
+                m_explicitlyStopped.store(false, std::memory_order_relaxed);
+            }
+        }, Qt::QueuedConnection);
+    }
+
+    updateMasterPlaceholder();
+    return true;
+}
+
+void WebRTCLayer::ensureTransportMatches() {
+    if (!m_shouldRun.load(std::memory_order_relaxed)
+        || m_sourceUsesRelay.load(std::memory_order_relaxed) == masterRelayActive()
+        || m_sourceRestartPending.exchange(true)) {
+        return;
+    }
+
+    std::weak_ptr<std::atomic<bool>> weakAlive = m_alive;
+    QMetaObject::invokeMethod(qApp, [this, weakAlive] {
+        auto alive = weakAlive.lock();
+        if (!alive || !*alive) {
+            return;
+        }
+        m_sourceRestartPending.store(false);
+        // Checked again here: the source may have been (re)started since the request.
+        if (m_shouldRun.load(std::memory_order_relaxed)
+            && m_sourceUsesRelay.load(std::memory_order_relaxed) != masterRelayActive()) {
+            startSource(); // switch transport: hub relay <-> direct WHEP pull
+        }
+    }, Qt::QueuedConnection);
 }
 
 void WebRTCLayer::ensureStarted() {
@@ -379,11 +437,17 @@ void WebRTCLayer::ensureStarted() {
 }
 
 bool WebRTCLayer::ready() const {
+    if (masterPlaceholderEnabled()) {
+        return masterPlaceholderReady();
+    }
     std::lock_guard<std::mutex> lock(m_frameMutex);
     return m_latestWidth > 0 && m_latestHeight > 0;
 }
 
 bool WebRTCLayer::hasTexture() const {
+    if (masterPlaceholderEnabled()) {
+        return masterPlaceholderReady();
+    }
     return renderData.texId != 0 && renderData.width > 0 && renderData.height > 0;
 }
 
@@ -394,7 +458,8 @@ bool WebRTCLayer::renderingIsOn() const {
 void WebRTCLayer::start() {
     m_explicitlyStopped.store(false, std::memory_order_relaxed);
 
-    if (m_shouldRun.load(std::memory_order_relaxed)) {
+    // Only the nodes receive the stream (the master shows a placeholder).
+    if (m_shouldRun.load(std::memory_order_relaxed) || masterSkipsReceive()) {
         return;
     }
 
@@ -658,7 +723,10 @@ void WebRTCLayer::startSource() {
     // upstream address): the master pulls once and relays to all nodes through its WebRtcHub.
     // The per-layer relay option can switch that off, in which case each machine with the
     // layer pulls its own copy of the stream directly.
-    const bool relayToNodes = isMaster() && !existOnMasterOnly() && masterRelayEnabled();
+    // Without the master receiving the stream (receiveOnNodesOnly), each node pulls directly.
+    const bool relayToNodes = isMaster() && !existOnMasterOnly() && masterRelayActive();
+    const bool nodeUsesRelay = !isMaster() && masterRelayActive();
+    m_sourceUsesRelay.store(isMaster() ? relayToNodes : nodeUsesRelay, std::memory_order_relaxed);
 
     WebRtcMediaSource *source = nullptr;
     if (isMaster()) {
@@ -677,7 +745,7 @@ void WebRTCLayer::startSource() {
                 whep->requestKeyframe();
             });
         }
-    } else if (masterRelayEnabled()) {
+    } else if (nodeUsesRelay) {
         // The master's address comes from the SGCT cluster config; the node reaches the hub on
         // that host (see WebRtcHub).
         source = new WebRtcRelayClient(sgct::ClusterManager::instance().masterAddress(),
@@ -699,7 +767,7 @@ void WebRTCLayer::startSource() {
     if (isMaster()) {
         m_syncMode.store(relayToNodes ? SyncMode::MasterClock : SyncMode::None, std::memory_order_relaxed);
     } else {
-        m_syncMode.store(masterRelayEnabled() ? SyncMode::NodeTarget : SyncMode::None, std::memory_order_relaxed);
+        m_syncMode.store(nodeUsesRelay ? SyncMode::NodeTarget : SyncMode::None, std::memory_order_relaxed);
     }
     m_playoutClock.reset();
 
@@ -1149,6 +1217,10 @@ void WebRTCLayer::storeDecodedFrame(const DecodedVideoFrame &frame) {
 }
 
 void WebRTCLayer::updateFrame() {
+    if (updateNodesOnlyPlaceholder()) {
+        return;
+    }
+
     std::lock_guard<std::mutex> lock(m_updateFrameMutex);
 
     // Pick the newest picture that is due, pin it, and upload it without holding the

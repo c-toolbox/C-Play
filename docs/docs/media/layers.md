@@ -157,7 +157,7 @@ When choosing *"WebRTC"*, a **WHEP URL** field becomes visible instead of the fi
 
 ![Add WebRTC layer](/assets/ui/layer_add_webrtc.png)
 
-The **Master relay** option controls whether the master pulls and relays the feed, or nodes pull it themselves. Select the mode that matches your network and server setup. See [MediaMTX integration](/system-integration/mediamtx).
+The **Master relay** option controls whether the master pulls and relays the feed, or nodes pull it themselves. Select the mode that matches your network and server setup. See [MediaMTX integration](/system-integration/mediamtx). With [**Nodes only**](/media/layer-operations#receive-on-the-nodes-only), the master does not pull the stream at all and shows a placeholder, so each node pulls its own copy regardless of the relay setting.
 
 ### Stream
 

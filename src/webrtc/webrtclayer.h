@@ -116,6 +116,9 @@ public:
     /// When off, every machine that has the layer pulls its own copy of the stream directly.
     bool masterRelayEnabled() const { return m_masterRelayEnabled; }
     void setMasterRelayEnabled(bool enabled);
+    /// The relay is in use: enabled, and the master receives the stream (see
+    /// BaseLayer::receiveOnNodesOnly(); without the master, every node pulls directly).
+    bool masterRelayActive() const { return m_masterRelayEnabled && !receiveOnNodesOnlyActive(); }
 
     /// Playout delay of the synchronised presentation (master relay on), in milliseconds
     /// behind the master's live edge. Larger values absorb more network/decode jitter on the
@@ -171,6 +174,12 @@ private:
     /// own start() until the layer is ready(), which can never happen here because
     /// ready() needs a decoded frame, so the layer has to start itself.
     void ensureStarted();
+    /// Master with receiveOnNodesOnly(): stops the session and shows the placeholder.
+    /// Returns true while the placeholder replaces the stream. Render thread.
+    bool updateNodesOnlyPlaceholder();
+    /// Node: restarts the source when the transport (relay or direct pull) changed, e.g.
+    /// after the master stopped or resumed receiving the stream. Render thread.
+    void ensureTransportMatches();
 
     // Decode worker thread only (queue access is mutex protected).
     void decodeLoop();
@@ -212,6 +221,9 @@ private:
     std::atomic<bool> m_explicitlyStopped { false }; // stop() was asked for; do not self-start
     float m_lastSeenAlpha = 0.f;       // ensureStarted() thread only
     bool m_reconnectScheduled = false; // main thread
+    std::atomic<bool> m_sourceUsesRelay { false }; // transport of the running source (set by startSource())
+    std::atomic<bool> m_sourceRestartPending { false }; // ensureTransportMatches() queued a restart
+    std::atomic<bool> m_nodesOnlyStopPending { false }; // updateNodesOnlyPlaceholder() queued a stop
 
     std::shared_ptr<std::atomic<bool>> m_alive = std::make_shared<std::atomic<bool>>(true);
     // HTTP Basic authentication for the WHEP endpoint, sent as an Authorization header on the

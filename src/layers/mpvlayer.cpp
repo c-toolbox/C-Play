@@ -302,7 +302,11 @@ void on_mpv_events(MpvLayer::mpvData &vd, BaseLayer::RenderParams) {
                             break;
                         }
                     }
-                    if (!vd.isMaster && SyncHelper::instance().variables.timeThresholdEnabled
+                    if (vd.freeRunning) {
+                        // No master time reference: a video reconfig resumes where playback is.
+                        vd.timePos = *reinterpret_cast<double*>(prop->data);
+                    }
+                    else if (!vd.isMaster && SyncHelper::instance().variables.timeThresholdEnabled
                         && !SyncHelper::instance().variables.frameSyncEnabled && !vd.isStream) {
                         double timeToSet = vd.timePos;
                         double latestPosition = *reinterpret_cast<double*>(prop->data);
@@ -751,7 +755,13 @@ void MpvLayer::update(bool updateRendering) {
             const bool wasPaused = m_data.mediaIsPaused;
             setTimePause(m_data.mediaShouldPause, false);
             const SyncHelper::SyncVariables& v = SyncHelper::instance().variables;
-            if (v.frameSyncEnabled) {
+            m_data.freeRunning = receiveOnNodesOnlyActive() && !m_data.isStream;
+            if (m_data.freeRunning) {
+                // The master does not play the media, so the position it sends is not
+                // where playback is: follow explicit seeks only.
+                if (m_data.timeIsDirty)
+                    setTimePosition(m_data.timeToSet, true);
+            } else if (v.frameSyncEnabled) {
                 updateFrameSyncSettings();
                 // Keep timePos current; the video-reconfig handler seeks to it.
                 setTimePosition(m_data.timeToSet, false);

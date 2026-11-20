@@ -220,6 +220,10 @@ class LayerQtItem : public QQuickItem {
     Q_PROPERTY(bool layerNdiAvailable READ layerNdiAvailable CONSTANT)
     Q_PROPERTY(bool layerNdiOutputEnabled READ layerNdiOutputEnabled WRITE setLayerNdiOutputEnabled NOTIFY layerValueChanged)
     Q_PROPERTY(bool layerExistOnMasterOnly READ layerExistOnMasterOnly WRITE setLayerExistOnMasterOnly NOTIFY layerValueChanged)
+    // Live source layers (NDI, OMT, Stream, YouTube, WebRTC): only the nodes receive the
+    // source, the master shows a placeholder (see BaseLayer::receiveOnNodesOnly()).
+    Q_PROPERTY(bool layerSupportsReceiveOnNodesOnly READ layerSupportsReceiveOnNodesOnly NOTIFY layerChanged)
+    Q_PROPERTY(bool layerReceiveOnNodesOnly READ layerReceiveOnNodesOnly WRITE setLayerReceiveOnNodesOnly NOTIFY layerValueChanged)
     Q_PROPERTY(QString layerNdiSenderName READ layerNdiSenderName NOTIFY layerValueChanged)
     Q_PROPERTY(bool layerNdiSending READ layerNdiSending NOTIFY layerPositionChanged)
     Q_PROPERTY(bool layerNodeStreamAvailable READ layerNodeStreamAvailable CONSTANT)
@@ -374,6 +378,9 @@ public:
     void setLayerNdiOutputEnabled(bool enabled);
     bool layerExistOnMasterOnly() const;
     void setLayerExistOnMasterOnly(bool value);
+    bool layerSupportsReceiveOnNodesOnly() const;
+    bool layerReceiveOnNodesOnly() const;
+    void setLayerReceiveOnNodesOnly(bool enabled);
     QString layerNdiSenderName() const;
     bool layerNdiSending() const;
 

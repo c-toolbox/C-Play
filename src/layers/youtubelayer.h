@@ -35,7 +35,13 @@ public:
     // low-latency/untimed skip in initMPV().
     bool usesYtdl() const override;
 
+    // With receiveOnNodesOnly() the master does not open the video and shows a placeholder.
+    void update(bool updateRendering = true) override;
+    void updateFrame() override;
     bool ready() const override;
+
+private:
+    bool refreshMasterPlaceholder();
 };
 
 #endif // YOUTUBELAYER_H

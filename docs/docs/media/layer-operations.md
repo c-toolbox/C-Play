@@ -89,7 +89,7 @@ By default, nodes load their own copy of a synchronized layer. The **Sync** cont
 
 For supported live layer types, **Nodes read from original source** lets each machine load its source, while **Master sends content to nodes** renders on the master and streams the texture. The **Nodes** control in Inspect view also enables texture streaming. See [Streaming layers from master to nodes](/playback/node-streaming) for transport, audio, and synchronization details.
 
-Use per-machine presets when the master and nodes need different local inputs. Use a master placeholder when the source only exists on the nodes and you still need a visible layer to position in the master view.
+Use per-machine presets when the master and nodes need different local inputs. Use a master placeholder when the source only exists on the nodes and you still need a visible layer to position in the master view. For NDI, OMT, Stream, YouTube and WebRTC layers, the **Nodes only** control in Inspect view does this without a preset: see [Receive on the nodes only](#receive-on-the-nodes-only).
 
 ## Per-node resolution in clusters
 
@@ -199,3 +199,17 @@ The placeholder is resolved from each machine's local preset JSON. Keep preset
 titles consistent across machines. Source configuration edits are picked up within a few seconds while the layer updates. Streaming the master
 texture to nodes is suspended while a placeholder is active, so the nodes keep
 receiving the original layer configuration and opening their own sources.
+
+### Receive on the nodes only
+
+Often the master only needs to show *where* a live layer is, not its content. Receiving and decoding a high-bitrate feed on the master then costs network bandwidth, CPU and GPU time for nothing. For **NDI**, **OMT**, **Stream**, **YouTube** and **WebRTC** layers, turn on **Nodes only** in the Inspect view toolbar (next to **Sync**). The master then stops receiving the source and shows a placeholder with the layer title instead, while every node receives and decodes the source as before. No predefined source file is needed, and the setting is saved with the presentation.
+
+- The placeholder behaves like the preset placeholders above: position, size, visibility and layer operations still apply to the layer and are synchronized to the nodes.
+- The placeholder keeps the aspect ratio of the source, so a plane layer has the same size on the master as on the nodes. The size comes from what the nodes report receiving, or else from what the master received before **Nodes only** was turned on. It is saved with the presentation, so the placeholder has the right shape right after loading. A stereo source counts as one eye.
+- The master plays no audio for the layer. Audio on the nodes is unaffected.
+- **Nodes only** requires the layer to exist on the nodes, so it has no effect while **Sync** marks the layer master-only. Streaming the layer texture to the nodes (**Nodes**) is not available, since the master has no texture to stream.
+- **WebRTC:** without the master receiving the stream, there is nothing to relay. Every node pulls the stream directly from the WHEP server, whatever the **Master relay** setting, and frames are not presented in sync across nodes. Make sure the server accepts one connection per node.
+- **YouTube:** the master has no playback position, so the nodes stop following it. Play, pause, stop and seeks from the master still reach the nodes, but between those the nodes play on their own, and the master's seek slider does not show the playback position.
+- **Stream:** a placeholder from a predefined stream entry and **Nodes only** can be combined; either one makes the master show the placeholder.
+
+Turning **Nodes only** off again makes the master reconnect to the source.

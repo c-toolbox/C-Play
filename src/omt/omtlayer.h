@@ -66,6 +66,12 @@ public:
     void decodeTypeProperties(const std::vector<std::byte>& data, unsigned int& pos);
 
 private:
+    // Master with receiveOnNodesOnly(): releases the receiver and shows the placeholder.
+    // Returns true while the placeholder replaces the source. Render thread.
+    bool updateNodesOnlyPlaceholder();
+    // Closes the audio stream and destroys the receiver; update() recreates them.
+    void releaseReceiver();
+
     void GenerateTexture(unsigned int& id, int width, int height);
     bool StartAudioStream();
     PaDeviceIndex GetChosenApplicationAudioDevice();

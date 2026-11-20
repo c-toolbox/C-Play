@@ -172,10 +172,12 @@ Kirigami.ApplicationWindow {
 
     color: Kirigami.Theme.alternateBackgroundColor
     height: 630
-    minimumWidth: 1280
+    // Never narrower than the toolbar, which is centred and would otherwise clip buttons on
+    // both sides (its button set depends on the layer type).
+    minimumWidth: Math.max(1280, toolBarLayerView.implicitWidth + 2 * Kirigami.Units.largeSpacing)
     title: qsTr("")
     visible: false
-    width: 1280
+    width: 1440
 
     Component.onCompleted: {
         if (window.x > width) {
@@ -647,7 +649,9 @@ Kirigami.ApplicationWindow {
 
                     checkable: true
                     checked: layerViewItem.layerNodeStreamOutputEnabled
+                    // With "Nodes only" the master has no source texture to stream.
                     enabled: layerViewItem.layerTypeName !== "Audio"
+                        && !(layerViewItem.layerReceiveOnNodesOnly && !layerViewItem.layerExistOnMasterOnly)
                     visible: layerViewItem.layerNodeStreamAvailable
                     focusPolicy: Qt.NoFocus
                     icon.color: (!layerViewItem.layerNodeStreamOutputEnabled ? "crimson" : (layerViewItem.layerNodeStreamSending ? "lime" : "orange"))
@@ -842,6 +846,32 @@ Kirigami.ApplicationWindow {
 
                     ToolTip {
                         text: !enabled ? qsTr("The layer texture is streamed from the master, so this layer always exists on the nodes") : (layerViewItem.layerExistOnMasterOnly ? qsTr("Layer exists on the master only, it is not synced to the nodes") : qsTr("Layer is synced to the nodes"))
+                    }
+                }
+                ToolButton {
+                    id: receiveOnNodesOnlyButton
+
+                    checkable: true
+                    checked: layerViewItem.layerReceiveOnNodesOnly
+                    // Without the layer on the nodes, nothing would receive the source.
+                    enabled: !layerViewItem.layerExistOnMasterOnly
+                    visible: layerViewItem.layerSupportsReceiveOnNodesOnly
+                    focusPolicy: Qt.NoFocus
+                    icon.color: layerViewItem.layerReceiveOnNodesOnly && enabled ? "orange" : "lime"
+                    icon.name: "network-workgroup"
+                    text: qsTr("Nodes only")
+
+                    onClicked: {
+                        layerViewItem.layerReceiveOnNodesOnly = checked;
+                        app.slides.needsSync = true;
+                    }
+
+                    ToolTip {
+                        text: !receiveOnNodesOnlyButton.enabled
+                            ? qsTr("The layer exists on the master only, so the master always receives the source")
+                            : (layerViewItem.layerReceiveOnNodesOnly
+                                ? qsTr("Only the nodes receive and decode the source. The master shows a placeholder and plays no audio for this layer.")
+                                : qsTr("The master and the nodes receive and decode the source. Check to let only the nodes receive it, and show a placeholder on the master."))
                     }
                 }
                 ToolButton {
