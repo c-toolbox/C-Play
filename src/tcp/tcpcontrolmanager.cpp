@@ -62,10 +62,10 @@ QByteArray eventValueBytes(const QJsonValue &value, int charsPerItem) {
             auto characters = singleLine(QString::number(i + 1) + QStringLiteral(". ") + label).toUcs4();
             if (characters.size() > charsPerItem) {
                 characters.resize(charsPerItem >= 4 ? charsPerItem - 4 : charsPerItem);
-                label = QString::fromUcs4(characters.constData(), characters.size());
+                label = QString::fromUcs4(reinterpret_cast<const char32_t *>(characters.constData()), characters.size());
                 if (charsPerItem >= 4) label += QStringLiteral("... ");
             } else {
-                label = QString::fromUcs4(characters.constData(), characters.size());
+                label = QString::fromUcs4(reinterpret_cast<const char32_t *>(characters.constData()), characters.size());
                 label += QString(charsPerItem - characters.size(), QLatin1Char(' '));
             }
             // Rows are LF separated like the REST list endpoints.
@@ -82,6 +82,24 @@ QByteArray eventValueBytes(const QJsonValue &value, int charsPerItem) {
 
 TcpControlManager::TcpControlManager(QObject *parent, const QString &path)
     : QObject(parent), m_listener(new TcpControlServer(this)), m_configurationPath(path) {
+    connect(m_listener, &TcpControlServer::clientConnected, this, [this](quint64 id, const QString &address, int port) {
+        IncomingSession session;
+        session.address = address;
+        session.port = port;
+        m_sessions.insert(id, session);
+        applyIncomingProfile(id);
+        // A profile can subscribe its clients on connect, like a server's notification topics.
+        const auto topics = m_sessions.value(id).profile.value(QStringLiteral("eventTopics")).toStringList();
+        if (!topics.isEmpty()) subscribeIncoming(id, topics);
+        Q_EMIT incomingSessionsChanged();
+    });
+    connect(m_listener, &TcpControlServer::clientDisconnected, this, [this](quint64 id) {
+        if (m_sessions.remove(id)) Q_EMIT incomingSessionsChanged();
+    });
+    m_listener->setSessionHandler([this](quint64 id, const QString &path, const QJsonObject &parameters) {
+        return handleIncomingRequest(id, path, parameters);
+    });
+    m_incomingClients = withDefaultIncomingClient({});
     if (!path.isEmpty() && QFileInfo::exists(path))
         loadConfiguration();
 }
@@ -205,7 +223,69 @@ bool TcpControlManager::normalizeCommand(const QVariantMap &input, const QVarian
     return true;
 }
 
-bool TcpControlManager::persist(const QVariantList &servers, const QVariantList &commands) {
+bool TcpControlManager::normalizeIncomingClient(const QVariantMap &input, const QVariantList &servers, QVariantMap &output) {
+    QString address = input.value(QStringLiteral("address")).toString().trimmed().toLower();
+    if (address.startsWith(QLatin1Char('[')) && address.endsWith(QLatin1Char(']')))
+        address = address.mid(1, address.size() - 2);
+    if (address != QStringLiteral("*")) {
+        QHostAddress host;
+        if (!host.setAddress(address)) {
+            error(tr("Incoming client requires a numeric IPv4/IPv6 address, or * for any client"));
+            return false;
+        }
+        // Clients are matched by the canonical address the listener reports.
+        bool ipv4 = false;
+        const quint32 v4 = host.toIPv4Address(&ipv4);
+        if (ipv4) host = QHostAddress(v4);
+        host.setScopeId({});
+        address = host.toString().toLower();
+    }
+    const auto topics = input.value(QStringLiteral("eventTopics")).toStringList();
+    if (!ControlEventFeed::validateTopics(topics)) {
+        error(tr("Unknown incoming client event topic"));
+        return false;
+    }
+    const QString format = input.value(QStringLiteral("eventFormat"), QStringLiteral("json")).toString();
+    const QString commandServerId = input.value(QStringLiteral("commandServerId")).toString();
+    if (format != QStringLiteral("json") && format != QStringLiteral("commands")) {
+        error(tr("Incoming client event format must be json or commands"));
+        return false;
+    }
+    if (format == QStringLiteral("commands") && find(servers, commandServerId) < 0) {
+        error(tr("Command structure requires an existing TCP server whose commands are sent"));
+        return false;
+    }
+    const QString sendHex = input.value(QStringLiteral("sendTerminatorHex"), QStringLiteral("0a")).toString();
+    static const QRegularExpression hex(QStringLiteral("^(?:[0-9a-fA-F]{2}){0,256}$"));
+    const bool isDefault = address == defaultIncomingClientId();
+    QString name = input.value(QStringLiteral("name")).toString().trimmed();
+    if (isDefault && name.isEmpty()) name = builtInIncomingClient().value(QStringLiteral("name")).toString();
+    if (name.isEmpty() || !hex.match(sendHex).hasMatch()) {
+        error(tr("Incoming client requires a name and a hexadecimal send terminator"));
+        return false;
+    }
+    // The default profile always applies to clients without an enabled profile of their own.
+    output = { {QStringLiteral("id"), address}, {QStringLiteral("name"), name},
+        {QStringLiteral("address"), address}, {QStringLiteral("enabled"), isDefault || input.value(QStringLiteral("enabled"), true).toBool()},
+        {QStringLiteral("eventTopics"), topics}, {QStringLiteral("eventFormat"), format},
+        {QStringLiteral("sendTerminatorHex"), sendHex.toLower()} };
+    if (format == QStringLiteral("commands")) output.insert(QStringLiteral("commandServerId"), commandServerId);
+    return true;
+}
+
+QVariantMap TcpControlManager::builtInIncomingClient() {
+    return { {QStringLiteral("id"), defaultIncomingClientId()}, {QStringLiteral("name"), tr("Default profile")},
+        {QStringLiteral("address"), defaultIncomingClientId()}, {QStringLiteral("enabled"), true},
+        {QStringLiteral("eventTopics"), QStringList()}, {QStringLiteral("eventFormat"), QStringLiteral("json")},
+        {QStringLiteral("sendTerminatorHex"), QStringLiteral("0a")} };
+}
+
+QVariantList TcpControlManager::withDefaultIncomingClient(QVariantList incomingClients) {
+    if (find(incomingClients, defaultIncomingClientId()) < 0) incomingClients.prepend(builtInIncomingClient());
+    return incomingClients;
+}
+
+bool TcpControlManager::persist(const QVariantList &servers, const QVariantList &commands, const QVariantList &incomingClients) {
     if (!m_configurationPath.isEmpty()) {
         if (!QDir().mkpath(QFileInfo(m_configurationPath).absolutePath())) {
             error(tr("Cannot create TCP configuration directory"));
@@ -214,7 +294,8 @@ bool TcpControlManager::persist(const QVariantList &servers, const QVariantList 
         QSaveFile file(m_configurationPath);
         const auto bytes = QJsonDocument(QJsonObject {
             {QStringLiteral("version"), 1}, {QStringLiteral("servers"), QJsonArray::fromVariantList(servers)},
-            {QStringLiteral("commands"), QJsonArray::fromVariantList(commands)} }).toJson();
+            {QStringLiteral("commands"), QJsonArray::fromVariantList(commands)},
+            {QStringLiteral("incomingClients"), QJsonArray::fromVariantList(incomingClients)} }).toJson();
         if (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size() || !file.commit()) {
             error(tr("Cannot save TCP configuration: %1").arg(file.errorString()));
             return false;
@@ -236,7 +317,8 @@ bool TcpControlManager::loadConfiguration(const QString &sourcePath) {
     file.close(); // Release the Windows handle before atomically rewriting a migrated file.
     const auto root = doc.object();
     if (parseError.error != QJsonParseError::NoError || !doc.isObject()
-        || root.value(QStringLiteral("version")).toInt() != 1 || !root.value(QStringLiteral("servers")).isArray() || !root.value(QStringLiteral("commands")).isArray()) {
+        || root.value(QStringLiteral("version")).toInt() != 1 || !root.value(QStringLiteral("servers")).isArray() || !root.value(QStringLiteral("commands")).isArray()
+        || (root.contains(QStringLiteral("incomingClients")) && !root.value(QStringLiteral("incomingClients")).isArray())) {
         error(tr("Invalid TCP configuration format"));
         return false;
     }
@@ -281,15 +363,35 @@ bool TcpControlManager::loadConfiguration(const QString &sourcePath) {
         ids.insert(id);
         commands.append(command);
     }
-    if (idsChanged && sourcePath.isEmpty() && !persist(servers, commands)) return false;
+    ids.clear();
+    QVariantList incomingClients;
+    for (const auto value : root.value(QStringLiteral("incomingClients")).toArray()) {
+        QVariantMap profile;
+        auto input = value.toObject().toVariantMap();
+        const QString oldServerId = input.value(QStringLiteral("commandServerId")).toString();
+        if (migratedIds.contains(oldServerId)) input[QStringLiteral("commandServerId")] = migratedIds.value(oldServerId);
+        if (!value.isObject() || !normalizeIncomingClient(input, servers, profile))
+            return false;
+        const QString id = profile.value(QStringLiteral("id")).toString();
+        if (ids.contains(id)) {
+            error(tr("Duplicate incoming TCP client address"));
+            return false;
+        }
+        ids.insert(id);
+        incomingClients.append(profile);
+    }
+    if (idsChanged && sourcePath.isEmpty() && !persist(servers, commands, incomingClients)) return false;
     m_servers = servers;
     m_commands = commands;
+    m_incomingClients = withDefaultIncomingClient(incomingClients);
+    applyIncomingProfiles();
     resetManualStops();
     m_subscriptions.clear();
     m_lastError.clear();
     reconcile();
     Q_EMIT serversChanged();
     Q_EMIT commandsChanged();
+    Q_EMIT incomingClientsChanged();
     Q_EMIT lastErrorChanged();
     return true;
 }
@@ -312,6 +414,7 @@ QString TcpControlManager::saveServer(const QVariantMap &profile) {
     }
     auto servers = m_servers;
     auto commands = m_commands;
+    auto incomingClients = m_incomingClients;
     if (index >= 0 && oldId != id) {
         for (auto &entry : commands) {
             auto command = entry.toMap();
@@ -320,9 +423,16 @@ QString TcpControlManager::saveServer(const QVariantMap &profile) {
                 entry = command;
             }
         }
+        for (auto &entry : incomingClients) {
+            auto client = entry.toMap();
+            if (client.value(QStringLiteral("commandServerId")).toString() == oldId) {
+                client[QStringLiteral("commandServerId")] = id;
+                entry = client;
+            }
+        }
     }
     if (index < 0) servers.append(server); else servers[index] = server;
-    if (!persist(servers, commands))
+    if (!persist(servers, commands, incomingClients))
         return {};
     // Servers without connectOnStartup keep their current connection state when edited.
     const auto *previous = m_clients.value(index >= 0 ? oldId : id);
@@ -330,6 +440,11 @@ QString TcpControlManager::saveServer(const QVariantMap &profile) {
         && previous->connectionState() != TcpControlClient::Disconnecting;
     m_servers = servers;
     m_commands = commands;
+    if (m_incomingClients != incomingClients) {
+        m_incomingClients = incomingClients;
+        applyIncomingProfiles();
+        Q_EMIT incomingClientsChanged();
+    }
     if (oldId != id) {
         m_manualStops.remove(oldId);
         m_subscriptions.remove(oldId);
@@ -350,6 +465,12 @@ bool TcpControlManager::removeServer(const QString &id) {
     for (const auto &value : m_commands) {
         if (value.toMap().value(QStringLiteral("serverId")).toString() == id) {
             error(tr("Remove or reassign this server's commands before deleting the server"));
+            return false;
+        }
+    }
+    for (const auto &value : m_incomingClients) {
+        if (value.toMap().value(QStringLiteral("commandServerId")).toString() == id) {
+            error(tr("Reassign incoming clients that use this server's command structure before deleting the server"));
             return false;
         }
     }
@@ -570,6 +691,37 @@ QVariantMap TcpControlManager::triggerAll(const QString &serverId) {
         {QStringLiteral("rejected"), rejected}, {QStringLiteral("message"), failure}};
 }
 
+std::optional<QByteArray> TcpControlManager::commandPayload(const QVariantMap &item, const QJsonObject &event,
+    const QByteArray &previous, bool &unchanged) {
+    unchanged = false;
+    QByteArray payload = item.value(QStringLiteral("encoding")).toString() == QStringLiteral("hex")
+        ? QByteArray::fromHex(item.value(QStringLiteral("payload")).toByteArray()) : item.value(QStringLiteral("payload")).toString().toUtf8();
+    if (item.value(QStringLiteral("eventPayload")).toString() != QStringLiteral("value"))
+        return payload;
+    QJsonValue value = event.value(QStringLiteral("value"));
+    if (event.isEmpty() && m_eventFeed) {
+        const auto topics = item.value(QStringLiteral("eventTopics")).toStringList();
+        value = m_eventFeed->read(topics).value(QStringLiteral("values")).toObject().value(topics.first());
+    }
+    if (value.isUndefined())
+        return std::nullopt;
+    const int charsPerItem = item.value(QStringLiteral("charsPerItem")).toInt();
+    QString topic = event.value(QStringLiteral("topic")).toString();
+    if (topic.isEmpty()) topic = item.value(QStringLiteral("eventTopics")).toStringList().value(0);
+    const QString timeFormat = item.value(QStringLiteral("timeFormat")).toString();
+    if (!timeFormat.isEmpty() && value.isDouble()) {
+        payload += formatSeconds(value.toDouble(), timeFormat);
+        // Position is sampled every 100 ms; a coarser format only sends when its text changes.
+        unchanged = previous == payload;
+    } else {
+        // Lists use the REST formatters so TCP and REST send identical text. The formatter
+        // returns nullopt for width 0 except for topics with a text form at every width.
+        const auto formatted = m_listFormatter ? m_listFormatter(topic, charsPerItem) : std::nullopt;
+        payload += formatted ? *formatted : eventValueBytes(value, charsPerItem);
+    }
+    return payload;
+}
+
 bool TcpControlManager::dispatchCommand(const QString &id, const QJsonObject &event, bool skipUnchanged) {
     const auto item = command(id);
     const QString serverId = item.value(QStringLiteral("serverId")).toString();
@@ -580,39 +732,18 @@ bool TcpControlManager::dispatchCommand(const QString &id, const QJsonObject &ev
         || !m_servers.at(serverIndex).toMap().value(QStringLiteral("enabled")).toBool() || !client->isConnected()) {
         error(tr("TCP command rejected: missing command or server is disabled/disconnected"));
     } else {
-        QByteArray payload = item.value(QStringLiteral("encoding")).toString() == QStringLiteral("hex")
-            ? QByteArray::fromHex(item.value(QStringLiteral("payload")).toByteArray()) : item.value(QStringLiteral("payload")).toString().toUtf8();
-        const QString mode = item.value(QStringLiteral("eventPayload")).toString();
-        if (mode == QStringLiteral("value")) {
-            QJsonValue value = event.value(QStringLiteral("value"));
-            if (event.isEmpty() && m_eventFeed) {
-                const auto topics = item.value(QStringLiteral("eventTopics")).toStringList();
-                value = m_eventFeed->read(topics).value(QStringLiteral("values")).toObject().value(topics.first());
-            }
-            if (value.isUndefined()) {
-                error(tr("Event value is unavailable"));
-                Q_EMIT commandTriggered(id, false);
-                return false;
-            }
-            const int charsPerItem = item.value(QStringLiteral("charsPerItem")).toInt();
-            QString topic = event.value(QStringLiteral("topic")).toString();
-            if (topic.isEmpty()) topic = item.value(QStringLiteral("eventTopics")).toStringList().value(0);
-            const QString timeFormat = item.value(QStringLiteral("timeFormat")).toString();
-            if (!timeFormat.isEmpty() && value.isDouble()) {
-                payload += formatSeconds(value.toDouble(), timeFormat);
-                // Position is sampled every 100 ms; a coarser format only sends when its text changes.
-                if (skipUnchanged && m_lastTimePayloads.value(id) == payload) return true;
-            } else {
-                // Lists use the REST formatters so TCP and REST send identical text. The formatter
-                // returns nullopt for width 0 except for topics with a text form at every width.
-                const auto formatted = m_listFormatter ? m_listFormatter(topic, charsPerItem) : std::nullopt;
-                payload += formatted ? *formatted : eventValueBytes(value, charsPerItem);
-            }
+        bool unchanged = false;
+        const auto payload = commandPayload(item, event, m_lastTimePayloads.value(id), unchanged);
+        if (!payload) {
+            error(tr("Event value is unavailable"));
+            Q_EMIT commandTriggered(id, false);
+            return false;
         }
-        accepted = item.value(QStringLiteral("raw")).toBool() ? client->sendBinary(payload) : client->sendMessage(payload);
+        if (skipUnchanged && unchanged) return true;
+        accepted = item.value(QStringLiteral("raw")).toBool() ? client->sendBinary(*payload) : client->sendMessage(*payload);
         if (!accepted) error(client->lastError());
         else { m_lastError.clear(); Q_EMIT lastErrorChanged(); }
-        if (accepted && item.contains(QStringLiteral("timeFormat"))) m_lastTimePayloads.insert(id, payload);
+        if (accepted && item.contains(QStringLiteral("timeFormat"))) m_lastTimePayloads.insert(id, *payload);
     }
     Q_EMIT commandTriggered(id, accepted);
     return accepted;
@@ -655,6 +786,9 @@ void TcpControlManager::publishEvent(const QJsonObject &event) {
         if (matches(command.value(QStringLiteral("eventTopics")).toStringList()))
             dispatchCommand(command.value(QStringLiteral("id")).toString(), event, true);
     }
+    // Iterate IDs: sending can disconnect a slow client, which removes its session.
+    const auto sessions = m_sessions.keys();
+    for (const auto session : sessions) sendIncomingEvent(session, event);
     // Only formatted output depends on the source topic; an empty event reads the cached value.
     for (const auto &dependent : m_topicDependencies.value(topic)) {
         for (const auto &value : commands) {
@@ -663,6 +797,18 @@ void TcpControlManager::publishEvent(const QJsonObject &event) {
                 && command.value(QStringLiteral("charsPerItem")).toInt() > 0
                 && command.value(QStringLiteral("eventTopics")).toStringList().contains(dependent))
                 dispatchCommand(command.value(QStringLiteral("id")).toString(), {});
+        }
+        for (const auto session : sessions) {
+            const auto it = m_sessions.constFind(session);
+            if (it == m_sessions.cend()
+                || (!it->topics.contains(QStringLiteral("*")) && !it->topics.contains(dependent))) continue;
+            for (const auto &value : incomingCommands(session)) {
+                const auto command = value.toMap();
+                if (command.value(QStringLiteral("eventPayload")).toString() == QStringLiteral("value")
+                    && command.value(QStringLiteral("charsPerItem")).toInt() > 0
+                    && command.value(QStringLiteral("eventTopics")).toStringList().contains(dependent))
+                    sendIncomingCommand(session, command, {}, false);
+            }
         }
     }
 }
@@ -746,4 +892,209 @@ bool TcpControlManager::handleEventRequest(const QString &id, const QByteArray &
         sendEventMessage(id, m_eventFeed->read(topics));
     }
     return true;
+}
+
+QVariantMap TcpControlManager::incomingClientProfile(const QString &address) const {
+    QVariantMap fallback = builtInIncomingClient();
+    for (const auto &value : m_incomingClients) {
+        const auto profile = value.toMap();
+        const QString profileAddress = profile.value(QStringLiteral("address")).toString();
+        if (profileAddress == defaultIncomingClientId()) fallback = profile;
+        else if (profileAddress == address && profile.value(QStringLiteral("enabled")).toBool()) return profile;
+    }
+    return fallback;
+}
+
+QString TcpControlManager::saveIncomingClient(const QVariantMap &input) {
+    QVariantMap profile;
+    if (!normalizeIncomingClient(input, m_servers, profile))
+        return {};
+    const QString id = profile.value(QStringLiteral("id")).toString();
+    const QString oldId = input.value(QStringLiteral("id")).toString();
+    if (oldId == defaultIncomingClientId() && id != oldId) {
+        error(tr("The default profile always has address *; add a new profile for a specific address"));
+        return {};
+    }
+    // Saving a * profile always edits the default profile.
+    const int index = id == defaultIncomingClientId() ? find(m_incomingClients, id)
+        : oldId.isEmpty() ? -1 : find(m_incomingClients, oldId);
+    if (!oldId.isEmpty() && index < 0 && oldId != id) {
+        error(tr("Incoming TCP client no longer exists"));
+        return {};
+    }
+    const int duplicate = find(m_incomingClients, id);
+    if (duplicate >= 0 && duplicate != index) {
+        error(tr("An incoming TCP client with this address already exists"));
+        return {};
+    }
+    auto incomingClients = m_incomingClients;
+    if (index < 0) incomingClients.append(profile); else incomingClients[index] = profile;
+    if (!persist(m_servers, m_commands, incomingClients))
+        return {};
+    m_incomingClients = incomingClients;
+    applyIncomingProfiles();
+    Q_EMIT incomingClientsChanged();
+    return id;
+}
+
+bool TcpControlManager::removeIncomingClient(const QString &id) {
+    if (id == defaultIncomingClientId()) {
+        error(tr("The default profile cannot be deleted; edit it instead"));
+        return false;
+    }
+    const int index = find(m_incomingClients, id);
+    if (index < 0)
+        return false;
+    auto incomingClients = m_incomingClients;
+    incomingClients.removeAt(index);
+    if (!persist(m_servers, m_commands, incomingClients))
+        return false;
+    m_incomingClients = incomingClients;
+    applyIncomingProfiles();
+    Q_EMIT incomingClientsChanged();
+    return true;
+}
+
+QVariantList TcpControlManager::incomingSessions() const {
+    QVariantList result;
+    for (auto it = m_sessions.cbegin(); it != m_sessions.cend(); ++it) {
+        const auto &profile = it->profile;
+        result.append(QVariantMap {
+            {QStringLiteral("session"), QString::number(it.key())}, {QStringLiteral("address"), it->address},
+            {QStringLiteral("port"), it->port}, {QStringLiteral("profileId"), profile.value(QStringLiteral("id"))},
+            {QStringLiteral("profileName"), profile.value(QStringLiteral("name"))},
+            {QStringLiteral("eventFormat"), profile.value(QStringLiteral("eventFormat"), QStringLiteral("json"))},
+            {QStringLiteral("topics"), it->topics} });
+    }
+    return result;
+}
+
+void TcpControlManager::applyIncomingProfiles() {
+    const auto sessions = m_sessions.keys();
+    for (const auto session : sessions) applyIncomingProfile(session);
+    if (!sessions.isEmpty()) Q_EMIT incomingSessionsChanged();
+}
+
+void TcpControlManager::applyIncomingProfile(quint64 id) {
+    const auto it = m_sessions.find(id);
+    if (it == m_sessions.end()) return;
+    const auto profile = incomingClientProfile(it->address);
+    if (profile != it->profile) it->lastTimePayloads.clear();
+    it->profile = profile;
+    m_listener->setTerminator(id, QByteArray::fromHex(profile.value(QStringLiteral("sendTerminatorHex"), QStringLiteral("0a")).toByteArray()));
+}
+
+QVariantList TcpControlManager::incomingCommands(quint64 id) const {
+    QVariantList result;
+    const auto it = m_sessions.constFind(id);
+    if (it == m_sessions.cend() || it->profile.value(QStringLiteral("eventFormat")).toString() != QStringLiteral("commands"))
+        return result;
+    // The client receives the event commands of the referenced server, as that server would.
+    const QString serverId = it->profile.value(QStringLiteral("commandServerId")).toString();
+    for (const auto &value : m_commands) {
+        const auto command = value.toMap();
+        if (command.value(QStringLiteral("serverId")).toString() == serverId
+            && !command.value(QStringLiteral("eventTopics")).toStringList().isEmpty())
+            result.append(command);
+    }
+    return result;
+}
+
+std::optional<QJsonObject> TcpControlManager::handleIncomingRequest(quint64 id, const QString &path, const QJsonObject &parameters) {
+    if (path != QStringLiteral("/subscribe") && path != QStringLiteral("/unsubscribe") && path != QStringLiteral("/full_update"))
+        return std::nullopt;
+    const auto reply = [](int status, const QString &message, const QStringList &topics = {}) {
+        QJsonObject object{{QStringLiteral("accepted"), status == 200}, {QStringLiteral("status"), status},
+            {QStringLiteral("message"), message}};
+        if (status == 200) object.insert(QStringLiteral("topics"), QJsonArray::fromStringList(topics));
+        return object;
+    };
+    if (!m_active || !m_eventFeed || !m_sessions.contains(id))
+        return reply(503, tr("Player is not ready"));
+    // Comma-separated topics; omitted or empty selects all topics.
+    QStringList topics;
+    for (const auto &topic : parameters.value(QStringLiteral("topics")).toString().split(QLatin1Char(',')))
+        if (!topic.trimmed().isEmpty()) topics.append(topic.trimmed());
+    if (topics.isEmpty()) topics = {QStringLiteral("*")};
+    if (!ControlEventFeed::validateTopics(topics))
+        return reply(400, tr("Unknown event topic; see /event_topics"));
+    if (path == QStringLiteral("/subscribe")) {
+        subscribeIncoming(id, topics);
+        return reply(200, tr("Subscribed"), m_sessions.value(id).topics);
+    }
+    if (path == QStringLiteral("/unsubscribe")) {
+        auto &current = m_sessions[id].topics;
+        if (topics.contains(QStringLiteral("*"))) current.clear();
+        else {
+            // Unsubscribing single topics from * keeps all other topics.
+            if (current.contains(QStringLiteral("*"))) current = ControlEventFeed::availableTopics();
+            for (const auto &topic : topics) current.removeAll(topic);
+        }
+        Q_EMIT incomingSessionsChanged();
+        return reply(200, tr("Unsubscribed"), current);
+    }
+    QMetaObject::invokeMethod(this, [this, id, topics] { sendIncomingUpdate(id, topics); }, Qt::QueuedConnection);
+    return reply(200, tr("Full update"), topics);
+}
+
+void TcpControlManager::subscribeIncoming(quint64 id, const QStringList &topics) {
+    const auto it = m_sessions.find(id);
+    if (it == m_sessions.end()) return;
+    if (topics.contains(QStringLiteral("*"))) it->topics = {QStringLiteral("*")};
+    else if (!it->topics.contains(QStringLiteral("*")))
+        for (const auto &topic : topics) if (!it->topics.contains(topic)) it->topics.append(topic);
+    Q_EMIT incomingSessionsChanged();
+    // The subscriber starts from the current values; queued so a reply is written first.
+    QMetaObject::invokeMethod(this, [this, id, topics] { sendIncomingUpdate(id, topics); }, Qt::QueuedConnection);
+}
+
+void TcpControlManager::sendIncomingUpdate(quint64 id, const QStringList &topics) {
+    const auto it = m_sessions.constFind(id);
+    if (!m_active || !m_eventFeed || it == m_sessions.cend()) return;
+    const auto snapshot = m_eventFeed->read(topics);
+    if (it->profile.value(QStringLiteral("eventFormat")).toString() != QStringLiteral("commands")) {
+        m_listener->send(id, QJsonDocument(snapshot).toJson(QJsonDocument::Compact));
+        return;
+    }
+    // Like the server's full update: every event command of the requested topics, once.
+    const auto values = snapshot.value(QStringLiteral("values")).toObject();
+    for (const auto &value : incomingCommands(id)) {
+        const auto command = value.toMap();
+        const QString topic = command.value(QStringLiteral("eventTopics")).toStringList().first();
+        if (!topics.contains(QStringLiteral("*")) && !topics.contains(topic)) continue;
+        sendIncomingCommand(id, command, {{QStringLiteral("topic"), topic}, {QStringLiteral("value"), values.value(topic)}}, false);
+    }
+}
+
+void TcpControlManager::sendIncomingEvent(quint64 id, const QJsonObject &event) {
+    const auto it = m_sessions.constFind(id);
+    if (it == m_sessions.cend()) return;
+    const QString topic = event.value(QStringLiteral("topic")).toString();
+    const auto matches = [&topic](const QStringList &topics) {
+        return topics.contains(QStringLiteral("*")) || topics.contains(topic);
+    };
+    if (!matches(it->topics)) return;
+    if (it->profile.value(QStringLiteral("eventFormat")).toString() != QStringLiteral("commands")) {
+        m_listener->send(id, QJsonDocument(event).toJson(QJsonDocument::Compact));
+        return;
+    }
+    for (const auto &value : incomingCommands(id)) {
+        const auto command = value.toMap();
+        if (matches(command.value(QStringLiteral("eventTopics")).toStringList()))
+            sendIncomingCommand(id, command, event, true);
+    }
+}
+
+void TcpControlManager::sendIncomingCommand(quint64 id, const QVariantMap &command, const QJsonObject &event, bool skipUnchanged) {
+    const auto it = m_sessions.constFind(id);
+    if (it == m_sessions.cend()) return;
+    const QString commandId = command.value(QStringLiteral("id")).toString();
+    bool unchanged = false;
+    const auto payload = commandPayload(command, event, it->lastTimePayloads.value(commandId), unchanged);
+    if (!payload || (skipUnchanged && unchanged)) return;
+    // A client that does not read its updates is disconnected, which removes its session.
+    if (!m_listener->send(id, *payload, command.value(QStringLiteral("raw")).toBool())) return;
+    const auto session = m_sessions.find(id);
+    if (session != m_sessions.end() && command.contains(QStringLiteral("timeFormat")))
+        session->lastTimePayloads.insert(commandId, *payload);
 }

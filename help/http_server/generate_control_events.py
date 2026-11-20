@@ -7,28 +7,16 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 
 
-def generate(model_path, output, port=9000):
-    if not 1 <= port <= 65535:
-        raise ValueError("port must be between 1 and 65535")
+def load_model(model_path):
     model = json.loads(Path(model_path).read_text(encoding="utf-8"))
     if model.get("version") != 1 or not isinstance(model.get("commands"), list):
         raise ValueError("Expected version-1 EventModel commands")
-    config = configparser.ConfigParser(interpolation=None)
-    config.optionxform = str
-    # Checked-in base driver keeps generation independent of Medialon installation.
-    config.read(Path(__file__).with_name("Showmaster_TCP_Server.mllc"), encoding="ascii")
-    config["INFOS"]["Title"] = "C-Play Control Events"
-    config["INFOS"]["Description"] = "Receives C-Play scalar values and formatted lists over CR-terminated TCP."
-    config["TYPE"]["Port"] = str(port)
-    # Frames end at CR so LF row separators in formatted lists stay inside the value.
-    config["FRAMES"]["Ending character"] = "!0D"
-    monitoring = config["MONITORING"]
-    variables = dict(monitoring)
-    for key, value in variables.items():
-        if key.endswith(".Frame") and value.endswith("!0D!0A"):
-            variables[key] = value[:-len("!0A")]
-    offset = int(monitoring["Variables count"])
-    variables["Variables count"] = str(offset + len(model["commands"]))
+    return model
+
+
+def event_variables(model, offset):
+    """Medialon monitoring variables for the CR-terminated EventModel frames, numbered from offset."""
+    variables = {}
     names, prefixes = set(), set()
     for index, command in enumerate(model["commands"]):
         mode = command["eventPayload"]
@@ -50,6 +38,30 @@ def generate(model_path, output, port=9000):
                       UpdateMode=0, EnumNameCount=0, BEnumIntegerValues=0)
         for key, value in fields.items():
             variables[f"Variable{offset + index}.{key}"] = str(value)
+    return variables
+
+
+def generate(model_path, output, port=9000):
+    if not 1 <= port <= 65535:
+        raise ValueError("port must be between 1 and 65535")
+    model = load_model(model_path)
+    config = configparser.ConfigParser(interpolation=None)
+    config.optionxform = str
+    # Checked-in base driver keeps generation independent of Medialon installation.
+    config.read(Path(__file__).with_name("Showmaster_TCP_Server.mllc"), encoding="ascii")
+    config["INFOS"]["Title"] = "C-Play Control Events"
+    config["INFOS"]["Description"] = "Receives C-Play scalar values and formatted lists over CR-terminated TCP."
+    config["TYPE"]["Port"] = str(port)
+    # Frames end at CR so LF row separators in formatted lists stay inside the value.
+    config["FRAMES"]["Ending character"] = "!0D"
+    monitoring = config["MONITORING"]
+    variables = dict(monitoring)
+    for key, value in variables.items():
+        if key.endswith(".Frame") and value.endswith("!0D!0A"):
+            variables[key] = value[:-len("!0A")]
+    offset = int(monitoring["Variables count"])
+    variables["Variables count"] = str(offset + len(model["commands"]))
+    variables.update(event_variables(model, offset))
     config["MONITORING"] = variables
     output = Path(output)
     with output.open("w", encoding="ascii", newline="\r\n") as file:

@@ -35,14 +35,21 @@ TcpControlServer::TcpControlServer(QObject *parent) : QObject(parent) {
     }
     connect(&m_server, &QTcpServer::newConnection, this, [this] {
         while (auto *socket = m_server.nextPendingConnection()) {
-            if (m_buffers.size() >= MaximumClients) { socket->abort(); socket->deleteLater(); continue; }
+            if (m_sessions.size() >= MaximumClients) { socket->abort(); socket->deleteLater(); continue; }
             socket->setReadBufferSize(MaximumMessageBytes + 1);
-            m_buffers.insert(socket, {});
+            Session session;
+            session.id = ++m_nextSession;
+            m_sessions.insert(socket, session);
+            m_sockets.insert(session.id, socket);
             connect(socket, &QTcpSocket::readyRead, this, [this, socket] { receive(socket); });
-            connect(socket, &QTcpSocket::disconnected, this, [this, socket] {
-                m_buffers.remove(socket); socket->deleteLater(); Q_EMIT stateChanged();
-            });
+            connect(socket, &QTcpSocket::disconnected, this, [this, socket] { drop(socket); });
+            QHostAddress peer = socket->peerAddress();
+            bool ipv4 = false;
+            const quint32 address = peer.toIPv4Address(&ipv4);
+            if (ipv4) peer = QHostAddress(address);
+            peer.setScopeId({});
             Q_EMIT stateChanged();
+            Q_EMIT clientConnected(session.id, peer.toString().toLower(), socket->peerPort());
         }
     });
 }
@@ -63,35 +70,65 @@ bool TcpControlServer::start(const QString &address, int requestedPort) {
 
 void TcpControlServer::stop() {
     m_server.close();
-    const auto sockets = m_buffers.keys();
-    for (auto *socket : sockets) { socket->abort(); socket->deleteLater(); }
-    m_buffers.clear();
+    const auto sockets = m_sessions.keys();
+    for (auto *socket : sockets) drop(socket);
     Q_EMIT stateChanged();
 }
 
-void TcpControlServer::receive(QTcpSocket *socket) {
-    auto &buffer = m_buffers[socket];
-    buffer += socket->read(MaximumMessageBytes + 1 - buffer.size());
-    while (true) {
-        const auto newline = buffer.indexOf('\n');
-        if (newline < 0) break;
-        QByteArray line = buffer.left(newline);
-        buffer.remove(0, newline + 1);
-        if (line.endsWith('\r')) line.chop(1);
-        const auto reply = QJsonDocument(execute(line)).toJson(QJsonDocument::Compact) + '\n';
-        // A callback can stop/reconfigure the listener, so do not touch its buffer afterwards.
-        if (!m_buffers.contains(socket)) return;
-        if (socket->bytesToWrite() + reply.size() > MaximumMessageBytes) { socket->abort(); return; }
-        socket->write(reply);
+void TcpControlServer::drop(QTcpSocket *socket) {
+    const auto it = m_sessions.find(socket);
+    if (it == m_sessions.end()) return;
+    const quint64 id = it->id;
+    m_sessions.erase(it);
+    m_sockets.remove(id);
+    socket->disconnect(this);
+    socket->abort();
+    socket->deleteLater();
+    Q_EMIT clientDisconnected(id);
+    Q_EMIT stateChanged();
+}
+
+bool TcpControlServer::send(quint64 session, const QByteArray &payload, bool raw) {
+    auto *socket = m_sockets.value(session);
+    const auto it = m_sessions.constFind(socket);
+    if (!socket || it == m_sessions.cend()) return false;
+    const QByteArray frame = raw ? payload : payload + it->terminator;
+    if (socket->bytesToWrite() + frame.size() > MaximumPendingWriteBytes || socket->write(frame) != frame.size()) {
+        drop(socket);
+        return false;
     }
-    if (buffer.size() > MaximumMessageBytes) { socket->abort(); return; }
+    return true;
+}
+
+void TcpControlServer::setTerminator(quint64 session, const QByteArray &terminator) {
+    const auto it = m_sessions.find(m_sockets.value(session));
+    if (it != m_sessions.end()) it->terminator = terminator;
+}
+
+void TcpControlServer::receive(QTcpSocket *socket) {
+    auto it = m_sessions.find(socket);
+    if (it == m_sessions.end()) return;
+    const quint64 id = it->id;
+    it->buffer += socket->read(MaximumMessageBytes + 1 - it->buffer.size());
+    while (true) {
+        // A callback can drop this client or stop the listener; look the session up again.
+        it = m_sessions.find(socket);
+        if (it == m_sessions.end()) return;
+        const auto newline = it->buffer.indexOf('\n');
+        if (newline < 0) break;
+        QByteArray line = it->buffer.left(newline);
+        it->buffer.remove(0, newline + 1);
+        if (line.endsWith('\r')) line.chop(1);
+        if (!send(id, QJsonDocument(execute(id, line)).toJson(QJsonDocument::Compact))) return;
+    }
+    if (it->buffer.size() > MaximumMessageBytes) { drop(socket); return; }
     const QPointer<QTcpSocket> guarded(socket);
     if (socket->bytesAvailable()) QMetaObject::invokeMethod(this, [this, guarded] {
-        if (guarded && m_buffers.contains(guarded.data())) receive(guarded.data());
+        if (guarded && m_sessions.contains(guarded.data())) receive(guarded.data());
     }, Qt::QueuedConnection);
 }
 
-QJsonObject TcpControlServer::execute(const QByteArray &line) {
+QJsonObject TcpControlServer::execute(quint64 session, const QByteArray &line) {
     QStringDecoder decoder(QStringDecoder::Utf8, QStringConverter::Flag::Stateless);
     const QString text = decoder.decode(line);
     if (decoder.hasError()) return failure(tr("Command must be UTF-8"));
@@ -131,6 +168,9 @@ QJsonObject TcpControlServer::execute(const QByteArray &line) {
     }
     for (auto it = parameters.begin(); it != parameters.end(); ++it) {
         if (!it.value().isString()) return failure(tr("Parameter values must be strings"));
+    }
+    if (m_sessionHandler) {
+        if (auto reply = m_sessionHandler(session, path, parameters)) return *reply;
     }
     return m_handler ? m_handler(path, parameters) : failure(tr("Player is not ready"));
 }

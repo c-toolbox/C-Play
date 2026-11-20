@@ -455,6 +455,30 @@
         "command_id",
         "charsPerItem"
       ]
+    },
+    {
+      "path": "/subscribe",
+      "name": "Subscribe",
+      "parameters": [
+        "topics"
+      ],
+      "required": []
+    },
+    {
+      "path": "/unsubscribe",
+      "name": "Unsubscribe",
+      "parameters": [
+        "topics"
+      ],
+      "required": []
+    },
+    {
+      "path": "/full_update",
+      "name": "Full Update",
+      "parameters": [
+        "topics"
+      ],
+      "required": []
     }
   ]
 }

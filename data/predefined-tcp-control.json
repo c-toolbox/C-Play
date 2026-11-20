@@ -535,5 +535,19 @@
             "monitoringType": "string",
             "charsPerItem": 38
         }
+    ],
+    "incomingClients": [
+        {
+            "id": "*",
+            "name": "Default profile: Medialon full-duplex client (example)",
+            "address": "*",
+            "enabled": true,
+            "eventTopics": [
+                "*"
+            ],
+            "eventFormat": "commands",
+            "commandServerId": "127.0.0.1:9000",
+            "sendTerminatorHex": "0d"
+        }
     ]
 }

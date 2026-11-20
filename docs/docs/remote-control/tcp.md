@@ -10,9 +10,9 @@ C-Play provides both an outgoing TCP Control Client and an incoming TCP Control 
 | Component | Connection direction | Purpose |
 | --- | --- | --- |
 | [TCP Control Client](#tcp-control-client) | C-Play connects to an external TCP server. | Send saved commands from presentation layers and send state updates to devices or control systems such as Medialon. |
-| [TCP Control Server](#tcp-control-server) | An external TCP client connects to C-Play, normally on port 7008. | Control C-Play using the existing REST action names and parameters over a persistent TCP connection. |
+| [TCP Control Server](#tcp-control-server) | An external TCP client connects to C-Play, normally on port 7008. | Control C-Play using the existing REST action names and parameters over a persistent TCP connection, and [subscribe](#subscriptions-and-incoming-client-profiles) to state updates on the same connection. |
 
-The two components can run together. For Medialon, **C-Play Control Events** is the server receiving C-Play updates, while **C-Play TCP Control Client** connects to C-Play's server to send actions. HTTP control normally uses port 7007 and is configured separately.
+The two components can run together. For Medialon, either use one full-duplex connection, where **C-Play TCP Control Client** connects to C-Play's server, sends actions and receives its subscribed updates, or use two connections, where **C-Play Control Events** is the server receiving C-Play updates and **C-Play TCP Control Client** only sends actions. HTTP control normally uses port 7007 and is configured separately.
 
 ## TCP Control Client
 
@@ -41,7 +41,7 @@ The original single-server `[TcpControl]` configuration is imported once as **Le
 
 #### Predefined startup configuration
 
-When no saved `C-Play/tcp-control.json` exists and legacy TCP control is disabled, C-Play loads `./data/predefined-tcp-control.json` at startup, relative to the working directory, like the other `predefined-*` files. It uses the same `version`, `servers`, and `commands` structure as the saved configuration. The packaged example defines a disabled Medialon server at 127.0.0.1 on port 9000 with CR framing (`sendTerminatorHex: "0d"`), `task_start MyTask` / `task_stop MyTask` commands, and all 26 ControlEventFeed monitoring commands.
+When no saved `C-Play/tcp-control.json` exists and legacy TCP control is disabled, C-Play loads `./data/predefined-tcp-control.json` at startup, relative to the working directory, like the other `predefined-*` files. It uses the same `version`, `servers`, `commands` and optional `incomingClients` structure as the saved configuration. The packaged example defines a disabled Medialon server at 127.0.0.1 on port 9000 with CR framing (`sendTerminatorHex: "0d"`), `task_start MyTask` / `task_stop MyTask` commands, and all ControlEventFeed monitoring commands. Its [default incoming client profile](#subscriptions-and-incoming-client-profiles) is the Medialon full-duplex client: every client of the TCP Control Server without its own profile is subscribed to all topics on connect and receives them in the structure of those monitoring commands, terminated by CR.
 
 Set the host to the Showmaster Editor computer during programming or the Showmaster address during standalone operation. Replace `MyTask` with your task name, enable the server, and save it in **TCP control**. Medialon's LLC device must listen on port 9000 and dispatch received commands to project tasks.
 
@@ -228,9 +228,19 @@ Generate the Medialon client driver:
 python help/http_server/generate_control_client.py --address 192.168.1.10 --port 7008
 ```
 
-Import `help/http_server/CPlay_Control_Client.mllc` into Medialon's Low Level Communicator drivers and create a device using **C-Play TCP Control Client**. Set the address to the C-Play master. The checked-in driver defaults to `127.0.0.1:7008`. It uses TCP/IP Client mode with auto reconnection, and exposes one command for each REST action. The existing **C-Play Control Events** driver remains the separate Medialon server for outgoing state updates.
+Import `help/http_server/CPlay_Control_Client.mllc` into Medialon's Low Level Communicator drivers and create a device using **C-Play TCP Control Client**. Set the address to the C-Play master. The checked-in driver defaults to `127.0.0.1:7008`. It uses TCP/IP Client mode with auto reconnection, and exposes one command for each REST action.
 
-The shared `data/TcpControlActions.json` catalog defines all 43 actions and is embedded in C-Play. The generator uses this same catalog. Commands include playback, seeking, auto-play, speed, volume, fades, background/foreground visibility, view mode, list selections, spin, orientation reset, surface transition, slide navigation/reset/selection, layer volume/visibility/fade in/fade out/plane properties, quitting, and outgoing TCP connect/disconnect/trigger/command-width changes. Information-only endpoints are unavailable, including REST POST endpoints that only retrieve values. An action can list former paths in `aliases`; the listener still accepts them (for example `/layer_fade_up` for `/layer_fade_in`), while the generated driver uses the current path.
+The driver is full duplex. Besides the commands, it contains the monitoring variables of `data/EventModel.json` (`CPlay_volume`, `CPlay_playlist`, …, the same variables as **C-Play Control Events**) and a `Last_Reply` variable with the latest reply. Its received frames end at CR (`!0D`). C-Play only sends that structure to a client whose [incoming client profile](#subscriptions-and-incoming-client-profiles) uses the event commands of a server with the EventModel commands and the send terminator `0d`. The packaged default profile does this for every client. With a saved configuration whose default profile still sends JSON, edit the default profile, or add a profile for the Medialon computer's address, in **TCP control**. Generator options:
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `--address`, `--port` | `127.0.0.1`, `7008` | Default endpoint of C-Play's TCP server in the driver. |
+| `--events-model` | `data/EventModel.json` | Model of the received monitoring variables. |
+| `--no-events` | off | Generate the earlier send-only driver: LF framing and no monitoring variables. |
+
+With the full-duplex driver, **C-Play Control Events** is optional. It remains available as a separate Medialon server for setups where C-Play opens the update connection.
+
+The shared `data/TcpControlActions.json` catalog defines all 51 actions and is embedded in C-Play. The generator uses this same catalog. Commands include playback, seeking, auto-play, speed, volume, fades, background/foreground visibility, view mode, list selections, spin, orientation reset, surface transition, slide navigation/reset/selection, layer volume/visibility/fade in/fade out/plane properties, quitting, outgoing TCP connect/disconnect/trigger/command-width changes, and the subscription actions `/subscribe`, `/unsubscribe` and `/full_update`. Information-only endpoints are unavailable, including REST POST endpoints that only retrieve values. An action can list former paths in `aliases`; the listener still accepts them (for example `/layer_fade_up` for `/layer_fade_in`), while the generated driver uses the current path.
 
 ### Command format and replies
 
@@ -256,13 +266,66 @@ Other TCP clients can send JSON instead, with string parameter values:
 
 Each command receives a newline-delimited JSON reply, for example `{"accepted":true,"status":200,"message":"Play"}`. `accepted` reports dispatch to the REST handler, not completion of playback or a transition. Legacy REST validation messages are preserved; read the message for an invalid value or missing target. Malformed requests, unsupported paths, and missing mutation parameters return `accepted:false` without dispatch. The Medialon driver sends commands without waiting for replies and does not replay commands after reconnect.
 
-JSON parameters must be strings, including numbers and booleans. Repeated URL query parameter names are rejected. Setters require their mutation parameter (for example, `/volume` requires `level`); `/volume` alone is rejected as an information query. State queries and subscriptions remain available through the [event API](api.md#change-subscriptions) or the outgoing client's [subscription protocol](#subscribe-and-query-over-tcp).
+JSON parameters must be strings, including numbers and booleans. Repeated URL query parameter names are rejected. Setters require their mutation parameter (for example, `/volume` requires `level`); `/volume` alone is rejected as an information query. Use the [subscription actions](#subscriptions-and-incoming-client-profiles) below to receive state on the same connection, or the [event API](api.md#change-subscriptions).
 
-The listener supports up to 16 clients, a 64 KiB limit per command, and bounded reply buffers. Oversized commands and clients that do not consume replies are disconnected. Partial messages and multiple commands in one TCP packet are supported.
+The listener supports up to 16 clients, a 64 KiB limit per command, and 1 MiB of pending outgoing data (replies and updates) per client. Oversized commands and clients that do not consume their replies and updates are disconnected. Partial messages and multiple commands in one TCP packet are supported.
+
+### Subscriptions and incoming client profiles
+
+A client of the TCP Control Server can subscribe to the [event topics](#change-notifications-and-automatic-commands) on its own connection, for all topics or for individual ones:
+
+```text
+POST /subscribe
+POST /subscribe?topics=volume,playing_in_slides,layer_states
+POST /unsubscribe?topics=position
+POST /full_update?topics=playlist
+```
+
+| Action | `topics` parameter | Effect |
+| --- | --- | --- |
+| `/subscribe` | Comma-separated topics; omitted or empty means all (`*`). | Adds the topics to this connection's subscription, then sends their current values. Afterwards, every change of a subscribed topic is sent. |
+| `/unsubscribe` | Comma-separated topics; omitted, empty or `*` clears the subscription. | Removes the topics. Removing single topics from an all-topics subscription keeps all other topics. |
+| `/full_update` | Comma-separated topics; omitted or empty means all. | Sends the current values once, without changing the subscription. |
+
+JSON clients send the same actions as `{"path":"/subscribe","parameters":{"topics":"volume,playlist"}}`. The reply is sent first, for example `{"accepted":true,"status":200,"message":"Subscribed","topics":["volume","playlist"]}`. `topics` lists the connection's subscription after the change; for `/full_update` it lists the requested topics. Unknown topics return `accepted:false` with status 400 and change nothing. Subscriptions belong to the connection: they end when the client disconnects, unless its profile subscribes again on connect (below). Changes are sampled every 100 ms, as for the TCP Control Client, and are not replayed after a reconnect.
+
+What a client receives depends on the **incoming client profile** for its address. A profile is selected by the client's IP address as C-Play sees it, so IPv4 clients of a dual-stack listener still match their IPv4 address. Every client without an enabled profile for its exact address uses the **default profile**, address `*`. The default profile always exists: C-Play adds it to a configuration without one, it cannot be deleted, and its address and `enabled` flag cannot be changed. Edit it to change what unknown clients receive. Its built-in settings are the name **Default profile**, JSON notifications, the LF terminator and no subscription on connect.
+
+| Field | Default | Meaning |
+| --- | --- | --- |
+| `id`, `name` | derived address, required name | The profile ID is the canonical client address, or `*`. |
+| `address` | required | Numeric IPv4/IPv6 address of the client, or `*` for the default profile. |
+| `enabled` | `true` | Disabled profiles are ignored when matching; their clients use the default profile. Always `true` for the default profile. |
+| `eventTopics` | `[]` | Topics subscribed automatically when the client connects, `*` for all. Use this for clients that reconnect automatically, such as Medialon, so they never miss their subscription. |
+| `eventFormat` | `json` | `json`: the `change` notifications and `snapshot` objects of the [outgoing client's subscriptions](#subscribe-and-query-over-tcp). `commands`: the event commands of the server `commandServerId`. |
+| `commandServerId` | — | Required for `commands`. Every reusable command of this server with **Trigger on changes** topics is sent to the client for those topics, exactly as it is sent to that server: same payload prefix, appended value, `charsPerItem`, `timeFormat` and exact-wire-bytes setting. The server itself may be disabled; it then only defines the structure. |
+| `sendTerminatorHex` | `0a` | Terminator of every reply and update sent to the client, for example `0a` (LF) or `0d` (CR, for the Medialon driver). May be empty. |
+
+With the `commands` format, a subscription to `volume` sends `cplay volume 75` followed by the terminator for the packaged Medialon commands. An initial value, a full update, or `/subscribe` for all topics sends each event command of the requested topics once, like the [full update](#layer-states) of a server. Time-formatted commands are only sent when their text changes, per client. A `layers` command with a positive `charsPerItem` is also resent when `triggered_slide` changes. In JSON format, the initial values and full updates are one `snapshot` object, and changes are `change` notifications.
+
+Profiles are saved in the `incomingClients` array of `tcp-control.json`:
+
+```json
+{
+  "incomingClients": [
+    {
+      "name": "Medialon full-duplex client",
+      "address": "192.168.1.20",
+      "enabled": true,
+      "eventTopics": ["*"],
+      "eventFormat": "commands",
+      "commandServerId": "127.0.0.1:9000",
+      "sendTerminatorHex": "0d"
+    }
+  ]
+}
+```
+
+Changing a server's endpoint updates the `commandServerId` of its profiles. A server cannot be deleted while a profile uses its commands. Edited profiles apply immediately to connected clients; their subscriptions are kept. The settings page lists connected clients with their profiles and subscribed topics.
 
 ## Multiple connections from C++
 
-`TcpControlManager` owns the transports and exposes `servers`, `commands`, and per-server `messageReceived(serverId, payload)`, `connectionStateChanged(serverId, state)`, and `serverError(serverId, description)` signals. `controlMessageReceived` is emitted only for profiles that opt into incoming C-Play commands. `saveServer()` returns the endpoint-derived server ID; `saveCommand()` and `triggerCommand(commandId)` use stable command IDs. `setActive()` starts or stops enabled connections; the C-Play integration activates it only on the ready master.
+`TcpControlManager` owns the transports and exposes `servers`, `commands`, and per-server `messageReceived(serverId, payload)`, `connectionStateChanged(serverId, state)`, and `serverError(serverId, description)` signals. `controlMessageReceived` is emitted only for profiles that opt into incoming C-Play commands. `saveServer()` returns the endpoint-derived server ID; `saveCommand()` and `triggerCommand(commandId)` use stable command IDs. `setActive()` starts or stops enabled connections; the C-Play integration activates it only on the ready master. `incomingClients`, `saveIncomingClient()`, `removeIncomingClient()` and `incomingClientProfile(address)` manage the incoming client profiles, and `incomingSessions` lists the clients connected to the listener. `TcpControlServer` gives each client a session ID (`clientConnected` / `clientDisconnected`), a per-session terminator and `send()`; its session handler takes the subscription actions before the REST action handler.
 
 `TcpLayer` dispatches through this manager on the application's Qt thread. Stopping or removing a layer does not tear down a shared server connection. The presentation and cluster serialization retain its command ID.
 

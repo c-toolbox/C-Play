@@ -17,6 +17,8 @@ SettingsBasePage {
     property string commandId: ""
     property string commandServerId: ""
     property string triggerResult: ""
+    property string incomingId: ""
+    property string incomingCommandServerId: ""
 
     function findIndex(items, id) {
         for (var i = 0; i < items.length; ++i)
@@ -75,9 +77,29 @@ SettingsBasePage {
         charsPerItem.value = c && c.charsPerItem ? c.charsPerItem : 0;
         timeFormat.text = c && c.timeFormat ? c.timeFormat : "";
     }
+    function editIncoming(p) {
+        incomingId = p ? p.id : "";
+        incomingName.text = p ? p.name : "";
+        incomingAddress.text = p ? p.address : "";
+        incomingEnabled.checked = p ? p.enabled : true;
+        incomingTopics.text = p && p.eventTopics ? p.eventTopics.join(", ") : "";
+        incomingFormat.currentIndex = p && p.eventFormat === "commands" ? 1 : 0;
+        incomingCommandServerId = p && p.commandServerId ? p.commandServerId
+            : (manager.servers.length ? manager.servers[0].id : "");
+        incomingSendHex.text = p ? p.sendTerminatorHex : "0a";
+    }
+    function saveIncoming() {
+        var id = manager.saveIncomingClient({id: incomingId, name: incomingName.text,
+            address: incomingAddress.text, enabled: incomingEnabled.checked,
+            eventTopics: topics(incomingTopics.text),
+            eventFormat: incomingFormat.currentIndex === 1 ? "commands" : "json",
+            commandServerId: incomingCommandServerId, sendTerminatorHex: incomingSendHex.text});
+        if (id !== "") incomingId = id;
+    }
     Component.onCompleted: {
         editServer(manager.servers.length ? manager.servers[0] : null);
         editCommand(null);
+        editIncoming(manager.incomingClients.length ? manager.incomingClients[0] : null);
     }
     Connections {
         target: root.manager
@@ -115,6 +137,68 @@ SettingsBasePage {
                 : qsTr("TCP server stopped")
         }
         Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: root.manager.listener.lastError }
+        SettingsHeader { Layout.fillWidth: true; text: qsTr("Incoming client subscriptions") }
+        Label {
+            Layout.fillWidth: true; wrapMode: Text.WordWrap
+            text: qsTr("Clients of the TCP server subscribe to changes with /subscribe, /unsubscribe and /full_update. A profile, selected by the client's address, defines what they receive: JSON notifications, or the event commands of a saved TCP server, exactly as that server receives them. Clients without an enabled profile for their address use the default profile (address *), which cannot be deleted.")
+        }
+        Repeater {
+            model: root.manager.incomingSessions
+            delegate: Label {
+                required property var modelData
+                Layout.fillWidth: true; wrapMode: Text.WordWrap
+                text: modelData.address + ":" + modelData.port + " — " + modelData.profileName + " — " +
+                    (modelData.topics.length ? qsTr("subscribed to %1").arg(modelData.topics.join(", ")) : qsTr("not subscribed"))
+            }
+        }
+        RowLayout {
+            ComboBox {
+                Layout.fillWidth: true
+                model: root.manager.incomingClients; textRole: "name"; valueRole: "id"
+                currentIndex: root.findIndex(root.manager.incomingClients, root.incomingId)
+                onActivated: root.editIncoming(root.manager.incomingClients[index])
+            }
+            Button { text: qsTr("New client profile"); onClicked: root.editIncoming(null) }
+        }
+        GridLayout {
+            columns: 2; Layout.fillWidth: true
+            Label { text: qsTr("Name:") }
+            TextField { id: incomingName; Layout.fillWidth: true }
+            Label { text: qsTr("Client address:") }
+            TextField {
+                id: incomingAddress; Layout.fillWidth: true; readOnly: root.incomingId === "*"
+                placeholderText: qsTr("IP address of the client")
+            }
+            Label { text: qsTr("Enabled:") }
+            CheckBox {
+                id: incomingEnabled; enabled: root.incomingId !== "*"
+                text: root.incomingId === "*" ? qsTr("The default profile is always used for clients without their own profile") : ""
+            }
+            Label { text: qsTr("Subscribe on connect:") }
+            TextField {
+                id: incomingTopics; Layout.fillWidth: true
+                placeholderText: qsTr("Comma-separated topics, * for all; empty waits for /subscribe")
+            }
+            Label { text: qsTr("Update format:") }
+            ComboBox { id: incomingFormat; Layout.fillWidth: true; model: [qsTr("JSON notifications"), qsTr("Event commands of a TCP server")] }
+            Label { text: qsTr("Command structure from:") }
+            ComboBox {
+                Layout.fillWidth: true; enabled: incomingFormat.currentIndex === 1
+                model: root.manager.servers; textRole: "name"; valueRole: "id"
+                currentIndex: root.findIndex(root.manager.servers, root.incomingCommandServerId)
+                onActivated: root.incomingCommandServerId = currentValue
+            }
+            Label { text: qsTr("Send terminator (hex):") }
+            TextField { id: incomingSendHex; Layout.fillWidth: true; placeholderText: qsTr("0a = LF, 0d = CR (Medialon)") }
+        }
+        RowLayout {
+            Button { text: qsTr("Save client profile"); onClicked: root.saveIncoming() }
+            Button {
+                text: qsTr("Delete client profile"); enabled: root.incomingId !== "" && root.incomingId !== "*"
+                onClicked: if (root.manager.removeIncomingClient(root.incomingId)) root.editIncoming(null)
+            }
+        }
+        Label { Layout.fillWidth: true; wrapMode: Text.WordWrap; text: root.manager.lastError }
         SettingsHeader { Layout.fillWidth: true; text: qsTr("Persistent TCP servers") }
         Label {
             Layout.fillWidth: true; wrapMode: Text.WordWrap

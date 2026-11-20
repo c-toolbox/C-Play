@@ -16,6 +16,19 @@ The TCP control settings configure C-Play's incoming TCP Control Server and its 
 
 The line below shows the listener state and the number of connected clients. These settings are saved in `cplay.conf`.
 
+### Incoming client subscriptions
+
+Clients of the TCP server can subscribe to state updates with `/subscribe`, `/unsubscribe` and `/full_update`. The list shows each connected client with its address, profile and subscribed topics. A profile selected by the client's address defines what the client receives. See [Subscriptions and incoming client profiles](/remote-control/tcp#subscriptions-and-incoming-client-profiles).
+
+* **Name** / **Client address** — Label and numeric IP address of the client. The address is the profile's ID. The **default profile** has address `*` and is used for every client without an enabled profile of its own; its address cannot be changed.
+* **Enabled** — Use this profile for matching clients; clients of a disabled profile use the default profile. Always on for the default profile.
+* **Subscribe on connect** — Comma-separated topics subscribed when the client connects, `*` for all; empty waits for `/subscribe`.
+* **Update format** — *JSON notifications*, or *Event commands of a TCP server*: the client receives that server's event commands (for example `cplay volume 75`) exactly as the server would.
+* **Command structure from** — The server whose event commands are used. It may be a disabled server that only defines the structure.
+* **Send terminator (hex)** — Terminator of every reply and update sent to the client: `0a` (LF) by default, `0d` (CR) for the Medialon full-duplex driver.
+
+Use **Save client profile** and **Delete client profile** to manage the selected profile. The default profile cannot be deleted, only edited. Changes apply immediately to connected clients. Profiles are saved in `tcp-control.json`.
+
 ### Persistent TCP servers
 
 Each enabled server keeps its own outgoing connection on the master. Select a server in the list, or click **New server**, then edit:
