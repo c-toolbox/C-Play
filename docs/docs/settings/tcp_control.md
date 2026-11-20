@@ -22,7 +22,7 @@ Clients of the TCP server can subscribe to state updates with `/subscribe`, `/un
 
 * **Name** / **Client address** — Label and numeric IP address of the client. The address is the profile's ID. The **default profile** has address `*` and is used for every client without an enabled profile of its own; its address cannot be changed.
 * **Enabled** — Use this profile for matching clients; clients of a disabled profile use the default profile. Always on for the default profile.
-* **Subscribe on connect** — Comma-separated topics subscribed when the client connects, `*` for all; empty waits for `/subscribe`.
+* **Subscribe on connect** — Subscribe the client to the checked topics when it connects; when off, the client waits for `/subscribe`. On by default with all topics checked. Uncheck topics to leave them out, or use **Check all** / **Uncheck all**. Topics added in later versions are included. Saving updates the subscription of connected clients.
 * **Update format** — *JSON notifications*, or *Event commands of a TCP server*: the client receives that server's event commands (for example `cplay volume 75`) exactly as the server would.
 * **Command structure from** — The server whose event commands are used. It may be a disabled server that only defines the structure.
 * **Send terminator (hex)** — Terminator of every reply and update sent to the client: `0a` (LF) by default, `0d` (CR) for the Medialon full-duplex driver.
@@ -30,6 +30,8 @@ Clients of the TCP server can subscribe to state updates with `/subscribe`, `/un
 Use **Save client profile** and **Delete client profile** to manage the selected profile. The default profile cannot be deleted, only edited. Changes apply immediately to connected clients. Profiles are saved in `tcp-control.json`.
 
 ### Persistent TCP servers
+
+![Persistent TCP servers](/assets/ui/settings/tcp_control_servers.png)
 
 Each enabled server keeps its own outgoing connection on the master. Select a server in the list, or click **New server**, then edit:
 

@@ -80,6 +80,17 @@ QByteArray eventValueBytes(const QJsonValue &value, int charsPerItem) {
 }
 }
 
+// Topics a profile subscribes its clients to on connect: eventTopics, with * minus excludedTopics.
+static QStringList connectTopics(const QVariantMap &profile) {
+    auto topics = profile.value(QStringLiteral("eventTopics")).toStringList();
+    const auto excluded = profile.value(QStringLiteral("excludedTopics")).toStringList();
+    if (topics.contains(QStringLiteral("*")) && !excluded.isEmpty()) {
+        topics = ControlEventFeed::availableTopics();
+        for (const auto &topic : excluded) topics.removeAll(topic);
+    }
+    return topics;
+}
+
 TcpControlManager::TcpControlManager(QObject *parent, const QString &path)
     : QObject(parent), m_listener(new TcpControlServer(this)), m_configurationPath(path) {
     connect(m_listener, &TcpControlServer::clientConnected, this, [this](quint64 id, const QString &address, int port) {
@@ -89,7 +100,7 @@ TcpControlManager::TcpControlManager(QObject *parent, const QString &path)
         m_sessions.insert(id, session);
         applyIncomingProfile(id);
         // A profile can subscribe its clients on connect, like a server's notification topics.
-        const auto topics = m_sessions.value(id).profile.value(QStringLiteral("eventTopics")).toStringList();
+        const auto topics = connectTopics(m_sessions.value(id).profile);
         if (!topics.isEmpty()) subscribeIncoming(id, topics);
         Q_EMIT incomingSessionsChanged();
     });
@@ -240,8 +251,17 @@ bool TcpControlManager::normalizeIncomingClient(const QVariantMap &input, const 
         host.setScopeId({});
         address = host.toString().toLower();
     }
-    const auto topics = input.value(QStringLiteral("eventTopics")).toStringList();
-    if (!ControlEventFeed::validateTopics(topics)) {
+    // Profiles subscribe to all topics on connect unless eventTopics says otherwise.
+    QStringList topics = input.contains(QStringLiteral("eventTopics"))
+        ? input.value(QStringLiteral("eventTopics")).toStringList() : QStringList{QStringLiteral("*")};
+    if (topics.contains(QStringLiteral("*"))) topics = {QStringLiteral("*")};
+    // excludedTopics removes single topics from *, so topics added later are still subscribed.
+    QStringList excluded;
+    if (topics.contains(QStringLiteral("*")))
+        for (const auto &value : input.value(QStringLiteral("excludedTopics")).toStringList())
+            if (!value.trimmed().isEmpty() && !excluded.contains(value.trimmed())) excluded.append(value.trimmed());
+    if (!ControlEventFeed::validateTopics(topics) || excluded.contains(QStringLiteral("*"))
+        || !ControlEventFeed::validateTopics(excluded)) {
         error(tr("Unknown incoming client event topic"));
         return false;
     }
@@ -269,6 +289,7 @@ bool TcpControlManager::normalizeIncomingClient(const QVariantMap &input, const 
         {QStringLiteral("address"), address}, {QStringLiteral("enabled"), isDefault || input.value(QStringLiteral("enabled"), true).toBool()},
         {QStringLiteral("eventTopics"), topics}, {QStringLiteral("eventFormat"), format},
         {QStringLiteral("sendTerminatorHex"), sendHex.toLower()} };
+    if (!excluded.isEmpty()) output.insert(QStringLiteral("excludedTopics"), excluded);
     if (format == QStringLiteral("commands")) output.insert(QStringLiteral("commandServerId"), commandServerId);
     return true;
 }
@@ -276,7 +297,7 @@ bool TcpControlManager::normalizeIncomingClient(const QVariantMap &input, const 
 QVariantMap TcpControlManager::builtInIncomingClient() {
     return { {QStringLiteral("id"), defaultIncomingClientId()}, {QStringLiteral("name"), tr("Default profile")},
         {QStringLiteral("address"), defaultIncomingClientId()}, {QStringLiteral("enabled"), true},
-        {QStringLiteral("eventTopics"), QStringList()}, {QStringLiteral("eventFormat"), QStringLiteral("json")},
+        {QStringLiteral("eventTopics"), QStringList{QStringLiteral("*")}}, {QStringLiteral("eventFormat"), QStringLiteral("json")},
         {QStringLiteral("sendTerminatorHex"), QStringLiteral("0a")} };
 }
 
@@ -980,8 +1001,15 @@ void TcpControlManager::applyIncomingProfile(quint64 id) {
     if (it == m_sessions.end()) return;
     const auto profile = incomingClientProfile(it->address);
     if (profile != it->profile) it->lastTimePayloads.clear();
+    // Connected clients follow a changed on-connect subscription, replacing their own subscriptions.
+    const bool resubscribe = !it->profile.isEmpty() && connectTopics(profile) != connectTopics(it->profile);
     it->profile = profile;
     m_listener->setTerminator(id, QByteArray::fromHex(profile.value(QStringLiteral("sendTerminatorHex"), QStringLiteral("0a")).toByteArray()));
+    if (resubscribe) {
+        it->topics.clear();
+        const auto topics = connectTopics(profile);
+        if (!topics.isEmpty()) subscribeIncoming(id, topics);
+    }
 }
 
 QVariantList TcpControlManager::incomingCommands(quint64 id) const {

@@ -19,6 +19,8 @@ SettingsBasePage {
     property string triggerResult: ""
     property string incomingId: ""
     property string incomingCommandServerId: ""
+    // Topics left out of the profile's on-connect subscription to all topics.
+    property var incomingExcluded: []
 
     function findIndex(items, id) {
         for (var i = 0; i < items.length; ++i)
@@ -82,16 +84,30 @@ SettingsBasePage {
         incomingName.text = p ? p.name : "";
         incomingAddress.text = p ? p.address : "";
         incomingEnabled.checked = p ? p.enabled : true;
-        incomingTopics.text = p && p.eventTopics ? p.eventTopics.join(", ") : "";
+        // New profiles subscribe to all topics; explicit topic lists show as all minus the others.
+        var subscribed = p && p.eventTopics ? p.eventTopics : ["*"];
+        incomingSubscribe.checked = subscribed.length > 0;
+        if (subscribed.indexOf("*") >= 0)
+            incomingExcluded = p && p.excludedTopics ? p.excludedTopics.slice() : [];
+        else if (subscribed.length > 0)
+            incomingExcluded = manager.eventTopics.filter(function(topic) { return subscribed.indexOf(topic) < 0; });
+        else
+            incomingExcluded = [];
         incomingFormat.currentIndex = p && p.eventFormat === "commands" ? 1 : 0;
         incomingCommandServerId = p && p.commandServerId ? p.commandServerId
             : (manager.servers.length ? manager.servers[0].id : "");
         incomingSendHex.text = p ? p.sendTerminatorHex : "0a";
     }
+    function setIncomingTopic(topic, subscribed) {
+        var excluded = incomingExcluded.filter(function(value) { return value !== topic; });
+        if (!subscribed) excluded.push(topic);
+        incomingExcluded = excluded;
+    }
     function saveIncoming() {
         var id = manager.saveIncomingClient({id: incomingId, name: incomingName.text,
             address: incomingAddress.text, enabled: incomingEnabled.checked,
-            eventTopics: topics(incomingTopics.text),
+            eventTopics: incomingSubscribe.checked ? ["*"] : [],
+            excludedTopics: incomingSubscribe.checked ? incomingExcluded : [],
             eventFormat: incomingFormat.currentIndex === 1 ? "commands" : "json",
             commandServerId: incomingCommandServerId, sendTerminatorHex: incomingSendHex.text});
         if (id !== "") incomingId = id;
@@ -174,10 +190,45 @@ SettingsBasePage {
                 id: incomingEnabled; enabled: root.incomingId !== "*"
                 text: root.incomingId === "*" ? qsTr("The default profile is always used for clients without their own profile") : ""
             }
-            Label { text: qsTr("Subscribe on connect:") }
-            TextField {
-                id: incomingTopics; Layout.fillWidth: true
-                placeholderText: qsTr("Comma-separated topics, * for all; empty waits for /subscribe")
+            Label { text: qsTr("Subscribe on connect:"); Layout.alignment: Qt.AlignTop }
+            ColumnLayout {
+                Layout.fillWidth: true
+                RowLayout {
+                    CheckBox {
+                        id: incomingSubscribe
+                        text: qsTr("Subscribe to the checked topics when the client connects")
+                    }
+                    Button {
+                        text: qsTr("Check all"); enabled: incomingSubscribe.checked
+                        onClicked: root.incomingExcluded = []
+                    }
+                    Button {
+                        text: qsTr("Uncheck all"); enabled: incomingSubscribe.checked
+                        onClicked: root.incomingExcluded = root.manager.eventTopics.slice()
+                    }
+                }
+                Flow {
+                    Layout.fillWidth: true; spacing: 4; enabled: incomingSubscribe.checked
+                    Repeater {
+                        model: root.manager.eventTopics
+                        delegate: CheckBox {
+                            required property string modelData
+                            text: modelData
+                            checked: root.incomingExcluded.indexOf(modelData) < 0
+                            onToggled: {
+                                root.setIncomingTopic(modelData, checked);
+                                // Keep following the profile when another profile is selected.
+                                checked = Qt.binding(function() { return root.incomingExcluded.indexOf(modelData) < 0; });
+                            }
+                        }
+                    }
+                }
+                Label {
+                    Layout.fillWidth: true; wrapMode: Text.WordWrap; opacity: 0.7
+                    text: incomingSubscribe.checked
+                        ? qsTr("Unchecked topics are left out; topics added in later versions are included. Saving updates connected clients.")
+                        : qsTr("Clients wait for /subscribe.")
+                }
             }
             Label { text: qsTr("Update format:") }
             ComboBox { id: incomingFormat; Layout.fillWidth: true; model: [qsTr("JSON notifications"), qsTr("Event commands of a TCP server")] }

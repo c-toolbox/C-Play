@@ -287,16 +287,17 @@ POST /full_update?topics=playlist
 | `/unsubscribe` | Comma-separated topics; omitted, empty or `*` clears the subscription. | Removes the topics. Removing single topics from an all-topics subscription keeps all other topics. |
 | `/full_update` | Comma-separated topics; omitted or empty means all. | Sends the current values once, without changing the subscription. |
 
-JSON clients send the same actions as `{"path":"/subscribe","parameters":{"topics":"volume,playlist"}}`. The reply is sent first, for example `{"accepted":true,"status":200,"message":"Subscribed","topics":["volume","playlist"]}`. `topics` lists the connection's subscription after the change; for `/full_update` it lists the requested topics. Unknown topics return `accepted:false` with status 400 and change nothing. Subscriptions belong to the connection: they end when the client disconnects, unless its profile subscribes again on connect (below). Changes are sampled every 100 ms, as for the TCP Control Client, and are not replayed after a reconnect.
+JSON clients send the same actions as `{"path":"/subscribe","parameters":{"topics":"volume,playlist"}}`. The reply is sent first, for example `{"accepted":true,"status":200,"message":"Subscribed","topics":["volume","playlist"]}`. `topics` lists the connection's subscription after the change; for `/full_update` it lists the requested topics. Unknown topics return `accepted:false` with status 400 and change nothing. Subscriptions belong to the connection: they end when the client disconnects. By default, the client's profile subscribes it to all topics again on connect (below), so a reconnecting client such as Medialon needs no `/subscribe` of its own. Changes are sampled every 100 ms, as for the TCP Control Client, and are not replayed after a reconnect.
 
-What a client receives depends on the **incoming client profile** for its address. A profile is selected by the client's IP address as C-Play sees it, so IPv4 clients of a dual-stack listener still match their IPv4 address. Every client without an enabled profile for its exact address uses the **default profile**, address `*`. The default profile always exists: C-Play adds it to a configuration without one, it cannot be deleted, and its address and `enabled` flag cannot be changed. Edit it to change what unknown clients receive. Its built-in settings are the name **Default profile**, JSON notifications, the LF terminator and no subscription on connect.
+What a client receives depends on the **incoming client profile** for its address. A profile is selected by the client's IP address as C-Play sees it, so IPv4 clients of a dual-stack listener still match their IPv4 address. Every client without an enabled profile for its exact address uses the **default profile**, address `*`. The default profile always exists: C-Play adds it to a configuration without one, it cannot be deleted, and its address and `enabled` flag cannot be changed. Edit it to change what unknown clients receive. Its built-in settings are the name **Default profile**, JSON notifications, the LF terminator and a subscription to all topics on connect.
 
 | Field | Default | Meaning |
 | --- | --- | --- |
 | `id`, `name` | derived address, required name | The profile ID is the canonical client address, or `*`. |
 | `address` | required | Numeric IPv4/IPv6 address of the client, or `*` for the default profile. |
 | `enabled` | `true` | Disabled profiles are ignored when matching; their clients use the default profile. Always `true` for the default profile. |
-| `eventTopics` | `[]` | Topics subscribed automatically when the client connects, `*` for all. Use this for clients that reconnect automatically, such as Medialon, so they never miss their subscription. |
+| `eventTopics` | `["*"]` | Topics subscribed automatically when the client connects, `*` for all; `[]` waits for `/subscribe`. Clients that reconnect automatically, such as Medialon, then never miss their subscription. |
+| `excludedTopics` | `[]` | Topics left out of an `eventTopics: ["*"]` subscription. Topics added in later C-Play versions are still subscribed. Ignored for explicit topic lists. |
 | `eventFormat` | `json` | `json`: the `change` notifications and `snapshot` objects of the [outgoing client's subscriptions](#subscribe-and-query-over-tcp). `commands`: the event commands of the server `commandServerId`. |
 | `commandServerId` | — | Required for `commands`. Every reusable command of this server with **Trigger on changes** topics is sent to the client for those topics, exactly as it is sent to that server: same payload prefix, appended value, `charsPerItem`, `timeFormat` and exact-wire-bytes setting. The server itself may be disabled; it then only defines the structure. |
 | `sendTerminatorHex` | `0a` | Terminator of every reply and update sent to the client, for example `0a` (LF) or `0d` (CR, for the Medialon driver). May be empty. |
@@ -313,6 +314,7 @@ Profiles are saved in the `incomingClients` array of `tcp-control.json`:
       "address": "192.168.1.20",
       "enabled": true,
       "eventTopics": ["*"],
+      "excludedTopics": ["position", "remaining"],
       "eventFormat": "commands",
       "commandServerId": "127.0.0.1:9000",
       "sendTerminatorHex": "0d"
@@ -321,7 +323,7 @@ Profiles are saved in the `incomingClients` array of `tcp-control.json`:
 }
 ```
 
-Changing a server's endpoint updates the `commandServerId` of its profiles. A server cannot be deleted while a profile uses its commands. Edited profiles apply immediately to connected clients; their subscriptions are kept. The settings page lists connected clients with their profiles and subscribed topics.
+Changing a server's endpoint updates the `commandServerId` of its profiles. A server cannot be deleted while a profile uses its commands. Edited profiles apply immediately to connected clients. When the on-connect subscription of a client's profile changes, the client's subscription is replaced by the new one and the current values are sent; otherwise its own subscriptions are kept. The settings page lists connected clients with their profiles and subscribed topics.
 
 ## Multiple connections from C++
 
