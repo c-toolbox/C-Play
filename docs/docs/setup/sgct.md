@@ -51,7 +51,7 @@ Every node in the configuration has two ports, and the master and the nodes need
 * **`datatransferport`** — The data transfer connection, which goes the other way. The nodes report back to the master on what is going on in each of them, so the pilot at the master sees the state of the complete system, not only of the master:
   * **Loading on the nodes** — When a file is loaded, each node reports when it has the file open, or that it could not open it. The load notice in the master view shows the progress (*"Loading on nodes: 1 of 2 ready"*, *"Loaded on all 2 nodes"* or *"Failed to load on 1 of 2 nodes"*), and the master holds playback until all nodes are ready, so that playback starts on all of them at once. See [Starting playback on all nodes](/remote-control/api#starting-playback-on-all-nodes).
   * **Node load failures** — Files that a node could not open or decode are listed in **Settings → Logging...** on the master.
-  * **Node telemetry** — When enabled in **Settings → Logging...**, every node reports its FPS, dropped frames, sync offset, GPU load, decoder state and latency once per second.
+  * **Node telemetry** — When enabled in **Settings → Logging...**, every node reports its FPS, dropped frames, sync offset, GPU load (render and hardware video decode shown separately, with a per-engine breakdown in the tooltip), decoder state and latency once per second.
   * **Capture inputs** — The nodes report the capture inputs they have, so a capture layer can be assigned to an input on a specific node.
 
 Without the data transfer connection, the nodes still show the synchronized content, but the master knows nothing about them: playback is not held while nodes load, and failures and problems on the nodes are not shown to the pilot.

@@ -177,6 +177,42 @@ Kirigami.ApplicationWindow {
         return layers.map(d => layerName(d) + " — " + (d.engine === "vulkan" ? qsTr("Vulkan engine") : qsTr("mpv"))).join("\n");
     }
 
+    // Render (3D engine) load; older nodes only report the summed "gpuLoad".
+    function gpuRenderCell(r) {
+        if (!r.online)
+            return "-";
+        if (r.gpuRender >= 0)
+            return fmt(r.gpuRender, 0) + " %";
+        return r.gpuLoad >= 0 ? fmt(r.gpuLoad, 0) + " %" : "n/a";
+    }
+
+    function gpuDecodeCell(r) {
+        if (!r.online)
+            return "-";
+        return (r.gpuDecode >= 0) ? fmt(r.gpuDecode, 0) + " %" : "n/a";
+    }
+
+    function gpuTip(r) {
+        const lines = [qsTr("GPU load per engine (Windows performance counters, n/a elsewhere).")];
+        if (!r.online)
+            return lines[0];
+        const engines = r.gpuEngines || {};
+        const types = Object.keys(engines);
+        if (types.length === 0) {
+            if (r.gpuLoad >= 0)
+                lines.push(qsTr("This node reports only a total (older C-Play version)."));
+            return lines.join("\n");
+        }
+        types.sort((a, b) => engines[b] - engines[a]);
+        lines.push("");
+        for (const t of types)
+            lines.push(t + ": " + fmt(engines[t], 0) + " %");
+        lines.push("");
+        lines.push(qsTr("Busiest engine: %1 %").arg(fmt(r.gpuLoad, 0)));
+        lines.push(qsTr("Engines run in parallel; each value is the load of the busiest engine of that type."));
+        return lines.join("\n");
+    }
+
     function statusTip(r) {
         if (r.isMaster)
             return qsTr("This computer (the master's own playback).");
@@ -201,7 +237,8 @@ Kirigami.ApplicationWindow {
                 "rowVoDrops": r.online ? String(r.voDrops) : "-",
                 "rowDecDrops": r.online ? String(r.decoderDrops) : "-",
                 "rowOffset": r.online ? fmt(r.syncOffsetMs, 1) + " ms" : "-",
-                "rowGpu": (r.online && r.gpuLoad >= 0) ? fmt(r.gpuLoad, 0) + " %" : "n/a",
+                "rowGpu": gpuRenderCell(r),
+                "rowGpuDec": gpuDecodeCell(r),
                 "rowDecoder": r.online ? decoderCell(r) : "-",
                 "rowLayers": r.online ? String(r.layerCount) : "-",
                 "rowLatency": (r.online && r.latencyMs >= 0) ? fmt(r.latencyMs, 2) + " ms" : "n/a",
@@ -211,6 +248,7 @@ Kirigami.ApplicationWindow {
                 "tipDecDrops": r.online ? decDropsTip(r) : "",
                 "tipDecoder": r.online ? decoderTip(r) : "",
                 "tipLayers": r.online ? layersTip(r) : "",
+                "tipGpu": gpuTip(r),
                 "tipStatus": statusTip(r)
             };
             if (i < nodeModel.count)
@@ -383,7 +421,7 @@ Kirigami.ApplicationWindow {
         CheckBox {
             id: nodeTelemetryCheck
             checked: LoggingSettings.nodeTelemetryEnabled
-            text: qsTr("Enable per-node telemetry (FPS, dropped frames, sync offset, GPU load, decoder state, latency)")
+            text: qsTr("Enable per-node telemetry (FPS, dropped frames, sync offset, GPU render/decode load, decoder state, latency)")
             onCheckedChanged: {
                 if (checked !== LoggingSettings.nodeTelemetryEnabled) {
                     LoggingSettings.nodeTelemetryEnabled = checked;
@@ -423,6 +461,7 @@ Kirigami.ApplicationWindow {
                 Label { text: qsTr("Dec drops"); font.bold: true; Layout.preferredWidth: 70 }
                 Label { text: qsTr("Sync offset"); font.bold: true; Layout.preferredWidth: 82 }
                 Label { text: qsTr("GPU"); font.bold: true; Layout.preferredWidth: 46 }
+                Label { text: qsTr("Decode"); font.bold: true; Layout.preferredWidth: 52 }
                 Label { text: qsTr("Decoder"); font.bold: true; Layout.preferredWidth: 170 }
                 Label { text: qsTr("Layers"); font.bold: true; Layout.preferredWidth: 48 }
                 Label { text: qsTr("Latency"); font.bold: true; Layout.preferredWidth: 76 }
@@ -460,8 +499,13 @@ Kirigami.ApplicationWindow {
                 }
                 TipLabel {
                     text: model.rowGpu
-                    tip: qsTr("GPU load of the node (Windows performance counters, n/a elsewhere).")
+                    tip: qsTr("Render load (busiest 3D engine).") + "\n" + model.tipGpu
                     Layout.preferredWidth: 46
+                }
+                TipLabel {
+                    text: model.rowGpuDec
+                    tip: qsTr("Hardware video decode load (busiest VideoDecode engine, e.g. NVDEC).") + "\n" + model.tipGpu
+                    Layout.preferredWidth: 52
                 }
                 TipLabel { text: model.rowDecoder; tip: model.tipDecoder; elide: Text.ElideRight; Layout.preferredWidth: 170 }
                 TipLabel { text: model.rowLayers; tip: model.tipLayers; Layout.preferredWidth: 48 }

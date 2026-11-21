@@ -37,7 +37,12 @@ struct NodeTelemetry {
     quint64 voDrops = 0;                    // VO drops since previous report (delta)
     quint64 decoderDrops = 0;               // decoder drops since previous report (delta)
     double syncOffsetMs = 0.0;              // |node position - master timePosition|
-    double gpuLoad = -1.0;                  // -1 = unavailable (non-Windows / no counters)
+    // GPU utilization in %, -1 = unavailable (non-Windows / no counters). Per engine, never
+    // summed: gpuLoad is the busiest engine of any type (Task Manager style).
+    double gpuLoad = -1.0;
+    double gpuRender = -1.0;                // busiest 3D engine
+    double gpuDecode = -1.0;                // busiest VideoDecode engine (NVDEC etc.)
+    QVariantMap gpuEngines;                 // engine type -> busiest engine of that type
     QString hwCurrent;
     QString videoCodec;
     bool cacheIdle = true;

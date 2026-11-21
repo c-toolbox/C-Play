@@ -45,6 +45,15 @@ qint64 nowMs() {
         .count();
 }
 
+void applyGpuSample(NodeTelemetry& row, const GpuLoadSample& gpu) {
+    row.gpuLoad = gpu.overall;
+    row.gpuRender = gpu.render;
+    row.gpuDecode = gpu.videoDecode;
+    row.gpuEngines.clear();
+    for (const auto& [type, load] : gpu.engineTypes)
+        row.gpuEngines.insert(QString::fromStdString(type), load);
+}
+
 // Parse the leading number out of a perf-info text field, e.g.
 // "59.94 fps (u50 v50 a50)" -> 59.94. Returns 0.0 when unparseable.
 double leadingDouble(const QString& text) {
@@ -350,7 +359,7 @@ void NodeTelemetryManager::refreshMasterRow() {
 
     if (!m_gpuProbe)
         m_gpuProbe = std::make_unique<GpuLoadProbe>();
-    row.gpuLoad = m_gpuProbe->sample();
+    applyGpuSample(row, m_gpuProbe->sample());
 
     {
         const std::lock_guard<std::mutex> lock(m_mutex);
@@ -436,6 +445,15 @@ void NodeTelemetryManager::handleNodeData(void* data, int length, int /*packageI
         row.decoderDrops = root.value("decDrops", Q_UINT64_C(0));
         row.syncOffsetMs = root.value("offsetMs", 0.0);
         row.gpuLoad = root.value("gpu", -1.0);
+        // Older nodes send only the (summed) "gpu" value.
+        row.gpuRender = root.value("gpu3d", -1.0);
+        row.gpuDecode = root.value("gpuDec", -1.0);
+        if (root.contains("gpuEng") && root["gpuEng"].is_object()) {
+            for (const auto& [type, load] : root["gpuEng"].items()) {
+                if (load.is_number())
+                    row.gpuEngines.insert(QString::fromStdString(type), load.get<double>());
+            }
+        }
         row.layerCount = root.value("layers", 0);
         row.hwCurrent = QString::fromStdString(root.value("hw", std::string()));
         row.videoCodec = QString::fromStdString(root.value("codec", std::string()));
@@ -554,6 +572,9 @@ QVariantList NodeTelemetryManager::telemetryList() const {
         m.insert(QStringLiteral("decoderDrops"), static_cast<qulonglong>(r.decoderDrops));
         m.insert(QStringLiteral("syncOffsetMs"), r.syncOffsetMs);
         m.insert(QStringLiteral("gpuLoad"), r.gpuLoad);
+        m.insert(QStringLiteral("gpuRender"), r.gpuRender);
+        m.insert(QStringLiteral("gpuDecode"), r.gpuDecode);
+        m.insert(QStringLiteral("gpuEngines"), r.gpuEngines);
         m.insert(QStringLiteral("hwCurrent"), r.hwCurrent);
         m.insert(QStringLiteral("videoCodec"), r.videoCodec);
         m.insert(QStringLiteral("cacheIdle"), r.cacheIdle);
@@ -646,7 +667,7 @@ void NodeTelemetryManager::collectAndSend(const std::vector<std::shared_ptr<Base
         }
     }
 
-    const double gpu = m_gpuProbe->sample();
+    const GpuLoadSample gpu = m_gpuProbe->sample();
 
     json root;
     root["v"] = 1;
@@ -655,7 +676,13 @@ void NodeTelemetryManager::collectAndSend(const std::vector<std::shared_ptr<Base
     root["voDrops"] = voDrops;
     root["decDrops"] = decDrops;
     root["offsetMs"] = offsetMs;
-    root["gpu"] = gpu;
+    root["gpu"] = gpu.overall;
+    root["gpu3d"] = gpu.render;
+    root["gpuDec"] = gpu.videoDecode;
+    json engines = json::object();
+    for (const auto& [type, load] : gpu.engineTypes)
+        engines[type] = load;
+    root["gpuEng"] = std::move(engines);
     root["layers"] = layerCount;
     root["hw"] = hw.toStdString();
     root["codec"] = codec.toStdString();
