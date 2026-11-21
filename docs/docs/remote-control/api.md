@@ -395,9 +395,9 @@ Obtain IDs from `/tcp/servers` and `/tcp/commands`. Server IDs are endpoints suc
 
 With `command_id=all`, C-Play reads one cached state snapshot and dispatches each command on that server with a nonempty `eventTopics` selection once. Commands without event topics are excluded. The response reports `success`, `accepted` and `rejected` counts, and a `message`. A full update requires an active event feed and a connected TCP server. C-Play sends the same full update automatically whenever a server connection is established or restored; requesting it manually is useful when the server needs a fresh state at another time.
 
-`charsPerItem=0` sends arrays and objects as compact JSON for commands using `eventPayload: "value"`. Positive widths send numbered, padded or truncated list labels concatenated into one frame; the packaged Medialon list commands use 40. Scalars retain their usual value format. See [EventModel formatting](tcp.md#medialon-event-variables-and-eventmodel) for details.
+`charsPerItem=0` sends arrays and objects as compact JSON for commands using `eventPayload: "value"`. Positive widths send numbered, padded or truncated list labels concatenated into one frame; the packaged list commands use 40. Scalars retain their usual value format. See [EventModel formatting](tcp.md#eventmodel-and-example-driver-variables) for details.
 
-For example, list the definitions, connect to the saved Medialon endpoint, then request a full update:
+For example, list the definitions, connect to the saved example endpoint, then request a full update:
 
 ```sh
 curl 'http://localhost:7007/tcp/servers'

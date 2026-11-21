@@ -85,7 +85,7 @@ For a typical green screen: pick the key color from the background, raise *Simil
 
 By default, nodes load their own copy of a synchronized layer. The **Sync** control in Inspect view can make a layer exist only on the master. This is separate from the **Master slide** and its Front/Back marking, which determine the layer's position in the [rendering order](/media/cplaypres).
 
-![Inspect view toolbar with Effects, ROI, Nodes, Sync and NDI](/assets/ui/layer_view_toolbar.png)
+![Inspect view toolbar with Effects, ROI, Nodes, Sync, Nodes only and NDI](/assets/ui/layer_view_toolbar.png)
 
 For supported live layer types, **Nodes read from original source** lets each machine load its source, while **Master sends content to nodes** renders on the master and streams the texture. The **Nodes** control in Inspect view also enables texture streaming. See [Streaming layers from master to nodes](/playback/node-streaming) for transport, audio, and synchronization details.
 

@@ -51,7 +51,7 @@ The perspective camera and the sphere view keep a 16:9 aspect ratio, while the f
 
 Each presentation layer can additionally be published as its **own** NDI source, independently of the main video output. This is useful when another application should receive a single feed — for example one camera or one OBS scene that C-Play displays as a layer — without the rest of the composition.
 
-![Inspect view toolbar with Nodes, Sync and NDI](/assets/ui/layer_view_toolbar.png)
+![Inspect view toolbar with Nodes, Sync, Nodes only and NDI](/assets/ui/layer_view_toolbar.png)
 
 1. Open the Inspect view for the slide and select the layer you want to send.
 2. In the layer's control row (next to the Grid, ROI, and visibility controls), click the **NDI** button to enable NDI output for that layer.

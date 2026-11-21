@@ -238,7 +238,7 @@ For more details on the REST layer and the REST Commands Editor, see the [HTTP W
 
 ### TCP
 
-A TCP layer is a cue that sends a saved text or binary command over a persistent network connection. Use it for devices and show-control systems with a TCP command protocol, such as triggering a Medialon task or sending a projector command. It has no visual output and runs on the master.
+A TCP layer is a cue that sends a saved text or binary command over a persistent network connection. Use it for devices and show-control systems with a TCP command protocol, such as triggering a show-control task or sending a projector command. It has no visual output and runs on the master.
 
 Choose **TCP** to trigger a reusable command through one of C-Play's persistent TCP server connections. Define servers and text or binary commands in [**Settings → Configure → TCP control**](/settings/tcp_control), then select a command when adding the layer. Each server keeps its own connection, so multiple layers can send different commands to different devices.
 

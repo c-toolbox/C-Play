@@ -9,10 +9,10 @@ C-Play provides both an outgoing TCP Control Client and an incoming TCP Control 
 
 | Component | Connection direction | Purpose |
 | --- | --- | --- |
-| [TCP Control Client](#tcp-control-client) | C-Play connects to an external TCP server. | Send saved commands from presentation layers and send state updates to devices or control systems such as Medialon. |
+| [TCP Control Client](#tcp-control-client) | C-Play connects to an external TCP server. | Send saved commands from presentation layers and send state updates to devices or show-control systems. |
 | [TCP Control Server](#tcp-control-server) | An external TCP client connects to C-Play, normally on port 7008. | Control C-Play using the existing REST action names and parameters over a persistent TCP connection, and [subscribe](#subscriptions-and-incoming-client-profiles) to state updates on the same connection. |
 
-The two components can run together. For Medialon, either use one full-duplex connection, where **C-Play TCP Control Client** connects to C-Play's server, sends actions and receives its subscribed updates, or use two connections, where **C-Play Control Events** is the server receiving C-Play updates and **C-Play TCP Control Client** only sends actions. HTTP control normally uses port 7007 and is configured separately.
+The two components can run together. With the example MLLC drivers in `help/http_server`, either use one full-duplex connection, where **C-Play TCP Control Client** connects to C-Play's server, sends actions and receives its subscribed updates, or use two connections, where **C-Play Control Events** is the server receiving C-Play updates and **C-Play TCP Control Client** only sends actions. HTTP control normally uses port 7007 and is configured separately.
 
 ## TCP Control Client
 
@@ -41,9 +41,9 @@ The original single-server `[TcpControl]` configuration is imported once as **Le
 
 #### Predefined startup configuration
 
-When no saved `C-Play/tcp-control.json` exists and legacy TCP control is disabled, C-Play loads `./data/predefined-tcp-control.json` at startup, relative to the working directory, like the other `predefined-*` files. It uses the same `version`, `servers`, `commands` and optional `incomingClients` structure as the saved configuration. The packaged example defines a disabled Medialon server at 127.0.0.1 on port 9000 with CR framing (`sendTerminatorHex: "0d"`), `task_start MyTask` / `task_stop MyTask` commands, and all ControlEventFeed monitoring commands. Its [default incoming client profile](#subscriptions-and-incoming-client-profiles) is the Medialon full-duplex client: every client of the TCP Control Server without its own profile is subscribed to all topics on connect and receives them in the structure of those monitoring commands, terminated by CR.
+When no saved `C-Play/tcp-control.json` exists and legacy TCP control is disabled, C-Play loads `./data/predefined-tcp-control.json` at startup, relative to the working directory, like the other `predefined-*` files. It uses the same `version`, `servers`, `commands` and optional `incomingClients` structure as the saved configuration. The packaged example, made for the example MLLC drivers, defines a disabled task server at 127.0.0.1 on port 9000 with CR framing (`sendTerminatorHex: "0d"`), `task_start MyTask` / `task_stop MyTask` commands, and all ControlEventFeed monitoring commands. Its [default incoming client profile](#subscriptions-and-incoming-client-profiles) matches the example full-duplex MLLC client driver: every client of the TCP Control Server without its own profile is subscribed to all topics on connect and receives them in the structure of those monitoring commands, terminated by CR.
 
-Set the host to the Showmaster Editor computer during programming or the Showmaster address during standalone operation. Replace `MyTask` with your task name, enable the server, and save it in **TCP control**. Medialon's LLC device must listen on port 9000 and dispatch received commands to project tasks.
+Set the host to the Showmaster Editor computer during programming or the Showmaster address during standalone operation. Replace `MyTask` with your task name, enable the server, and save it in **TCP control**. The receiving example driver, `help/http_server/Showmaster_TCP_Server.mllc`, must listen on port 9000 and dispatch received commands to project tasks.
 
 Predefined entries load into memory; saving a server or command writes the complete configuration to the user configuration path. That saved file takes precedence on later starts, even when empty or invalid. To use edited predefined entries again, back up and move the saved file out of that path before restarting. Keep IDs stable when editing examples so presentation layers retain their command references. Startup loads definitions and connects enabled servers that have `connectOnStartup`; it does not automatically trigger commands.
 
@@ -136,9 +136,9 @@ Changes are sampled on the ready master's Qt thread every 100 ms, regardless of 
 
 Unchanged topic values send nothing. Automatic commands that append a value also compare their final payload with the last payload sent by that command, per connection. For example, changing layer visibility does not resend a formatted layer-name list if its text stays the same. This applies to outgoing server connections and clients of the TCP Control Server. Initial snapshots, explicit command triggers and full updates always send. Fixed-payload action commands still run on every matching topic change.
 
-#### Medialon event variables and EventModel
+#### EventModel and example driver variables
 
-`data/EventModel.json` is the shared definition for all 33 event commands and their Medialon monitoring variables. New installations receive these commands through `data/predefined-tcp-control.json`. For an existing project, select a saved server in **TCP control**, enter the EventModel JSON path, and click **Import EventModel**. Import merges commands into that server, keeps unrelated commands, and uses stable IDs; importing again updates the same entries. Configure the server for delimiter framing with `sendTerminatorHex: "0d"` (CR), then enable it. Frames end at CR so that the LF row separators in formatted lists stay inside the value; a server still using `0d0a` makes the driver drop list frames. Server JSON notifications can remain disabled because the imported commands send the monitoring frames themselves.
+`data/EventModel.json` is the shared definition for all 33 event commands and the monitoring variables of the example MLLC drivers. New installations receive these commands through `data/predefined-tcp-control.json`. For an existing project, select a saved server in **TCP control**, enter the EventModel JSON path, and click **Import EventModel**. Import merges commands into that server, keeps unrelated commands, and uses stable IDs; importing again updates the same entries. Configure the server for delimiter framing with `sendTerminatorHex: "0d"` (CR), then enable it. Frames end at CR so that the LF row separators in formatted lists stay inside the value; a server still using `0d0a` makes the driver drop list frames. Server JSON notifications can remain disabled because the imported commands send the monitoring frames themselves.
 
 Generate the matching driver from the same model:
 
@@ -167,14 +167,14 @@ Reusable commands persist `eventPayload`, defaulting to `fixed` for manual devic
 `charsPerItem` is a saved per-command integer from 0 to 4096:
 
 - `0` sends arrays and objects as full compact JSON, retaining their fields. Scalars are unaffected: booleans send 0/1, numbers preserve fractional precision, and strings send their text with CR/LF replaced by spaces.
-- A positive width sends `playlist`, `sections`, `audiotracks` and `slides` exactly as the REST `/playlist`, `/sections`, `/audiotracks` and `/slides` endpoints return them with the same `charsPerItem`: numbered rows separated by LF, playlist and section rows ending with their duration, and the slide list excluding the master slide. `layers` is sent as the REST `/layers` endpoint returns it for the currently triggered slide, or for the master slide when no slide is triggered; it is also resent whenever `triggered_slide` changes. Any other list sends numbered labels separated by LF, each exactly that many Unicode characters, padded with spaces or truncated with `... ` when the width allows. Their labels prefer `listTitle`, `shortText`, `title`, `name`, `text`, `language`, `video`, then `path`; rows without these fields use their JSON representation. Use a send terminator without LF (the Medialon driver expects CR, `0d`) when lists contain LF row separators.
+- A positive width sends `playlist`, `sections`, `audiotracks` and `slides` exactly as the REST `/playlist`, `/sections`, `/audiotracks` and `/slides` endpoints return them with the same `charsPerItem`: numbered rows separated by LF, playlist and section rows ending with their duration, and the slide list excluding the master slide. `layers` is sent as the REST `/layers` endpoint returns it for the currently triggered slide, or for the master slide when no slide is triggered; it is also resent whenever `triggered_slide` changes. Any other list sends numbered labels separated by LF, each exactly that many Unicode characters, padded with spaces or truncated with `... ` when the width allows. Their labels prefer `listTitle`, `shortText`, `title`, `name`, `text`, `language`, `video`, then `path`; rows without these fields use their JSON representation. Use a send terminator without LF (the example MLLC drivers expect CR, `0d`) when lists contain LF row separators.
 - The packaged list commands use `40`, `layer_states` uses `38`, and other event commands use `0`. Fixed-width labels intentionally limit list details; use width `0` or the existing REST list/JSON endpoints when full detail is needed. The setting is available in the command editor and through REST, and persists across restarts.
 
-`timeFormat` is an optional per-command time code format for the time topics `position`, `remaining` and `duration`. The packaged `position`, `remaining` and `duration` commands use `hh:mm:ss`, for example `cplay position 00:01:05`, sent at most once per second. An empty format sends seconds with fractional precision. Otherwise the value is sent as a time code in the same QTime format as the REST `format=` parameter of `/position`, `/remaining` and `/duration`: `hh`, `mm`, `ss` and `zz`/`zzz` for milliseconds, with any separators, for example `hh:mm:ss` (`cplay position 00:01:05`) or `hh:mm:ss/zz`. Negative times get a leading `-`. Position is sampled every 100 ms, but a time-formatted command is only sent when its text changes, so `hh:mm:ss` sends at most once per second. Full updates always send. Video frame numbers are not available. Set it in the command editor (**Time format**), in the EventModel, or with `POST /tcp/command?command_id=...&timeFormat=hh:mm:ss` (an empty `timeFormat` restores seconds). The Medialon variables of these topics are strings, so the driver needs no change.
+`timeFormat` is an optional per-command time code format for the time topics `position`, `remaining` and `duration`. The packaged `position`, `remaining` and `duration` commands use `hh:mm:ss`, for example `cplay position 00:01:05`, sent at most once per second. An empty format sends seconds with fractional precision. Otherwise the value is sent as a time code in the same QTime format as the REST `format=` parameter of `/position`, `/remaining` and `/duration`: `hh`, `mm`, `ss` and `zz`/`zzz` for milliseconds, with any separators, for example `hh:mm:ss` (`cplay position 00:01:05`) or `hh:mm:ss/zz`. Negative times get a leading `-`. Position is sampled every 100 ms, but a time-formatted command is only sent when its text changes, so `hh:mm:ss` sends at most once per second. Full updates always send. Video frame numbers are not available. Set it in the command editor (**Time format**), in the EventModel, or with `POST /tcp/command?command_id=...&timeFormat=hh:mm:ss` (an empty `timeFormat` restores seconds). The example MLLC drivers store these topics in string variables, so they need no change.
 
 #### Layer states
 
-The `layer_states` topic tells a show controller which layers of the selected slide are on, off or in transition, without parsing the full `layers` value. It covers the layers of the selected slide, or of the master slide when the selected index is `-1`. The `selected_slide` topic (Medialon variable `CPlay_selected_slide`) sends that slide index as its own integer; it has the same value as `playing_in_slides`. When the selection changes, `selected_slide` is sent before `layer_states`, in the same sample. Each layer has one of four states:
+The `layer_states` topic tells a show controller which layers of the selected slide are on, off or in transition, without parsing the full `layers` value. It covers the layers of the selected slide, or of the master slide when the selected index is `-1`. The `selected_slide` topic (example MLLC driver variable `CPlay_selected_slide`) sends that slide index as its own integer; it has the same value as `playing_in_slides`. When the selection changes, `selected_slide` is sent before `layer_states`, in the same sample. Each layer has one of four states:
 
 | State | Meaning |
 | --- | --- |
@@ -188,7 +188,7 @@ Fades and entrance/exit effects started on a layer (double-click, `/layer_fade_i
 What is sent depends on the command's `charsPerItem`:
 
 - `0` sends one line, `slide=<index>` followed by `;<layer_idx>:<state>` per layer. `layer_idx` is zero-based, as the `layer_idx=` parameter of the [layer control endpoints](api.md#layer-control) expects. For example `cplay layer_states slide=2;0:ON;1:OFF;2:IN`.
-- A positive width (the packaged `Medialon: layer_states` command uses `38`) sends one row per layer separated by LF, each exactly that many characters: the numbered title, then the state right-aligned in the last 4 characters, for example `1. Logo                             ON`.
+- A positive width (the packaged `layer_states` command uses `38`) sends one row per layer separated by LF, each exactly that many characters: the numbered title, then the state right-aligned in the last 4 characters, for example `1. Logo                             ON`.
 
 JSON notifications and subscriptions receive the structured value, for example `{"slide":2,"layers":[{"index":0,"title":"Logo","state":"ON"},{"index":1,"title":"Intro video","state":"IN"}]}`. HTTP `GET /layer_states?charsPerItem=0` returns the same text as the TCP command for initialization or polling.
 
@@ -216,11 +216,11 @@ HTTP long polling and optional WebSocket subscriptions use the same feed; see [A
 
 ## TCP Control Server
 
-The incoming listener accepts REST-style actions from Medialon or another TCP client. It dispatches directly to the same action handlers as HTTP; enabling the HTTP listener is optional. The listener does not use the outgoing client's `operation` / `parameter` protocol.
+The incoming listener accepts REST-style actions from any TCP client. It dispatches directly to the same action handlers as HTTP; enabling the HTTP listener is optional. The listener does not use the outgoing client's `operation` / `parameter` protocol.
 
 ### Enable the listener
 
-Enable **Incoming TCP control → Enable TCP server on master**, choose a numeric IPv4 or IPv6 bind address and port (default `0.0.0.0:7008`), then click **Apply listener**. These settings persist in `cplay.conf`. Only a ready master listens; disabling the server, changing role, or quitting closes its clients. HTTP may remain disabled. Use a bind address reachable from Medialon; the listener shares the REST API's trusted-network access model.
+Enable **Incoming TCP control → Enable TCP server on master**, choose a numeric IPv4 or IPv6 bind address and port (default `0.0.0.0:7008`), then click **Apply listener**. These settings persist in `cplay.conf`. Only a ready master listens; disabling the server, changing role, or quitting closes its clients. HTTP may remain disabled. Use a bind address reachable from the clients; the listener shares the REST API's trusted-network access model.
 
 ### Medialon client driver
 
@@ -246,7 +246,7 @@ The shared `data/TcpControlActions.json` catalog defines all 51 actions and is e
 
 ### Command format and replies
 
-The wire format is one UTF-8 command per LF or CRLF terminated line. Send an actual newline after each request; there is no HTTP version, header block or request body on this TCP connection. Medialon sends request lines:
+The wire format is one UTF-8 command per LF or CRLF terminated line. Send an actual newline after each request; there is no HTTP version, header block or request body on this TCP connection. Clients send request lines:
 
 ```text
 POST /play
@@ -255,9 +255,9 @@ POST /load_from_playlist?index=2
 POST /layer_visibility?slide_idx=0&layer_idx=1&value=50
 ```
 
-Use the REST parameter names, units and zero-based indices. String parameters in Medialon must be URL percent encoded when they contain special characters: space `%20`, ampersand `%26`, hash `%23`, percent `%25`, and UTF-8 bytes for non-ASCII text. A plus sign is literal. The generated layer commands use slide/layer indices; custom commands can use `slide_name`, `layer_title`, `sub_layer_idx`, or `sub_layer_title` as the REST API does. Omitting the slide selector targets the Master slide. Layer plane commands can set any subset of the plane properties listed in the [HTTP layer control reference](api.md#layer-control).
+Use the REST parameter names, units and zero-based indices. String parameters must be URL percent encoded when they contain special characters: space `%20`, ampersand `%26`, hash `%23`, percent `%25`, and UTF-8 bytes for non-ASCII text. A plus sign is literal. The generated layer commands use slide/layer indices; custom commands can use `slide_name`, `layer_title`, `sub_layer_idx`, or `sub_layer_title` as the REST API does. Omitting the slide selector targets the Master slide. Layer plane commands can set any subset of the plane properties listed in the [HTTP layer control reference](api.md#layer-control).
 
-`/layer_plane` also accepts `circular`, `centreDegrees` and `widthDegrees` for [circular placement](api.md#layer-control), for example `POST /layer_plane?slide_idx=0&layer_idx=0&circular=1&centreDegrees=355&widthDegrees=20`. The shared circular surface must be enabled in Grid Settings. Regenerate the Medialon client driver to expose these additional optional fields; empty degree fields leave their saved values unchanged.
+`/layer_plane` also accepts `circular`, `centreDegrees` and `widthDegrees` for [circular placement](api.md#layer-control), for example `POST /layer_plane?slide_idx=0&layer_idx=0&circular=1&centreDegrees=355&widthDegrees=20`. The shared circular surface must be enabled in Grid Settings. Regenerate the example MLLC client driver to expose these additional optional fields; empty degree fields leave their saved values unchanged.
 
 Other TCP clients can send JSON instead, with string parameter values:
 
@@ -266,7 +266,7 @@ Other TCP clients can send JSON instead, with string parameter values:
 {"path":"/layer_visibility","parameters":{"layer_title":"Logo","value":"50"}}
 ```
 
-Each command receives a newline-delimited JSON reply, for example `{"accepted":true,"status":200,"message":"Play"}`. `accepted` reports dispatch to the REST handler, not completion of playback or a transition. Legacy REST validation messages are preserved; read the message for an invalid value or missing target. Malformed requests, unsupported paths, and missing mutation parameters return `accepted:false` without dispatch. The Medialon driver sends commands without waiting for replies and does not replay commands after reconnect.
+Each command receives a newline-delimited JSON reply, for example `{"accepted":true,"status":200,"message":"Play"}`. `accepted` reports dispatch to the REST handler, not completion of playback or a transition. Legacy REST validation messages are preserved; read the message for an invalid value or missing target. Malformed requests, unsupported paths, and missing mutation parameters return `accepted:false` without dispatch. The example MLLC client driver sends commands without waiting for replies and does not replay commands after reconnect.
 
 JSON parameters must be strings, including numbers and booleans. Repeated URL query parameter names are rejected. Setters require their mutation parameter (for example, `/volume` requires `level`); `/volume` alone is rejected as an information query. Use the [subscription actions](#subscriptions-and-incoming-client-profiles) below to receive state on the same connection, or the [event API](api.md#change-subscriptions).
 
@@ -289,7 +289,7 @@ POST /full_update?topics=playlist
 | `/unsubscribe` | Comma-separated topics; omitted, empty or `*` clears the subscription. | Removes the topics. Removing single topics from an all-topics subscription keeps all other topics. |
 | `/full_update` | Comma-separated topics; omitted or empty means all. | Sends the current values once, without changing the subscription. |
 
-JSON clients send the same actions as `{"path":"/subscribe","parameters":{"topics":"volume,playlist"}}`. The reply is sent first, for example `{"accepted":true,"status":200,"message":"Subscribed","topics":["volume","playlist"]}`. `topics` lists the connection's subscription after the change; for `/full_update` it lists the requested topics. Unknown topics return `accepted:false` with status 400 and change nothing. Subscriptions belong to the connection: they end when the client disconnects. By default, the client's profile subscribes it to all topics again on connect (below), so a reconnecting client such as Medialon needs no `/subscribe` of its own. Changes are sampled every 100 ms, as for the TCP Control Client, and are not replayed after a reconnect.
+JSON clients send the same actions as `{"path":"/subscribe","parameters":{"topics":"volume,playlist"}}`. The reply is sent first, for example `{"accepted":true,"status":200,"message":"Subscribed","topics":["volume","playlist"]}`. `topics` lists the connection's subscription after the change; for `/full_update` it lists the requested topics. Unknown topics return `accepted:false` with status 400 and change nothing. Subscriptions belong to the connection: they end when the client disconnects. By default, the client's profile subscribes it to all topics again on connect (below), so a reconnecting client needs no `/subscribe` of its own. Changes are sampled every 100 ms, as for the TCP Control Client, and are not replayed after a reconnect.
 
 What a client receives depends on the **incoming client profile** for its address. A profile is selected by the client's IP address as C-Play sees it, so IPv4 clients of a dual-stack listener still match their IPv4 address. Every client without an enabled profile for its exact address uses the **default profile**, address `*`. The default profile always exists: C-Play adds it to a configuration without one, it cannot be deleted, and its address and `enabled` flag cannot be changed. Edit it to change what unknown clients receive. Its built-in settings are the name **Default profile**, JSON notifications, the LF terminator and a subscription to all topics on connect.
 
@@ -298,15 +298,15 @@ What a client receives depends on the **incoming client profile** for its addres
 | `id`, `name` | derived address, required name | The profile ID is the canonical client address, or `*`. |
 | `address` | required | Numeric IPv4/IPv6 address of the client, or `*` for the default profile. |
 | `enabled` | `true` | Disabled profiles are ignored when matching; their clients use the default profile. Always `true` for the default profile. |
-| `eventTopics` | `["*"]` | Topics subscribed automatically when the client connects, `*` for all; `[]` waits for `/subscribe`. Clients that reconnect automatically, such as Medialon, then never miss their subscription. |
+| `eventTopics` | `["*"]` | Topics subscribed automatically when the client connects, `*` for all; `[]` waits for `/subscribe`. Clients that reconnect automatically then never miss their subscription. |
 | `excludedTopics` | `[]` | Topics left out of an `eventTopics: ["*"]` subscription. Topics added in later C-Play versions are still subscribed. Ignored for explicit topic lists. |
 | `eventFormat` | `json` | `json`: the `change` notifications and `snapshot` objects of the [outgoing client's subscriptions](#subscribe-and-query-over-tcp). `commands`: the event commands of the server `commandServerId`. |
 | `commandServerId` | — | Required for `commands`. Every reusable command of this server with **Trigger on changes** topics is sent to the client for those topics, exactly as it is sent to that server: same payload prefix, appended value, `charsPerItem`, `timeFormat` and exact-wire-bytes setting. The server itself may be disabled; it then only defines the structure. |
-| `sendTerminatorHex` | `0a` | Terminator of every reply and update sent to the client, for example `0a` (LF) or `0d` (CR, for the Medialon driver). May be empty. |
+| `sendTerminatorHex` | `0a` | Terminator of every reply and update sent to the client, for example `0a` (LF) or `0d` (CR, for the example MLLC client driver). May be empty. |
 | `sendInitialUpdate` | `true` | Send the current values of the `eventTopics` subscription when the client connects. Turn off for clients that disconnect and reconnect often: each connection then only receives changes, and the client requests the current values with `/full_update` when it needs them. An explicit `/subscribe` always sends the current values. |
-| `sendReplies` | `true` | Reply to every action, including `/subscribe`, `/unsubscribe` and `/full_update`, with its JSON result. Turn off for clients that only need the updates, such as the Medialon driver. Updates are always sent. |
+| `sendReplies` | `true` | Reply to every action, including `/subscribe`, `/unsubscribe` and `/full_update`, with its JSON result. Turn off for clients that only need the updates, such as the example MLLC client driver. Updates are always sent. |
 
-With the `commands` format, a subscription to `volume` sends `cplay volume 75` followed by the terminator for the packaged Medialon commands. An initial value, a full update, or `/subscribe` for all topics sends each event command of the requested topics once, like the [full update](#layer-states) of a server. Automatic value commands are only sent when their final payload changes, per client. A `layers` command with a positive `charsPerItem` is also checked when `triggered_slide` changes and sent if its text changes. In JSON format, the initial values and full updates are one `snapshot` object, and changes are `change` notifications.
+With the `commands` format, a subscription to `volume` sends `cplay volume 75` followed by the terminator for the packaged event commands. An initial value, a full update, or `/subscribe` for all topics sends each event command of the requested topics once, like the [full update](#layer-states) of a server. Automatic value commands are only sent when their final payload changes, per client. A `layers` command with a positive `charsPerItem` is also checked when `triggered_slide` changes and sent if its text changes. In JSON format, the initial values and full updates are one `snapshot` object, and changes are `change` notifications.
 
 Profiles are saved in the `incomingClients` array of `tcp-control.json`:
 
@@ -314,7 +314,7 @@ Profiles are saved in the `incomingClients` array of `tcp-control.json`:
 {
   "incomingClients": [
     {
-      "name": "Medialon full-duplex client",
+      "name": "Full-duplex show controller",
       "address": "192.168.1.20",
       "enabled": true,
       "eventTopics": ["*"],

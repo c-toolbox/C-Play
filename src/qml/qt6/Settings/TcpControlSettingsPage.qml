@@ -248,11 +248,11 @@ SettingsBasePage {
                 onActivated: root.incomingCommandServerId = currentValue
             }
             Label { text: qsTr("Send terminator (hex):") }
-            TextField { id: incomingSendHex; Layout.fillWidth: true; placeholderText: qsTr("0a = LF, 0d = CR (Medialon)") }
+            TextField { id: incomingSendHex; Layout.fillWidth: true; placeholderText: qsTr("0a = LF, 0d = CR") }
             Label { text: qsTr("Replies:") }
             CheckBox {
                 id: incomingReplies
-                text: qsTr("Reply to every action with a JSON result (turn off for Medialon, which only needs the updates)")
+                text: qsTr("Reply to every action with a JSON result (turn off for clients that only need the updates)")
             }
         }
         RowLayout {
@@ -348,7 +348,7 @@ SettingsBasePage {
         }
         Label {
             Layout.fillWidth: true; wrapMode: Text.WordWrap
-            text: qsTr("Import adds matching Medialon event commands to the selected saved server. Use CRLF framing for the generated LLC driver.")
+            text: qsTr("Import adds the EventModel's event commands to the selected saved server.")
         }
         Label {
             Layout.fillWidth: true; wrapMode: Text.WordWrap

@@ -7,11 +7,11 @@ sidebar_position: 9
 
 ![TCP control settings](/assets/ui/settings/tcp_control.png)
 
-The TCP control settings configure C-Play's incoming TCP Control Server and its outgoing TCP Control Client connections. Only the master opens connections or listens; cluster nodes ignore these settings. For protocols, framing, event topics and Medialon examples, see [TCP control](/remote-control/tcp).
+The TCP control settings configure C-Play's incoming TCP Control Server and its outgoing TCP Control Client connections. Only the master opens connections or listens; cluster nodes ignore these settings. For protocols, framing, event topics and the example MLLC drivers, see [TCP control](/remote-control/tcp).
 
 ### Incoming TCP control
 
-* **Enable TCP server on master** — Accept REST-style actions from a TCP client such as Medialon, see [TCP Control Server](/remote-control/tcp#tcp-control-server).
+* **Enable TCP server on master** — Accept REST-style actions from any TCP client, see [TCP Control Server](/remote-control/tcp#tcp-control-server).
 * **Bind address** / **Port** — Numeric IPv4 or IPv6 address and port to listen on (default `0.0.0.0:7008`). Click **Apply listener** to apply them.
 
 The line below shows the listener state and the number of connected clients. These settings are saved in `cplay.conf`.
@@ -26,8 +26,8 @@ Clients of the TCP server can subscribe to state updates with `/subscribe`, `/un
 * **Update on connect** — Send the current values of the subscribed topics when the client connects (default on). Turn off for clients that disconnect and reconnect often; they then only receive changes and request the current values with `/full_update`.
 * **Update format** — *JSON notifications*, or *Event commands of a TCP server*: the client receives that server's event commands (for example `cplay volume 75`) exactly as the server would.
 * **Command structure from** — The server whose event commands are used. It may be a disabled server that only defines the structure.
-* **Send terminator (hex)** — Terminator of every reply and update sent to the client: `0a` (LF) by default, `0d` (CR) for the Medialon full-duplex driver.
-* **Replies** — Reply to every action with its JSON result (default on). Turn off for the Medialon full-duplex driver: replies arriving between updates can briefly set its monitoring variables, such as the volume, to 0.
+* **Send terminator (hex)** — Terminator of every reply and update sent to the client: `0a` (LF) by default, `0d` (CR) for the example MLLC client driver.
+* **Replies** — Reply to every action with its JSON result (default on). Turn off for clients that only need the updates, such as the example MLLC client driver: replies arriving between updates can briefly set its monitoring variables, such as the volume, to 0.
 
 Use **Save client profile** and **Delete client profile** to manage the selected profile. The default profile cannot be deleted, only edited. Changes apply immediately to connected clients. Profiles are saved in `tcp-control.json`.
 
@@ -56,7 +56,7 @@ Use **Save server**, **Delete server**, **Connect**, and **Disconnect** to manag
 
 Commands defined here are triggered by [TCP layers](/media/layers#tcp) in presentations, manually, or automatically on changes.
 
-* **EventModel path** / **Import EventModel** — Import Medialon event commands into the selected saved server.
+* **EventModel path** / **Import EventModel** — Import the EventModel's event commands into the selected saved server.
 * **Name** / **Server** — Command label and the server it is sent to.
 * **Payload** — *UTF-8 text* or hexadecimal bytes.
 * **Exact wire bytes** — Send the payload without adding framing or termination.
