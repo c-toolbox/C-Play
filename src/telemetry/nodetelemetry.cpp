@@ -140,6 +140,15 @@ bool readCacheIdle(mpv_handle* handle) {
 // re-broadcasts its enable command every sweep tick, so nodes pick up late).
 static std::atomic<bool> s_telemetryManagerReady{false};
 
+// Set once Application starts shutting down SGCT; afterwards NetworkManager may be gone.
+static std::atomic<bool> s_telemetryShutdown{false};
+
+void NodeTelemetryManager::shutdown() {
+    s_telemetryShutdown.store(true, std::memory_order_release);
+    if (m_sweepTimer)
+        m_sweepTimer->stop();
+}
+
 NodeTelemetryManager& NodeTelemetryManager::instance() {
     // C++11 guarantees this static is constructed exactly once, even under concurrent calls -
     // but it would be constructed *on whichever thread calls first*. Only the main thread may
@@ -375,6 +384,10 @@ void NodeTelemetryManager::broadcastEnableCommand() {
     cmd["interval"] = m_intervalMs.load();
     const std::string s = cmd.dump();
 
+    // NetworkManager is destroyed by the SGCT engine on the render thread during shutdown;
+    // stop sending once Application has begun tearing SGCT down.
+    if (s_telemetryShutdown.load(std::memory_order_acquire))
+        return;
     auto& nm = sgct::NetworkManager::instance();
     nm.transferData(s.data(), static_cast<int>(s.size()), m_packageCounter.fetch_add(1));
 }

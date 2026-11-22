@@ -113,6 +113,10 @@ public:
     // operator can compare master vs nodes in one glance. Called from the GUI thread.
     void setMasterMpv(MpvObject *mpv);
 
+    // Stops the sweep timer and blocks all further SGCT network traffic. Must be called on
+    // the main thread before the render thread tears down SGCT (NetworkManager::destroy()).
+    void shutdown();
+
 Q_SIGNALS:
     void telemetryChanged();
 

@@ -457,6 +457,10 @@ int Application::run() {
     renderThread.render();
     int returnCode = m_app->exec();
     sgct::Log::Info("Qt Application exited");
+    // Stop telemetry before SGCT's NetworkManager is destroyed on the render thread;
+    // its sweep timer would otherwise keep calling NetworkManager::instance() (null).
+    if (NodeTelemetryManager::isReady())
+        NodeTelemetryManager::instance().shutdown();
     shutdownLayers();
     shutdownWorkerThread();
     renderThread.terminate();
