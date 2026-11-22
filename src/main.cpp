@@ -43,6 +43,7 @@
 #include <slidesmodel.h>
 #include <telemetry/nodetelemetry.h>
 #include <telemetry/nodeloaderverifier.h>
+#include <telemetry/nodeshutdowncoordinator.h>
 #include <utils/logfilewriter.h>
 #include <utils/nodeidentityconfig.h>
 #include <utils/nodemediafolder.h>
@@ -1290,8 +1291,15 @@ static bool updateMasterNdiLayer(const glm::vec3 &rotXYZ, const glm::vec3 &trans
 }
 
 static void postSyncPreDraw() {
-    if (SyncHelper::instance().variables.terminateNodes) {
+    // The master asks the nodes to close through the sync frame (terminateNodes) and, when a
+    // DataTransfer connection exists, also with a quit command on that channel.
+    const bool quitRequested = !Engine::instance().isMaster() && NodeShutdownCoordinator::isReady() &&
+                               NodeShutdownCoordinator::instance().quitRequested();
+    if (SyncHelper::instance().variables.terminateNodes || quitRequested) {
         if (!Engine::instance().isMaster()) {
+            // Tell the master this node is on its way out; "closed" follows from cleanup().
+            if (NodeShutdownCoordinator::isReady())
+                NodeShutdownCoordinator::instance().reportClosing();
             Engine::instance().terminate();
         }
         return;
@@ -1929,6 +1937,12 @@ static void cleanup() {
 #ifdef CAPTURE_LAYER
         CaptureLayer::processPendingGLCleanup();
 #endif
+
+        // Layers are released; SGCT drops the connections right after this callback. Report
+        // to the master that this node has closed (also when it was not asked to), so the
+        // master can follow the cluster shutdown and close after its nodes.
+        if (NodeShutdownCoordinator::isReady())
+            NodeShutdownCoordinator::instance().reportClosed();
     }
 
 #ifdef NDI_SUPPORT
@@ -1965,6 +1979,9 @@ static void dataTransferDecode(void* data, int length, int packageId, int client
     // Capture input inventory: "kind":"captureinv" / "captureinv-req".
     if (NodeCaptureInventory::isReady())
         NodeCaptureInventory::instance().handleData(data, length, clientIndex);
+    // Cluster shutdown: "kind":"quit" (master -> nodes) / "nodestate" (nodes -> master).
+    if (NodeShutdownCoordinator::isReady())
+        NodeShutdownCoordinator::instance().handleData(data, length, clientIndex);
 }
 
 static void dataTransferStatus(bool connected, int clientIndex) {
@@ -1974,6 +1991,8 @@ static void dataTransferStatus(bool connected, int clientIndex) {
         NodeLoaderVerifier::instance().handleNodeStatus(connected, clientIndex);
     if (NodeCaptureInventory::isReady())
         NodeCaptureInventory::instance().handleStatus(connected, clientIndex);
+    if (NodeShutdownCoordinator::isReady())
+        NodeShutdownCoordinator::instance().handleStatus(connected, clientIndex);
 }
 
 int main(int argc, char *argv[]) {
@@ -2107,6 +2126,19 @@ int main(int argc, char *argv[]) {
     // cannot use framebuffer transparency; mode changes require a node restart.
     callbacks.preWindow = [] {
         glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, GLFW_FALSE);
+
+        // The master never shows its SGCT window(s): it only needs their OpenGL context.
+        // Mark them hidden before SGCT opens them, so they are created with GLFW_VISIBLE
+        // off and never appear on screen (hiding them after Engine::create left a window
+        // flashing up at startup, and sometimes staying visible). NetworkManager already
+        // knows whether this process is the master when preWindow runs.
+        if (NetworkManager::instance().isComputerServer()) {
+            for (const std::unique_ptr<Window>& win : ClusterManager::instance().thisNode().windows()) {
+                win->setRenderWhileHidden(true);
+                win->setVisible(false); // no GLFW handle yet: only sets the creation state
+            }
+            return;
+        }
         // ClusterManager was created before preWindow runs and holds the id of this process's
         // node in the cluster config (the runtime Window class does not expose its fullscreen
         // state, so it must be read from the config - ConfigModel caches that analysis).
@@ -2184,12 +2216,7 @@ int main(int argc, char *argv[]) {
         OmtFinder::checkVideoDecoderAvailable();
 #endif
 
-        // Hide window (as we are not using it on master)
-        auto& windows = Engine::instance().thisNode().windows();
-        if (!windows.empty() && windows[0]) {
-            windows[0]->setRenderWhileHidden(true);
-            windows[0]->setVisible(false);
-        }
+        // The master's window(s) were created hidden (see callbacks.preWindow).
 
         // Consider arguments not processed by C-Play or SGCT to be QApplication related
         std::vector<char*> qapp_argv;
@@ -2252,6 +2279,9 @@ int main(int argc, char *argv[]) {
         NodeLoaderVerifier::instance();
         // Same rule; starts the node's capture input scan worker.
         NodeCaptureInventory::instance();
+        // Same rule; a quit command arriving before this is covered by the sync frame's
+        // terminateNodes flag.
+        NodeShutdownCoordinator::instance();
 
         Engine::instance().exec();
         NodeCaptureInventory::instance().shutdown();

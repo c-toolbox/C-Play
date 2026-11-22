@@ -214,7 +214,12 @@ public:
     int run();
     QUrl configFilePath();
     QUrl configFolderPath();
+    // Blocking fallback: sets the sync terminate flag and waits until no node is connected.
     Q_INVOKABLE void sendQuitToNodes();
+    // Non-blocking cluster shutdown over the DataTransfer channel: asks the nodes to close and
+    // follows them (NodeShutdown in QML; its finished() signal tells when to quit). Returns
+    // false when no node is connected over DataTransfer - use sendQuitToNodes() then.
+    Q_INVOKABLE bool beginNodeShutdown();
     Q_INVOKABLE void quitApp();
     Q_INVOKABLE QUrl parentUrl(const QString &path);
     Q_INVOKABLE QUrl pathToUrl(const QString &path);

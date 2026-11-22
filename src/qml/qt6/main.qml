@@ -41,6 +41,8 @@ Kirigami.ApplicationWindow {
     property bool hideUI: (isFullScreenMode || isIdleMode)
     property url newMediaFileToOpen: ""
     property bool forceClose: false
+    // Set once the nodes have been closed on quit, so closing again does not wait for them.
+    property bool nodesShutDown: false
     // Which list the removeSelected shortcut (Delete) acts on: the one clicked last
     // ("layer", "slide", "playlist" or "section").
     property string removeShortcutTarget: "layer"
@@ -205,7 +207,26 @@ Kirigami.ApplicationWindow {
             loggingCloseDialog.open();
             return;
         }
+        if (nodesShutDown)
+            return;
+        // Nodes connected over DataTransfer are asked to close and report back; the close is
+        // held until they did (nodeShutdownNotice shows the progress), then the quit is
+        // re-triggered from the NodeShutdown.finished handler below.
+        if (app.beginNodeShutdown()) {
+            close.accepted = false;
+            return;
+        }
         app.sendQuitToNodes();
+        nodesShutDown = true;
+    }
+
+    Connections {
+        target: NodeShutdown
+
+        function onFinished() {
+            window.nodesShutDown = true;
+            app.quitApp();
+        }
     }
 
     function openMediaFile(path, startPlayback, loadSiblings, guessGridMode) {
@@ -1032,6 +1053,16 @@ Kirigami.ApplicationWindow {
         anchors.topMargin: Kirigami.Units.largeSpacing
     }
 
+    // Follows the nodes closing when C-Play quits, and reports nodes that closed on their
+    // own (over the DataTransfer channel; see NodeShutdownCoordinator).
+    NodeShutdownNotice {
+        id: nodeShutdownNotice
+
+        anchors.horizontalCenter: mpv.horizontalCenter
+        anchors.top: loadNotice.visible ? loadNotice.bottom : mpv.top
+        anchors.topMargin: Kirigami.Units.largeSpacing
+    }
+
     PlaySections {
         id: playSections
 
@@ -1457,12 +1488,11 @@ Kirigami.ApplicationWindow {
             LoggingSettings.performanceMetricsEnabled = false;
             LoggingSettings.nodeTelemetryEnabled = false;
             LoggingSettings.save();
-            app.sendQuitToNodes();
+            // onClosing closes the nodes (forceClose skips this dialog then).
             closeTimer.start();
         }
 
         onRejected: {
-            app.sendQuitToNodes();
             closeTimer.start();
         }
     }

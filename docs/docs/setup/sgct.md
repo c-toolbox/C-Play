@@ -53,6 +53,7 @@ Every node in the configuration has two ports, and the master and the nodes need
   * **Node load failures** — Files that a node could not open or decode are listed in **Settings → Logging...** on the master.
   * **Node telemetry** — When enabled in **Settings → Logging...**, every node reports its FPS, dropped frames, sync offset, GPU load (render and hardware video decode shown separately, with a per-engine breakdown in the tooltip), decoder state and latency once per second.
   * **Capture inputs** — The nodes report the capture inputs they have, so a capture layer can be assigned to an input on a specific node.
+  * **Shutting down** — When C-Play is closed on the master, it asks the nodes to close over the data transfer connection and waits for each of them to report that it has closed. A notice in the master view shows the progress (*"2 of 3 closed, waiting for: ..."*), and the master closes shortly after the last node. A node that does not answer within 15 seconds does not block the master from closing. A node that closes on its own, or whose connection is lost, is reported in the master view.
 
 Without the data transfer connection, the nodes still show the synchronized content, but the master knows nothing about them: playback is not held while nodes load, and failures and problems on the nodes are not shown to the pilot.
 

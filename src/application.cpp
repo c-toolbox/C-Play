@@ -23,6 +23,7 @@
 #include "slidesqtitem.h"
 #include "telemetry/nodetelemetry.h"
 #include "telemetry/nodeloaderverifier.h"
+#include "telemetry/nodeshutdowncoordinator.h"
 #include <capture/nodecaptureinventory.h>
 #include "utils/autosave.h"
 #include "utils/ytdlpresolver.h"
@@ -228,6 +229,8 @@ Application::Application(int &argc, char **argv, const QString &applicationName)
     // reporting over the same DataTransfer channel; no enable command to re-broadcast, so a
     // late construction only delays first reports until the next failure change/reconnect).
     NodeLoaderVerifier::instance();
+    // Same rule for the cluster shutdown coordinator (node closed reports, quit command).
+    NodeShutdownCoordinator::instance();
     connect(&NodeCaptureInventory::instance(), &NodeCaptureInventory::nodesChanged, this, &Application::captureNodesChanged);
 
     m_config = KSharedConfig::openConfig(QStringLiteral("C-Play/cplay.conf"));
@@ -461,6 +464,8 @@ int Application::run() {
     // its sweep timer would otherwise keep calling NetworkManager::instance() (null).
     if (NodeTelemetryManager::isReady())
         NodeTelemetryManager::instance().shutdown();
+    if (NodeShutdownCoordinator::isReady())
+        NodeShutdownCoordinator::instance().shutdown();
     shutdownLayers();
     shutdownWorkerThread();
     renderThread.terminate();
@@ -576,6 +581,7 @@ void Application::setupQmlSettingsTypes() {
     qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "GridSettings", GridSettings::self());
     qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "ImageSettings", ImageSettings::self());
     qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "LoggingSettings", LoggingSettings::self());
+    qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "NodeShutdown", &NodeShutdownCoordinator::instance());
     qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "PresentationSettings", PresentationSettings::self());
     qmlRegisterSingletonInstance("org.ctoolbox.cplay", 1, 0, "StreamSettings", StreamSettings::self());
     BaseLayer::applyNodeStreamSettings();
@@ -716,15 +722,23 @@ void Application::sendQuitToNodes() {
     }
 }
 
+bool Application::beginNodeShutdown() {
+    if (!sgct::Engine::instance().isMaster())
+        return false;
+    if (!NodeShutdownCoordinator::instance().beginShutdown())
+        return false;
+    // Nodes without a DataTransfer connection still close through the sync frame.
+    SyncHelper::instance().variables.terminateNodes = true;
+    return true;
+}
+
 void Application::quitApp() {
-    // If logging is enabled, the main window intercepts the close event and asks whether to
-    // turn it off for next start. In that case the nodes must keep running until the user has
-    // answered; when they choose to turn it off, the quit is re-triggered and the nodes are
-    // terminated from the main window's onClosing handler. If no main window exists (QML failed
-    // to load), terminate the nodes as before.
-    const bool loggingEnabled = LoggingSettings::self()->generalLoggingEnabled() ||
-                                LoggingSettings::self()->performanceMetricsEnabled();
-    if (!loggingEnabled || m_engine->rootObjects().isEmpty()) {
+    // The main window's onClosing handler closes the nodes: it may first ask whether to turn
+    // logging off for next start, and when the nodes are connected over DataTransfer it holds
+    // the close until they have reported closed (NodeShutdown.finished re-triggers the quit).
+    // quit() closes the windows, so it is cancelled while onClosing holds the close. If no main
+    // window exists (QML failed to load), terminate the nodes as before.
+    if (m_engine->rootObjects().isEmpty()) {
         sendQuitToNodes();
     }
     m_app->quit();
