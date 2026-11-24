@@ -5,7 +5,9 @@ sidebar_position: 7
 
 # C-Lux light server in C-Play
 
-C-Lux is a light server that drives a ring of RGB lights, for example around a fulldome screen. It composites its output from a stack of patterns (static color, sine wave, gradient, rainbow, video), groups them into scenes, and exposes everything through a REST API plus a Server-Sent Events frame stream at the engine's tick rate (~30 fps).
+C-Lux is a light server that drives a ring of RGB lights, for example around a fulldome screen. It composites its output from a stack of patterns (static color, sine wave, gradient, rainbow, video, audio and more), each with its own blend mode, groups them into scenes - optionally with a timeline that switches the scene's patterns on and off over time - and exposes everything through a REST API plus a Server-Sent Events frame stream at the engine's tick rate (~30 fps).
+
+C-Play's integration targets **C-Lux 1.1 or later**. With an older server, scenes and patterns still work, but the NDI controls report that the server has no NDI for Video patterns.
 
 C-Play can connect to a running C-Lux server and:
 
@@ -23,7 +25,7 @@ Open **Settings -> C-Lux Editor...**. The toolbar has a connection indicator, a 
 
 ![C-Lux Editor](/assets/ui/clux_editor.png)
 
-If the C-Lux server has an edit password configured, a login row appears while connected but not logged in. Only pattern toggles are guarded by the password — scene apply/unapply/replace, clearing patterns, and the NDI endpoints stay open. The session token is kept for the current C-Play session only and never written to disk; restarting the server drops its in-memory sessions, so a reconnect may ask you to log in again.
+If the C-Lux server has an edit password configured, a login row appears while connected but not logged in. The password guards pattern toggles, pattern edits (which is what the NDI source and ring width are) and the list of NDI sources — scene apply/unapply/replace, clearing patterns, the NDI receiver status and the frame stream stay open. The session token is kept for the current C-Play session only and never written to disk; restarting the server drops its in-memory sessions, so a reconnect may ask you to log in again.
 
 ## Live mode vs preview mode
 
@@ -43,7 +45,7 @@ Losing the connection (server restart, network drop) falls back to preview mode 
 
 :::note[Preview rendering]
 
-The local renderer reproduces the static, sine wave, gradient, and rainbow patterns plus the solid work-light layer with the server's blending. A Video pattern has no local implementation yet, so it contributes nothing to a preview frame, and scene cross-dissolves switch at once instead of easing over the server's transition time.
+The local renderer reproduces the static, sine wave, gradient (any number of colors) and rainbow patterns plus the solid work-light layer, including color transparency, the four blend modes (alpha, additive, multiply, subtract) and the timelines of the scenes switched on. Other pattern types (Video, Audio, Fire, ...) have no local implementation yet, so they contribute nothing to a preview frame. Cross-dissolves — after a scene change or a pattern toggle — switch at once instead of easing over the server's transition time.
 
 :::
 
@@ -51,9 +53,9 @@ The local renderer reproduces the static, sine wave, gradient, and rainbow patte
 
 **Scenes.** One row per scene with its pattern count in parentheses. The switch applies or unapplies the scene (scenes can be combined), **Replace** switches to only that scene, and the list icon offers *Attach to slide* — see below. In preview mode use **Update scenes** to re-fetch the list from the server; live mode keeps it current automatically.
 
-**Patterns.** One row per pattern with its type in parentheses and an enable switch, plus a **Clear all patterns** button. Toggling a pattern is the one action that needs the edit password when the server has one configured.
+**Patterns.** One row per pattern with its type in parentheses and an enable switch, plus a **Clear all patterns** button. Toggling a pattern needs the edit password when the server has one configured. A pattern that a running scene timeline switches on and off is marked *timeline* and its switch is disabled: C-Lux refuses manual toggles of it. Applying a scene starts its timeline from the top (unless it is already playing), unapplying stops it, and **Replace** restarts it — in preview mode C-Play plays it locally the same way.
 
-**Work light.** The solid-color layer C-Lux composites under everything: R/G/B values, an enabled checkbox, and **Apply work light**. Like blackout and half light it only works in live mode — preview mode already keeps the real output dark.
+**Work light.** The solid-color layer C-Lux composites under everything: R/G/B values, an enabled checkbox, and **Apply work light**. Any transparency set for it from the C-Lux web editor is kept. Like blackout and half light it only works in live mode — preview mode already keeps the real output dark.
 
 **Blackout / Half light.** Checkable buttons in the bottom bar, live mode only. They mirror the server's state, which is why they are disabled while disconnected or in preview mode.
 
@@ -65,14 +67,15 @@ The **Show in 3D view** switch overlays the live light colors on C-Play's own 3D
 
 ## NDI capture into C-Lux
 
-C-Lux can receive one NDI source of its own and feed a Video pattern from it, sampling the image along the rim in fisheye mode. The **NDI** group controls that receiver:
+In C-Lux, NDI belongs to the **Video pattern**: a Video pattern whose source is set to *NDI stream* names a sender, and the server receives that sender for the pattern, sampling the image along the rim in fisheye mode (or a strip, as the pattern is set). Each Video pattern can follow a sender of its own. The **NDI** group edits one running Video pattern — so a scene with a Video pattern has to be applied first:
 
-* **Use NDI source** — turns the receiver on or off. Turning it on defaults to C-Play's own NDI output (`<machine> (C-Play)`) when this build has NDI support, so the lights can follow what is on screen; otherwise it keeps whatever source the server already receives.
-* **Source list** — the senders discovery has seen on the network; picking one assigns it to the receiver.
-* **Ring width** — thickness of the rim band each light samples, as a fraction of the ring's radius (0 reads a single circle of pixels). The server keeps this setting whether or not a source is running, so you can pre-aim the next one.
-* **Status line** — what the receiver is doing right now: receiving which source, starting up, no signal, or an error.
+* **Video pattern** — which running Video pattern the controls edit. With a single one it is picked automatically; otherwise the first one already set to NDI is preselected.
+* **Use NDI source** — switches the pattern's source to NDI, or (off) clears its sender so the server closes the receiver. Turning it on defaults to C-Play's own NDI output (`<machine> (C-Play)`) when this build has NDI support, so the lights can follow what is on screen; otherwise it keeps the sender the pattern already names.
+* **Source list** — the senders discovery has seen on the network; picking one assigns it to the pattern. With an edit password configured, the list is only shown after logging in.
+* **Ring width** — thickness of the rim band each light samples, as a fraction of the ring's radius (0 reads a single circle of pixels). The pattern keeps this setting whether or not a source is running, so you can pre-aim the next one.
+* **Status line** — what the server's receiver for that pattern is doing right now: receiving which source, starting up, no signal, or an error (for example a sender that is not on the network).
 
-The NDI endpoints are open like the frame stream, so this works in both modes; in preview mode the blackout keeps the real output dark while you aim it. NDI is queried only after you turn on **Use NDI source**, so servers without the optional endpoints can connect without NDI errors. While NDI is enabled, live mode refreshes its state every second; in preview mode use **Update sources**. Turning it off or disconnecting stops NDI polling.
+Since these are pattern parameters, they follow the same rules as the other pattern changes: in live mode they are sent at once (and need the edit password when one is set); in preview mode they change the local state and are queued as unsent changes, which are sent when live mode is entered. They are not saved into the scene on the server — save the scene from the C-Lux web editor to keep them. NDI is queried only after you turn on **Use NDI source**. While NDI is enabled, live mode refreshes its state every second; in preview mode use **Update sources**. Turning it off or disconnecting stops NDI polling.
 
 ## Attach scene actions to slides
 
@@ -89,7 +92,7 @@ This adds a REST layer titled `C-Lux: <scene> (<action>)` to the currently selec
 | File | Content |
 | --- | --- |
 | `data/clux-server.json` | The single configured server URL (`{"serverUrl": "http://localhost:8787"}`). Written whenever you connect with a new URL. |
-| `data/clux-state.json` | Cached preview state (light count, scenes, patterns, applied scenes). Updated automatically while connected; lets preview mode build up a look before the server is reachable. |
+| `data/clux-state.json` | Cached preview state (light count, scenes, patterns, applied scenes, running scene timelines). Updated automatically while connected; lets preview mode build up a look before the server is reachable. |
 
 ## Cluster notes
 

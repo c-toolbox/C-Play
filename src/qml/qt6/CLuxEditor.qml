@@ -34,11 +34,12 @@ Kirigami.ApplicationWindow {
     // a connection; the client refuses those sends as well.
     readonly property bool canEditLook: !client.liveMode || client.connected
 
-    // NDI capture on the server: it receives one NDI source and feeds a Video pattern from
-    // it. The endpoints are open like the stream, so only a connection is needed - not live
-    // mode (the preview blackout keeps the real output dark meanwhile). ndiAwaitingDefault
-    // is set between the user turning the switch on and the refreshed source list arriving;
-    // while it is set, the state sync must not treat that update as an external change.
+    // NDI capture on the server: a Video pattern set to NDI names a sender, and the server
+    // receives it for that pattern. The controls edit the Video pattern picked in the NDI
+    // group, so they follow the same rules as the other pattern changes (sent at once in
+    // live mode, queued in preview mode). ndiAwaitingDefault is set between the user
+    // turning the switch on and the refreshed source list arriving (ndiRefreshed); while it
+    // is set, the state sync must not treat updates as an external change.
     property bool ndiAwaitingDefault: false
     // Guards programmatic writes to the NDI switch so their toggled() signal does not run
     // the user-action handler (QML bindings on checked would break after the first click).
@@ -46,6 +47,8 @@ Kirigami.ApplicationWindow {
 
     // One-line summary of what the server's NDI receiver is doing right now.
     readonly property string ndiStatusText: {
+        if (root.client.ndiPattern === "")
+            return qsTr("No Video pattern is running: apply a scene with one");
         if (!root.client.ndiSupported)
             return root.client.ndiReason !== "" ? root.client.ndiReason
                                                 : qsTr("NDI is not available on the server");
@@ -53,6 +56,8 @@ Kirigami.ApplicationWindow {
             return root.client.ndiError;
         if (root.client.ndiSource === "")
             return qsTr("No source assigned");
+        if (!root.client.connected)
+            return qsTr("Receives %1 once connected").arg(root.client.ndiSource);
         var text = qsTr("Receiving %1").arg(root.client.ndiSource);
         if (!root.client.ndiRunning)
             text += " (" + qsTr("starting") + ")";
@@ -60,7 +65,8 @@ Kirigami.ApplicationWindow {
             text += " (" + qsTr("no signal") + ")";
         return text;
     }
-    readonly property bool ndiStatusIsError: !root.client.ndiSupported || root.client.ndiError !== ""
+    readonly property bool ndiStatusIsError: root.client.ndiPattern !== ""
+                                             && (!root.client.ndiSupported || root.client.ndiError !== "")
 
     Component.onCompleted: {
         // The server URL was already loaded from data/clux-server.json at startup.
@@ -105,9 +111,9 @@ Kirigami.ApplicationWindow {
     }
 
     // Picks the default source after a refresh that followed "turn on": C-Play's own output
-    // first, then whatever the server already receives. The receiver is assigned in both
-    // cases - for C-Play's own name even before discovery has listed it, since the server
-    // opens its receiver for that name and picks the sender up when it appears on the net.
+    // first, then whatever the Video pattern already names. C-Play's own name is assigned
+    // even before discovery has listed it, since the server keeps trying to open the
+    // pattern's source and picks the sender up when it appears on the network.
     function applyNdiDefault() {
         var names = [];
         for (var i = 0; i < root.client.ndiSources.length; ++i)
@@ -120,12 +126,14 @@ Kirigami.ApplicationWindow {
             return;
         }
 
-        if (root.client.ndiSource !== "" && names.indexOf(root.client.ndiSource) >= 0) {
+        if (root.client.ndiSource !== "") {
             ndiCombo.currentIndex = names.indexOf(root.client.ndiSource);
-            return;   // already assigned on the server, nothing to send
+            return;   // the pattern already names a source, nothing to send
         }
 
-        showStatus(qsTr("No NDI sources found"), true);
+        showStatus(root.client.ndiSourcesNeedLogin
+                       ? qsTr("Log in to the C-Lux server to list the NDI sources")
+                       : qsTr("No NDI sources found"), true);
         setNdiSwitch(false);
     }
 
@@ -143,27 +151,35 @@ Kirigami.ApplicationWindow {
 
         // One consistent NDI update per refresh (see CLuxClient::refreshNdi): the source
         // list and the receiver status arrive together.
-        function onNdiStateChanged() {
-            if (!root.client.connected) {
-                root.ndiAwaitingDefault = false;
+        function onNdiRefreshed() {
+            if (!root.ndiAwaitingDefault)
+                return;
+            // The switch was just turned on and its discovery run has answered.
+            root.ndiAwaitingDefault = false;
+            if (root.client.ndiPattern === "") {
+                showStatus(root.ndiStatusText, true);
                 root.setNdiSwitch(false);
                 return;
             }
-            if (root.ndiAwaitingDefault) {
-                // The switch was just turned on and its discovery run has answered.
-                root.ndiAwaitingDefault = false;
-                if (!root.client.ndiSupported) {
-                    showStatus(root.client.ndiReason !== "" ? root.client.ndiReason
-                                                            : qsTr("NDI is not available on the server"), true);
-                    root.setNdiSwitch(false);
-                    return;
-                }
-                root.applyNdiDefault();
+            if (!root.client.ndiSupported) {
+                showStatus(root.client.ndiReason !== "" ? root.client.ndiReason
+                                                        : qsTr("NDI is not available on the server"), true);
+                root.setNdiSwitch(false);
                 return;
             }
+            root.applyNdiDefault();
+        }
 
-            // Keep the switch and combo in step with what the server actually receives, so
+        function onNdiStateChanged() {
+            if (root.ndiAwaitingDefault)
+                return;   // onNdiRefreshed() decides once discovery has answered
+
+            // Keep the switch and combos in step with what the Video pattern holds, so
             // changes made from another control surface show up like the rest of the state.
+            var patternIdx = root.client.videoPatterns.indexOf(root.client.ndiPattern);
+            if (ndiPatternCombo.currentIndex !== patternIdx)
+                ndiPatternCombo.currentIndex = patternIdx;
+
             var hasSource = root.client.ndiSource !== "";
             if (hasSource !== ndiSwitch.checked)
                 root.setNdiSwitch(hasSource);
@@ -490,9 +506,9 @@ Kirigami.ApplicationWindow {
                     }
                 }
 
-                // NDI capture on the server. The switch mirrors whether it has a source
-                // assigned; turning it on defaults to C-Play's own output (see
-                // applyNdiDefault()).
+                // NDI capture on the server, through a running Video pattern. The switch
+                // mirrors whether that pattern takes an NDI source; turning it on defaults
+                // to C-Play's own output (see applyNdiDefault()).
                 GroupBox {
                     title: qsTr("NDI")
                     Layout.fillWidth: true
@@ -500,13 +516,33 @@ Kirigami.ApplicationWindow {
                     ColumnLayout {
                         spacing: 4
 
+                        // Which Video pattern the controls below edit. Every Video pattern
+                        // can receive a sender of its own; empty while none is running.
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+
+                            Label { text: qsTr("Video pattern") }
+                            ComboBox {
+                                id: ndiPatternCombo
+                                Layout.fillWidth: true
+                                model: root.client.videoPatterns
+                                enabled: count > 1
+                                displayText: count > 0 ? currentText : qsTr("None running")
+                                onActivated: function(index) {
+                                    showStatus("");
+                                    root.client.ndiPattern = root.client.videoPatterns[index];
+                                }
+                            }
+                        }
+
                         RowLayout {
                             Switch {
                                 id: ndiSwitch
                                 text: qsTr("Use NDI source")
-                                enabled: root.client.connected
+                                enabled: root.canEditLook && root.client.ndiPattern !== ""
                                 ToolTip {
-                                    text: qsTr("Receives an NDI source into C-Lux; defaults to C-Play's own output")
+                                    text: qsTr("Sets the Video pattern to receive an NDI source; defaults to C-Play's own output")
                                 }
                                 onToggled: {
                                     if (root.ndiSyncingSwitch)
@@ -514,9 +550,14 @@ Kirigami.ApplicationWindow {
                                     showStatus("");
                                     if (checked) {
                                         // Refresh discovery first and pick the default from
-                                        // that single update; see applyNdiDefault().
-                                        root.ndiAwaitingDefault = true;
-                                        root.client.refreshNdi();
+                                        // that single update; see applyNdiDefault(). Offline
+                                        // there is nothing to discover: pick at once.
+                                        if (root.client.connected) {
+                                            root.ndiAwaitingDefault = true;
+                                            root.client.refreshNdi();
+                                        } else {
+                                            root.applyNdiDefault();
+                                        }
                                     } else {
                                         root.ndiAwaitingDefault = false;
                                         root.client.setNdiSource("");
@@ -544,7 +585,13 @@ Kirigami.ApplicationWindow {
                             // List of {name, urlAddress} maps from the server's discovery.
                             model: root.client.ndiSources
                             textRole: "name"
-                            enabled: root.client.connected && ndiSwitch.checked
+                            // The assigned sender shows even before discovery lists it (C-Play's
+                            // own output, or a list that needs a login).
+                            displayText: currentIndex >= 0 ? currentText
+                                       : root.client.ndiSourcesNeedLogin && root.client.ndiSource === ""
+                                         ? qsTr("Log in to list the sources")
+                                         : root.client.ndiSource
+                            enabled: root.client.connected && root.canEditLook && ndiSwitch.checked
                             onActivated: function(index) {
                                 showStatus("");
                                 var src = root.client.ndiSources[index];
@@ -555,7 +602,7 @@ Kirigami.ApplicationWindow {
 
                         // The thickness of the rim band each light samples in fisheye mode, as a
                         // fraction of the ring's radius. Sent on release rather than per pixel;
-                        // the server keeps it whether or not a source is running, so this also
+                        // the pattern keeps it whether or not a source is running, so this also
                         // pre-aims the next one.
                         RowLayout {
                             Layout.fillWidth: true
@@ -569,7 +616,7 @@ Kirigami.ApplicationWindow {
                                 to: 1
                                 stepSize: 0.001
                                 value: root.client.ndiRingWidth
-                                enabled: root.client.connected && ndiSwitch.checked
+                                enabled: root.canEditLook && ndiSwitch.checked
                                 // This Qt's Slider has no released() signal; pressed goes false on
                                 // mouse/touch/keyboard release, which is where the update goes out
                                 // (one request per interaction, not one per pixel). Skipped when
@@ -635,9 +682,14 @@ Kirigami.ApplicationWindow {
                                 width: patternList.width
                                 spacing: 4
 
+                                // A pattern a running scene timeline switches cannot be
+                                // toggled by hand (the server refuses it).
+                                readonly property bool timed:
+                                    root.client.timedPatterns.indexOf(modelData.name) >= 0
+
                                 Switch {
                                     checked: modelData.enabled
-                                    enabled: root.canEditLook
+                                    enabled: root.canEditLook && !parent.timed
                                     onToggled: {
                                         showStatus("");
                                         root.client.setPatternEnabled(modelData.name, checked);
@@ -647,6 +699,14 @@ Kirigami.ApplicationWindow {
                                     text: modelData.name
                                     elide: Text.ElideRight
                                     Layout.fillWidth: true
+                                }
+                                Label {
+                                    visible: parent.timed
+                                    text: qsTr("timeline")
+                                    color: Kirigami.Theme.disabledTextColor
+                                    ToolTip.visible: timedHover.hovered
+                                    ToolTip.text: qsTr("Switched on and off by a running scene timeline")
+                                    HoverHandler { id: timedHover }
                                 }
                                 Label {
                                     text: "(" + modelData.type + ")"

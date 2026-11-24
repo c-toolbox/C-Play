@@ -130,24 +130,53 @@ class CLuxClient : public QObject {
     Q_PROPERTY(bool solidEnabled READ solidEnabled NOTIFY stateChanged)
     bool solidEnabled() const { return m_solidEnabled; }
 
-    // NDI capture on the server: it receives one NDI source of its own and feeds a Video
-    // pattern from it. The endpoints are open (no edit password), so this works in both
-    // modes, like the other house controls. ndiSources() lists what discovery has seen;
-    // ndiSource() names the sender currently assigned (empty when none is).
+    // Names of the running patterns a scene timeline switches on and off. The server
+    // refuses to toggle those by hand, so the UI keeps their switches disabled and
+    // setPatternEnabled() refuses them too. Follows the server's running timelines in live
+    // mode and the locally applied scenes' timelines in preview mode.
+    Q_PROPERTY(QStringList timedPatterns READ timedPatterns NOTIFY stateChanged)
+    QStringList timedPatterns() const;
+
+    // NDI capture on the server. Since C-Lux 1.1 there is no server-wide receiver: every
+    // Video pattern whose source is set to NDI names a sender, and the server receives it
+    // for that pattern. The NDI controls therefore edit one running Video pattern, picked
+    // with ndiPattern, and its source and ring width are pattern parameters - sent at once
+    // in live mode (behind the edit password, when one is set) and queued like the other
+    // pattern changes in preview mode. The receiver status is polled from the server.
+
+    // Names of the running Video patterns, in stack order.
+    Q_PROPERTY(QStringList videoPatterns READ videoPatterns NOTIFY ndiStateChanged)
+    QStringList videoPatterns() const;
+
+    // The Video pattern the NDI controls edit: the one picked with setNdiPattern() while it
+    // is running, otherwise the first one already taking an NDI source, otherwise the first
+    // Video pattern. Empty while no Video pattern is running.
+    Q_PROPERTY(QString ndiPattern READ ndiPattern WRITE setNdiPattern NOTIFY ndiStateChanged)
+    QString ndiPattern() const;
+    void setNdiPattern(const QString& name);
+
+    // What discovery has seen on the network, as {name, urlAddress} maps. The server only
+    // lists them to a logged-in client when an edit password is set; see
+    // ndiSourcesNeedLogin().
     Q_PROPERTY(QVariantList ndiSources READ ndiSources NOTIFY ndiStateChanged)
     QVariantList ndiSources() const { return m_ndiSources; }
 
-    // False once the server's optional NDI bindings have failed to load, with ndiReason()
-    // saying why. The source list stays empty in that case.
+    // True when the source list was skipped because it needs the edit password.
+    Q_PROPERTY(bool ndiSourcesNeedLogin READ ndiSourcesNeedLogin NOTIFY ndiStateChanged)
+    bool ndiSourcesNeedLogin() const { return m_ndiSourcesNeedLogin; }
+
+    // False once the server's optional NDI bindings have failed to load (or the server has
+    // no per-pattern NDI at all), with ndiReason() saying why.
     Q_PROPERTY(bool ndiSupported READ ndiSupported NOTIFY ndiStateChanged)
     bool ndiSupported() const { return m_ndiSupported; }
 
     Q_PROPERTY(QString ndiReason READ ndiReason NOTIFY ndiStateChanged)
     QString ndiReason() const { return m_ndiReason; }
 
-    // Name of the NDI source the server is receiving, empty when none is assigned.
+    // The NDI sender ndiPattern() is set to receive, empty when its source is not NDI or no
+    // sender is assigned.
     Q_PROPERTY(QString ndiSource READ ndiSource NOTIFY ndiStateChanged)
-    QString ndiSource() const { return m_ndiSource; }
+    QString ndiSource() const;
 
     // True while a receiver is open (it may still be waiting for its first frame).
     Q_PROPERTY(bool ndiRunning READ ndiRunning NOTIFY ndiStateChanged)
@@ -158,15 +187,15 @@ class CLuxClient : public QObject {
     Q_PROPERTY(int ndiConnections READ ndiConnections NOTIFY ndiStateChanged)
     int ndiConnections() const { return m_ndiConnections; }
 
-    // The last receive failure reported by the server, cleared when a new source opens.
+    // Why the requested source is not running, or the last receive failure.
     Q_PROPERTY(QString ndiError READ ndiError NOTIFY ndiStateChanged)
     QString ndiError() const { return m_ndiError; }
 
-    // Thickness of the rim band each light samples in fisheye mode, as a fraction of the
-    // ring's radius (0 reads a single circle of pixels). Part of the server's sampling
-    // geometry, which is kept whether or not a source is running.
+    // Thickness of the rim band each light of ndiPattern() samples in fisheye mode, as a
+    // fraction of the ring's radius (0 reads a single circle of pixels). A parameter of
+    // the pattern, kept whether or not a source is running.
     Q_PROPERTY(double ndiRingWidth READ ndiRingWidth NOTIFY ndiStateChanged)
-    double ndiRingWidth() const { return m_ndiGeometry.value(QStringLiteral("ringWidth")).toDouble(); }
+    double ndiRingWidth() const;
 
     // Latest frame from the SSE stream: nLights*3 ints (r, g, b per light).
     Q_PROPERTY(QVariantList frame READ frame NOTIFY frameChanged)
@@ -183,6 +212,9 @@ class CLuxClient : public QObject {
     void stateChanged();
     // Emitted whenever any of the NDI properties above changes.
     void ndiStateChanged();
+    // Emitted once a refreshNdi() call has finished, whether or not it succeeded, so the UI
+    // can act on the fresh status and source list as one update.
+    void ndiRefreshed();
     void frameChanged();
     void errorOccurred(const QString& message);
 
@@ -194,9 +226,9 @@ class CLuxClient : public QObject {
     // Log in with the edit password; only needed while authRequired() is true.
     void login(const QString& password);
 
-    // Re-fetch all server state (patterns, scenes, applied scenes, blackout, half-light,
-    // solid color). No-op while disconnected. In live mode this also runs automatically
-    // once per second while connected.
+    // Re-fetch all server state (patterns, scenes, applied scenes, running timelines,
+    // blackout, half-light, solid color). No-op while disconnected. In live mode this also
+    // runs automatically once per second while connected.
     void refreshState();
 
     // Re-fetch just the scene list and the applied scenes. This is what the "Update
@@ -204,22 +236,19 @@ class CLuxClient : public QObject {
     // per-second poll already keeps the state current. No-op while disconnected.
     void refreshScenes();
 
-    // Re-fetch the NDI status (supported/running/source/connections/error) and the list
-    // of sources discovery has seen on the network. No-op while disconnected. Calling
-    // this opts into live-mode polling until NDI is turned off or disconnected; optional
-    // NDI endpoints are never queried just because the client connects.
+    // Re-fetch the receiver status of ndiPattern() (supported/running/connections/error)
+    // and the list of sources discovery has seen on the network, then emit ndiRefreshed().
+    // No-op while disconnected. Calling this opts into live-mode polling until NDI is
+    // turned off or disconnected; the NDI endpoints are never queried just because the
+    // client connects.
     void refreshNdi();
 
-    // Assign the named NDI source to the server's receiver, or stop it when name is
-    // empty (the API takes null for that). Works in both modes: the capture feeds a
-    // Video pattern on the server and does not touch the blackout state. No-op while
-    // disconnected; the response carries the new status, which updates the properties.
+    // Set ndiPattern() to receive the named NDI sender (switching its source to NDI), or
+    // stop receiving when name is empty. A pattern edit: see the NDI properties above.
     void setNdiSource(const QString& name);
 
-    // Set the sampling geometry's ring width (0..1, fraction of the rim radius). The API
-    // validates the whole geometry at once, so it is sent back with only this field
-    // changed; see m_ndiGeometry. No-op while disconnected; the response carries the new
-    // status, which updates ndiRingWidth().
+    // Set ndiPattern()'s ring width (0..1, fraction of the rim radius). A pattern edit:
+    // see the NDI properties above.
     void setNdiRingWidth(double width);
 
     // Operator commands. The scene/pattern commands work in both modes: live mode sends
@@ -241,13 +270,27 @@ class CLuxClient : public QObject {
     private:
     QUrl apiUrl(const QString& path) const;
     QNetworkReply* request(QNetworkAccessManager::Operation op, const QString& path,
-                           const QByteArray& body = {});
+                           const QByteArray& body = {}, const QByteArray& customVerb = {});
     // Returns false when the server could not be reached at all.
     bool handleAuthReply(QNetworkReply* reply);
     void reportStateError(QNetworkReply* reply);
-    // Applies a NdiStatus object from the server to the NDI properties and emits the
-    // change; shared by refreshNdi() and setNdiSource(), since both responses carry it.
+    // Applies a NdiStatus object from the server (GET /patterns/:name/ndi) to the receiver
+    // status properties and emits the change.
     void applyNdiStatus(const QJsonObject& obj);
+    // Clears the receiver status, which belongs to one pattern on one server.
+    void resetNdiStatus();
+    // Emits ndiStateChanged() when anything the NDI properties derive from the pattern
+    // list changed; called on every stateChanged().
+    void syncNdiFromPatterns();
+    // Changes some parameters of a running pattern, like the C-Lux editor's PATCH
+    // /patterns/:name: sent at once in live mode (needs a connection, and a login when an
+    // edit password is set), applied locally and queued in preview mode.
+    void updatePattern(const QString& name, const QVariantMap& props);
+    // The pattern with this name as stored in m_patterns, or an empty map when unknown.
+    QVariantMap patternByName(const QString& name) const;
+    // A /scenes/timelines entry starting the scene's timeline from the top, or an empty
+    // map when the scene has no timeline; used to mirror the server in preview mode.
+    QVariantMap timelineStartFor(const QVariantMap& scene) const;
     void startStream();
     void stopStream();
     // Starts or stops the per-second state poll to match m_connected && m_liveMode.
@@ -271,9 +314,9 @@ class CLuxClient : public QObject {
     void queuePendingOp(const QVariantMap& op);
     void clearPendingOps();
     // True when any queued preview change hits a password-protected endpoint on replay -
-    // only pattern toggles are guarded by the edit password; scene apply/unapply/replace
-    // and clearing are open. Used to refuse entering live mode before such ops would all
-    // fail one by one (see setLiveMode()).
+    // pattern toggles and edits are guarded by the edit password; scene
+    // apply/unapply/replace and clearing are open. Used to refuse entering live mode
+    // before such ops would all fail one by one (see setLiveMode()).
     bool pendingOpsNeedAuth() const;
     // Replays m_pendingOps against the server, one request at a time in order; when the
     // last one is done (or the list was empty) it restores the blackout and restarts the
@@ -283,6 +326,9 @@ class CLuxClient : public QObject {
     void finishEnteringLiveMode();
     // The scene with this name as stored in m_scenes, or an empty map when unknown.
     QVariantMap sceneByName(const QString& name) const;
+    // Stable-sorts m_patterns into scene-list order, like the server's sortBySceneOrder()
+    // after applying a scene; used to mirror that in preview mode.
+    void sortPatternsBySceneOrder();
 
     QNetworkAccessManager* m_nam;
 
@@ -306,21 +352,29 @@ class CLuxClient : public QObject {
     bool m_blackout = false;
     bool m_halfLight = false;
     int m_solidColor[3] = {0, 0, 0};
+    // The work light's opacity. C-Play has no control for it, but keeps and sends back
+    // whatever the server holds so applying the work light does not reset it.
+    double m_solidAlpha = 1.0;
     bool m_solidEnabled = false;
+    // The running scene timelines as /scenes/timelines entries ({scene, timeline, time,
+    // playing}): polled in live mode, mirrored locally in preview mode.
+    QVariantList m_timelines;
 
-    // NDI capture state from the server (see the property comments above).
+    // NDI capture state (see the property comments above).
     QVariantList m_ndiSources;
+    bool m_ndiSourcesNeedLogin = false;
     bool m_ndiPollingEnabled = false;
     bool m_ndiSupported = true;   // stays optimistic until the first status says otherwise
     QString m_ndiReason;
-    QString m_ndiSource;
     bool m_ndiRunning = false;
     int m_ndiConnections = 0;
     QString m_ndiError;
-    // The sampling geometry as last reported by the server, all fields, so an update can
-    // send it back with one field changed. Seeded with C-Lux's defaults until the first
-    // status arrives (see the constructor).
-    QVariantMap m_ndiGeometry;
+    // The Video pattern picked with setNdiPattern(); see ndiPattern() for the fallback.
+    QString m_ndiPatternChoice;
+    // What the NDI properties derived from the pattern list last time, so
+    // syncNdiFromPatterns() only signals real changes.
+    QString m_ndiPatternState;
+    QString m_ndiStatusPattern;
 
     QVariantList m_frame;
     QByteArray m_streamBuffer;

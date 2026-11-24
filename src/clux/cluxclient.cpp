@@ -8,6 +8,7 @@
 #include "cluxpreviewrenderer.h"
 
 #include <QFile>
+#include <QHash>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -16,6 +17,8 @@
 #include <QNetworkRequest>
 #include <QSet>
 #include <QUrl>
+
+#include <algorithm>
 
 namespace {
 
@@ -116,6 +119,11 @@ QVariantList parseSceneList(const QByteArray& data) {
             patterns.append(jsonValueToVariant(pv).toMap());
         m.insert(QStringLiteral("patterns"), patterns);
         m.insert(QStringLiteral("patternCount"), parr.size());
+        // The scene's timeline (C-Lux 1.1+), which applying the scene starts playing; kept
+        // so preview mode can play it locally the way the server would.
+        const QJsonValue timeline = o.value(QStringLiteral("timeline"));
+        if (timeline.isObject())
+            m.insert(QStringLiteral("timeline"), jsonValueToVariant(timeline));
         list.append(m);
     }
     return list;
@@ -130,6 +138,12 @@ QStringList parseAppliedScenes(const QByteArray& data) {
     return names;
 }
 
+// Percent-encode a name for use in a URL path segment (pattern/scene names may contain
+// spaces and other characters).
+QString encodeName(const QString& name) {
+    return QString::fromUtf8(QUrl::toPercentEncoding(name).constData());
+}
+
 } // namespace
 
 CLuxClient::CLuxClient(QObject* parent)
@@ -140,22 +154,9 @@ CLuxClient::CLuxClient(QObject* parent)
     m_pollTimer.setInterval(1000);
     connect(&m_pollTimer, &QTimer::timeout, this, [this]() {
         refreshState();
-        if (m_ndiPollingEnabled && m_ndiSupported && !m_ndiSource.isEmpty())
+        if (m_ndiPollingEnabled && m_ndiSupported && !ndiSource().isEmpty())
             refreshNdi();
     });
-
-    // The sampling geometry as C-Lux defines it by default (shared/video.ts): a centered
-    // ring at full radius with zero width. Seeded so setNdiRingWidth() can send the whole
-    // geometry before the first status has reported one.
-    m_ndiGeometry = {
-        {QStringLiteral("centerX"), 0.5},
-        {QStringLiteral("centerY"), 0.5},
-        {QStringLiteral("radius"), 1.0},
-        {QStringLiteral("ringWidth"), 0.0},
-        {QStringLiteral("rotation"), 0.0},
-        {QStringLiteral("stripY"), 0.5},
-        {QStringLiteral("stripHeight"), 0.025}
-    };
 
     // Preview-mode frames are rendered locally from the state this client keeps, in place
     // of the live frame feed; see CLuxPreviewRenderer for how it mirrors the server.
@@ -171,9 +172,12 @@ CLuxClient::CLuxClient(QObject* parent)
     connect(this, &CLuxClient::stateChanged, this, [this]() {
         m_localPreview->setLightCount(m_nLights);
         m_localPreview->setPatterns(m_patterns);
-        m_localPreview->setSolidColor(m_solidColor[0], m_solidColor[1], m_solidColor[2], m_solidEnabled);
+        m_localPreview->setTimelines(m_timelines);
+        m_localPreview->setSolidColor(m_solidColor[0], m_solidColor[1], m_solidColor[2],
+                                      m_solidAlpha, m_solidEnabled);
         updateLocalPreview();
         saveStateCache();
+        syncNdiFromPatterns();
     });
     connect(this, &CLuxClient::connectionStateChanged, this, [this]() { updateLocalPreview(); });
     connect(this, &CLuxClient::liveModeChanged, this, [this]() { updateLocalPreview(); });
@@ -251,6 +255,7 @@ QByteArray CLuxClient::serializeState() const {
     for (const QString& name : m_appliedScenes)
         applied.append(name);
     root.insert(QStringLiteral("appliedScenes"), applied);
+    root.insert(QStringLiteral("timelines"), variantListToJson(m_timelines));
     return QJsonDocument(root).toJson(QJsonDocument::Compact);
 }
 
@@ -297,6 +302,11 @@ void CLuxClient::loadStateCache() {
         applied.append(v.toString());
     m_appliedScenes = applied;
 
+    QVariantList timelines;
+    for (const QJsonValue& v : root.value(QStringLiteral("timelines")).toArray())
+        timelines.append(jsonValueToVariant(v).toMap());
+    m_timelines = timelines;
+
     // Remember the state as loaded so the stateChanged below does not rewrite the file.
     m_stateCache = serializeState();
     Q_EMIT stateChanged(); // syncs and starts the local preview renderer
@@ -308,9 +318,10 @@ QUrl CLuxClient::apiUrl(const QString& path) const {
 
 // Send a request to the C-Lux API, attaching the session token when one is held. The
 // caller owns the returned reply (it deletes itself on finish). Bodies are sent as JSON,
-// which is what the server's body parser expects.
+// which is what the server's body parser expects. A CustomOperation sends `customVerb`
+// (e.g. "PATCH") with a JSON body.
 QNetworkReply* CLuxClient::request(QNetworkAccessManager::Operation op, const QString& path,
-                                   const QByteArray& body) {
+                                   const QByteArray& body, const QByteArray& customVerb) {
     QNetworkRequest req(apiUrl(path));
     if (!m_token.isEmpty())
         req.setRawHeader("Authorization", "Bearer " + m_token);
@@ -324,6 +335,9 @@ QNetworkReply* CLuxClient::request(QNetworkAccessManager::Operation op, const QS
     case QNetworkAccessManager::PutOperation:
         req.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
         return m_nam->put(req, body);
+    case QNetworkAccessManager::CustomOperation:
+        req.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
+        return m_nam->sendCustomRequest(req, customVerb, body);
     default:
         qWarning() << "CLuxClient: unsupported operation";
         return nullptr;
@@ -405,11 +419,12 @@ void CLuxClient::login(const QString& password) {
 }
 
 void CLuxClient::disconnectFromServer() {
+    // The NDI source and ring width are pattern parameters and stay with the local state;
+    // only what the server reported about its receiver goes.
     m_ndiPollingEnabled = false;
-    m_ndiSource.clear();
-    m_ndiRunning = false;
-    m_ndiConnections = 0;
+    resetNdiStatus();
     m_ndiSources.clear();
+    m_ndiSourcesNeedLogin = false;
     stopStream();
 
     // The local state is kept on purpose: preview mode stays usable without a connection,
@@ -472,6 +487,27 @@ void CLuxClient::refreshState() {
         Q_EMIT stateChanged();
     });
 
+    // The scene timelines that are running, which switch some patterns on and off.
+    QNetworkReply* timelines = request(QNetworkAccessManager::GetOperation, QStringLiteral("/scenes/timelines"));
+    connect(timelines, &QNetworkReply::finished, this, [this, timelines]() {
+        if (timelines->error() != QNetworkReply::NoError) {
+            // C-Lux before 1.1 has no timelines (the route answers 404): nothing is timed.
+            if (timelines->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() == 404) {
+                if (!m_timelines.isEmpty()) {
+                    m_timelines.clear();
+                    Q_EMIT stateChanged();
+                }
+                return;
+            }
+            reportStateError(timelines);
+            return;
+        }
+        QVariantList list;
+        for (const QJsonValue& v : QJsonDocument::fromJson(timelines->readAll()).array())
+            list.append(jsonValueToVariant(v).toMap());
+        m_timelines = list;
+        Q_EMIT stateChanged();
+    });
 
     // Operator state.
     QNetworkReply* blackout = request(QNetworkAccessManager::GetOperation, QStringLiteral("/blackout"));
@@ -512,6 +548,8 @@ void CLuxClient::refreshState() {
         m_solidColor[0] = qBound(0, target.value(QStringLiteral("r")).toInt(0), 255);
         m_solidColor[1] = qBound(0, target.value(QStringLiteral("g")).toInt(0), 255);
         m_solidColor[2] = qBound(0, target.value(QStringLiteral("b")).toInt(0), 255);
+        // Colors stored before C-Lux had transparency omit the alpha and are opaque.
+        m_solidAlpha = qBound(0.0, target.value(QStringLiteral("a")).toDouble(1.0), 1.0);
         Q_EMIT stateChanged();
     });
 }
@@ -543,27 +581,121 @@ void CLuxClient::refreshScenes() {
     });
 }
 
-// Applies a NdiStatus object from the server to the NDI properties and emits the change.
-// Shared by refreshNdi() and setNdiSource(), since both responses carry it.
+namespace {
+
+// shared/video.ts's VIDEO_INPUT_NDI: the Video pattern's source select value for NDI.
+constexpr int kVideoInputNdi = 2;
+const QString kVideoType = QStringLiteral("Video");
+
+} // namespace
+
+QVariantMap CLuxClient::patternByName(const QString& name) const {
+    for (const QVariant& v : m_patterns) {
+        const QVariantMap m = v.toMap();
+        if (m.value(QStringLiteral("name")).toString() == name)
+            return m;
+    }
+    return {};
+}
+
+QStringList CLuxClient::timedPatterns() const {
+    QStringList names;
+    for (const QVariant& v : m_timelines) {
+        const QVariantMap tracks = v.toMap()
+                                       .value(QStringLiteral("timeline")).toMap()
+                                       .value(QStringLiteral("tracks")).toMap();
+        for (auto it = tracks.constBegin(); it != tracks.constEnd(); ++it) {
+            if (!names.contains(it.key()))
+                names.append(it.key());
+        }
+    }
+    return names;
+}
+
+QVariantMap CLuxClient::timelineStartFor(const QVariantMap& scene) const {
+    const QVariant timeline = scene.value(QStringLiteral("timeline"));
+    if (!timeline.isValid() || timeline.toMap().isEmpty())
+        return {};
+    return {{QStringLiteral("scene"), scene.value(QStringLiteral("name"))},
+            {QStringLiteral("timeline"), timeline},
+            {QStringLiteral("time"), 0.0},
+            {QStringLiteral("playing"), true}};
+}
+
+QStringList CLuxClient::videoPatterns() const {
+    QStringList names;
+    for (const QVariant& v : m_patterns) {
+        const QVariantMap m = v.toMap();
+        if (m.value(QStringLiteral("type")).toString() == kVideoType)
+            names.append(m.value(QStringLiteral("name")).toString());
+    }
+    return names;
+}
+
+QString CLuxClient::ndiPattern() const {
+    const QStringList videos = videoPatterns();
+    if (videos.contains(m_ndiPatternChoice))
+        return m_ndiPatternChoice;
+    for (const QString& name : videos) {
+        if (patternByName(name).value(QStringLiteral("input")).toInt() == kVideoInputNdi)
+            return name;
+    }
+    return videos.value(0);
+}
+
+void CLuxClient::setNdiPattern(const QString& name) {
+    if (m_ndiPatternChoice == name)
+        return;
+    m_ndiPatternChoice = name;
+    syncNdiFromPatterns();
+    // Show the newly picked pattern's receiver straight away rather than on the next poll.
+    if (m_ndiPollingEnabled && m_connected)
+        refreshNdi();
+}
+
+QString CLuxClient::ndiSource() const {
+    const QVariantMap pattern = patternByName(ndiPattern());
+    if (pattern.value(QStringLiteral("input")).toInt() != kVideoInputNdi)
+        return {};
+    return pattern.value(QStringLiteral("ndiSource")).toString();
+}
+
+double CLuxClient::ndiRingWidth() const {
+    return patternByName(ndiPattern()).value(QStringLiteral("ringWidth"), 0.0).toDouble();
+}
+
+void CLuxClient::resetNdiStatus() {
+    m_ndiSupported = true;
+    m_ndiReason.clear();
+    m_ndiRunning = false;
+    m_ndiConnections = 0;
+    m_ndiError.clear();
+}
+
+void CLuxClient::syncNdiFromPatterns() {
+    const QString pattern = ndiPattern();
+    const QString state = QStringList{videoPatterns().join(QLatin1Char('\n')), pattern, ndiSource(),
+                                      QString::number(ndiRingWidth())}
+                              .join(QLatin1Char('\t'));
+    if (state == m_ndiPatternState)
+        return;
+    m_ndiPatternState = state;
+    // The receiver status belongs to the pattern it was fetched for.
+    if (pattern != m_ndiStatusPattern)
+        resetNdiStatus();
+    Q_EMIT ndiStateChanged();
+}
+
+// Applies a NdiStatus object from the server to the receiver status properties and emits
+// the change.
 void CLuxClient::applyNdiStatus(const QJsonObject& obj) {
     m_ndiSupported = obj.value(QStringLiteral("supported")).toBool(true);
-    // reason/error/source are null (not absent) when they do not apply; toString() maps
-    // that to an empty string, which is what the properties use for "none".
+    // reason/error are null (not absent) when they do not apply; toString() maps that to
+    // an empty string, which is what the properties use for "none".
     m_ndiReason = obj.value(QStringLiteral("reason")).toString();
-    m_ndiSource = obj.value(QStringLiteral("source")).toString();
     m_ndiRunning = obj.value(QStringLiteral("running")).toBool(false);
     m_ndiConnections = qMax(0, obj.value(QStringLiteral("connections")).toInt(0));
     m_ndiError = obj.value(QStringLiteral("error")).toString();
-
-    // The sampling geometry, kept whole so an update can send it back with one field
-    // changed; the API requires every part of it at once.
-    const QJsonObject geo = obj.value(QStringLiteral("geometry")).toObject();
-    if (!geo.isEmpty()) {
-        QVariantMap g;
-        for (auto it = geo.constBegin(); it != geo.constEnd(); ++it)
-            g.insert(it.key(), jsonValueToVariant(it.value()));
-        m_ndiGeometry = g;
-    }
 
     // Without NDI on the server no source list can exist; drop whatever was cached so a
     // later reconnect does not show senders from another machine's server.
@@ -579,30 +711,54 @@ void CLuxClient::refreshNdi() {
 
     m_ndiPollingEnabled = true;
 
-    // Status first: it says whether discovery is available at all, and the source list
-    // request would only answer 503 when it is not. The status is applied
-    // (and emitted) only once both requests have answered, so the UI sees one consistent
-    // update per refresh - the QML side picks its default source from that single signal.
-    QNetworkReply* status = request(QNetworkAccessManager::GetOperation, QStringLiteral("/ndi"));
-    connect(status, &QNetworkReply::finished, this, [this, status]() {
+    // Without a Video pattern there is no receiver to ask about; the UI says so.
+    const QString pattern = ndiPattern();
+    if (pattern.isEmpty()) {
+        resetNdiStatus();
+        m_ndiStatusPattern.clear();
+        Q_EMIT ndiStateChanged();
+        Q_EMIT ndiRefreshed();
+        return;
+    }
+
+    // Status first: it says whether NDI is available at all. It is applied (and emitted)
+    // only once the source list has answered too, so the UI sees one consistent update
+    // per refresh - the QML side picks its default source from ndiRefreshed().
+    QNetworkReply* status = request(QNetworkAccessManager::GetOperation,
+                                    QStringLiteral("/patterns/") + encodeName(pattern) + QStringLiteral("/ndi"));
+    connect(status, &QNetworkReply::finished, this, [this, status, pattern]() {
         if (!m_ndiPollingEnabled)
             return;
         if (status->error() != QNetworkReply::NoError) {
             if (status->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() == 404) {
+                // C-Lux before 1.1 had one server-wide receiver instead, which this client
+                // no longer drives.
                 m_ndiPollingEnabled = false;
+                m_ndiStatusPattern = pattern;
                 applyNdiStatus(QJsonObject{
                     {QStringLiteral("supported"), false},
-                    {QStringLiteral("reason"), QStringLiteral("NDI is not available on the server")}});
-                return;
+                    {QStringLiteral("reason"), QStringLiteral("This C-Lux server has no NDI for Video patterns (C-Lux 1.1 or later is needed)")}});
+            } else {
+                reportStateError(status);
             }
-            reportStateError(status);
+            Q_EMIT ndiRefreshed();
             return;
         }
         const QJsonObject obj = QJsonDocument::fromJson(status->readAll()).object();
+        m_ndiStatusPattern = pattern;
 
-        // Without NDI on the server there is no source list to fetch.
-        if (!obj.value(QStringLiteral("supported")).toBool(true)) {
+        // Without NDI on the server there is no source list to fetch. With an edit password
+        // the list is only given to a logged-in client; asking without one would just fail
+        // (and nag) on every poll.
+        const bool needLogin = m_authRequired && !authenticated();
+        if (!obj.value(QStringLiteral("supported")).toBool(true) || needLogin) {
+            if (m_ndiSourcesNeedLogin != needLogin) {
+                m_ndiSourcesNeedLogin = needLogin;
+                if (needLogin)
+                    m_ndiSources.clear();
+            }
             applyNdiStatus(obj);
+            Q_EMIT ndiRefreshed();
             return;
         }
 
@@ -612,7 +768,16 @@ void CLuxClient::refreshNdi() {
             if (!m_ndiPollingEnabled)
                 return;
             if (sources->error() != QNetworkReply::NoError) {
+                // A 401 means the password was set or the session ended since the auth
+                // check; reportStateError() brings the login row back.
+                const bool unauthorized =
+                    sources->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() == 401;
                 reportStateError(sources);
+                m_ndiSourcesNeedLogin = unauthorized;
+                if (unauthorized)
+                    m_ndiSources.clear();
+                applyNdiStatus(obj);
+                Q_EMIT ndiRefreshed();
                 return;
             }
             QVariantList list;
@@ -624,58 +789,100 @@ void CLuxClient::refreshNdi() {
                 list.append(m);
             }
             m_ndiSources = list;
+            m_ndiSourcesNeedLogin = false;
             applyNdiStatus(obj);   // emits ndiStateChanged() with both updates in place
+            Q_EMIT ndiRefreshed();
         });
     });
 }
 
 void CLuxClient::setNdiSource(const QString& name) {
-    // A command like the others: it needs a connection, and the UI keeps its controls
-    // disabled without one.
-    if (!m_connected)
+    const QString pattern = ndiPattern();
+    if (pattern.isEmpty()) {
+        Q_EMIT errorOccurred(QStringLiteral("No Video pattern is running: apply a scene with one first."));
         return;
+    }
 
     m_ndiPollingEnabled = !name.isEmpty();
 
-    // The API takes null to stop the receiver; an empty string would be rejected.
-    const QJsonObject body = name.isEmpty()
-                                 ? QJsonObject{{QStringLiteral("source"), QJsonValue::Null}}
-                                 : QJsonObject{{QStringLiteral("source"), name}};
-    QNetworkReply* reply = request(QNetworkAccessManager::PutOperation, QStringLiteral("/ndi"),
-                                   QJsonDocument(body).toJson(QJsonDocument::Compact));
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
-        if (reply->error() != QNetworkReply::NoError) {
-            reportStateError(reply);
-            return;
-        }
-        applyNdiStatus(QJsonDocument::fromJson(reply->readAll()).object());
-    });
+    // Stopping keeps the pattern on NDI with no sender, which is what makes the server close
+    // its receiver; the camera or screen it may have used before is not known any more.
+    QVariantMap props{{QStringLiteral("ndiSource"), name}};
+    if (!name.isEmpty())
+        props.insert(QStringLiteral("input"), kVideoInputNdi);
+    updatePattern(pattern, props);
 }
 
 void CLuxClient::setNdiRingWidth(double width) {
-    // A command like the others: it needs a connection, and the UI keeps its controls
-    // disabled without one.
+    const QString pattern = ndiPattern();
+    if (pattern.isEmpty())
+        return;
+    // Clamp to what the server accepts (a fraction of the rim radius).
+    updatePattern(pattern, {{QStringLiteral("ringWidth"), qBound(0.0, width, 1.0)}});
+}
+
+void CLuxClient::updatePattern(const QString& name, const QVariantMap& props) {
+    if (name.isEmpty() || props.isEmpty())
+        return;
+
+    // Preview mode: change the local entry and queue the edit, like the other scene and
+    // pattern commands (see setPatternEnabled()).
+    if (!m_liveMode) {
+        for (QVariant& v : m_patterns) {
+            QVariantMap m = v.toMap();
+            if (m.value(QStringLiteral("name")).toString() != name)
+                continue;
+            bool changed = false;
+            for (auto it = props.constBegin(); it != props.constEnd(); ++it) {
+                if (m.value(it.key()) != it.value()) {
+                    m.insert(it.key(), it.value());
+                    changed = true;
+                }
+            }
+            if (!changed)
+                return; // already so locally: nothing to queue
+            v = m;
+            Q_EMIT stateChanged();
+            queuePendingOp({{QStringLiteral("op"), QStringLiteral("updatePattern")},
+                            {QStringLiteral("name"), name},
+                            {QStringLiteral("props"), props}});
+            return;
+        }
+        // Not in the local list (the server would answer 404 as well): nothing to do.
+        return;
+    }
+
+    // Live mode sends straight away and therefore requires a connection.
     if (!m_connected)
         return;
 
-    // The API validates the whole geometry at once, so send it back with only this field
-    // changed; clamp to what the server accepts (a fraction of the rim radius).
-    const double clamped = qBound(0.0, width, 1.0);
-    QJsonObject geo;
-    for (auto it = m_ndiGeometry.constBegin(); it != m_ndiGeometry.constEnd(); ++it) {
-        const double value = it.key() == QStringLiteral("ringWidth") ? clamped : it.value().toDouble();
-        geo.insert(it.key(), value);
+    // Pattern edits sit behind the edit password; refuse early with a clear message.
+    if (m_authRequired && !authenticated()) {
+        Q_EMIT errorOccurred(QStringLiteral("Log in to the C-Lux server first: this action needs the edit password."));
+        return;
     }
 
-    const QJsonObject body{{QStringLiteral("geometry"), geo}};
-    QNetworkReply* reply = request(QNetworkAccessManager::PutOperation, QStringLiteral("/ndi"),
-                                   QJsonDocument(body).toJson(QJsonDocument::Compact));
-    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+    const QByteArray body = QJsonDocument(
+        QJsonObject{{QStringLiteral("props"), QJsonObject::fromVariantMap(props)}}).toJson(QJsonDocument::Compact);
+    QNetworkReply* reply = request(QNetworkAccessManager::CustomOperation,
+                                   QStringLiteral("/patterns/") + encodeName(name), body, "PATCH");
+    connect(reply, &QNetworkReply::finished, this, [this, name, reply]() {
         if (reply->error() != QNetworkReply::NoError) {
             reportStateError(reply);
             return;
         }
-        applyNdiStatus(QJsonDocument::fromJson(reply->readAll()).object());
+        // The answer is the pattern's full serialized entry, with the edit committed.
+        const QVariantMap updated = jsonValueToVariant(
+            QJsonDocument::fromJson(reply->readAll()).object()).toMap();
+        for (QVariant& v : m_patterns) {
+            if (v.toMap().value(QStringLiteral("name")).toString() == name) {
+                v = updated;
+                break;
+            }
+        }
+        Q_EMIT stateChanged();
+        if (m_ndiPollingEnabled)
+            refreshNdi();
     });
 }
 
@@ -701,7 +908,15 @@ void CLuxClient::reportStateError(QNetworkReply* reply) {
                                  : QStringLiteral("Log in to the C-Lux server first: this action needs the edit password."));
         return;
     }
-    Q_EMIT errorOccurred(QStringLiteral("Failed to fetch state: %1").arg(reply->errorString()));
+    // The server explains refused requests as {"error": "..."} (e.g. a pattern a scene
+    // timeline switches cannot be toggled by hand); that beats Qt's generic status text.
+    const QString serverMessage =
+        QJsonDocument::fromJson(reply->readAll()).object().value(QStringLiteral("error")).toString();
+    if (!serverMessage.isEmpty()) {
+        Q_EMIT errorOccurred(QStringLiteral("C-Lux: %1").arg(serverMessage));
+        return;
+    }
+    Q_EMIT errorOccurred(QStringLiteral("C-Lux request failed: %1").arg(reply->errorString()));
 }
 
 
@@ -891,12 +1106,6 @@ void CLuxClient::setLiveMode(bool on) {
     });
 }
 
-// Percent-encode a name for use in a URL path segment (pattern/scene names may contain
-// spaces and other characters).
-static QString encodeName(const QString& name) {
-    return QString::fromUtf8(QUrl::toPercentEncoding(name).constData());
-}
-
 void CLuxClient::queuePendingOp(const QVariantMap& op) {
     m_pendingOps.append(op);
     Q_EMIT pendingChangesChanged();
@@ -911,10 +1120,31 @@ void CLuxClient::clearPendingOps() {
 
 bool CLuxClient::pendingOpsNeedAuth() const {
     for (const QVariant& v : m_pendingOps) {
-        if (v.toMap().value(QStringLiteral("op")).toString() == QStringLiteral("setPatternEnabled"))
+        const QString op = v.toMap().value(QStringLiteral("op")).toString();
+        if (op == QLatin1String("setPatternEnabled") || op == QLatin1String("updatePattern"))
             return true;
     }
     return false;
+}
+
+void CLuxClient::sortPatternsBySceneOrder() {
+    // Each pattern ranks by the first scene in the list holding it - applied or not, as
+    // on the server; patterns in no scene go on top. Ties keep their current order.
+    QHash<QString, int> rank;
+    for (int i = 0; i < m_scenes.size(); ++i) {
+        const QVariantList pats = m_scenes[i].toMap().value(QStringLiteral("patterns")).toList();
+        for (const QVariant& pv : pats) {
+            const QString pn = pv.toMap().value(QStringLiteral("name")).toString();
+            if (!rank.contains(pn))
+                rank.insert(pn, i);
+        }
+    }
+    const int unranked = int(m_scenes.size());
+    auto rankOf = [&](const QVariant& v) {
+        return rank.value(v.toMap().value(QStringLiteral("name")).toString(), unranked);
+    };
+    std::stable_sort(m_patterns.begin(), m_patterns.end(),
+                     [&](const QVariant& a, const QVariant& b) { return rankOf(a) < rankOf(b); });
 }
 
 QVariantMap CLuxClient::sceneByName(const QString& name) const {
@@ -951,11 +1181,22 @@ void CLuxClient::sendPendingOp(const QVariantMap& op) {
                             encodeName(op.value(QStringLiteral("name")).toString()) +
                             QStringLiteral("/enabled"),
                         body);
+    } else if (kind == QLatin1String("updatePattern")) {
+        const QByteArray body = QJsonDocument(
+            QJsonObject{{QStringLiteral("props"),
+                         QJsonObject::fromVariantMap(op.value(QStringLiteral("props")).toMap())}})
+            .toJson(QJsonDocument::Compact);
+        reply = request(QNetworkAccessManager::CustomOperation,
+                        QStringLiteral("/patterns/") + encodeName(op.value(QStringLiteral("name")).toString()),
+                        body, "PATCH");
     } else if (kind == QLatin1String("clearPatterns")) {
         reply = request(QNetworkAccessManager::PostOperation, QStringLiteral("/patterns/clear"));
     } else if (kind == QLatin1String("applyScene") || kind == QLatin1String("unapplyScene")
                || kind == QLatin1String("replaceWithScene")) {
-        const QString action = kind.chopped(5); // "apply", "unapply" or "replace"
+        // The route's action: "apply", "unapply" or "replace" (not derivable by trimming the
+        // op name - "replaceWithScene" would become "replaceWith").
+        const QString action = kind == QLatin1String("replaceWithScene") ? QStringLiteral("replace")
+                                                                         : kind.chopped(5);
         reply = request(QNetworkAccessManager::PostOperation,
                         QStringLiteral("/scenes/") + encodeName(op.value(QStringLiteral("name")).toString())
                             + QStringLiteral("/") + action);
@@ -1020,6 +1261,13 @@ void CLuxClient::setPatternEnabled(const QString& name, bool enabled) {
     if (name.isEmpty())
         return;
 
+    // A running scene timeline switches this pattern; the server refuses manual toggles
+    // of it (in either mode, so a queued one would only fail on replay).
+    if (timedPatterns().contains(name)) {
+        Q_EMIT errorOccurred(QStringLiteral("%1 is switched on and off by a scene timeline.").arg(name));
+        return;
+    }
+
     // Preview mode never sends commands that change the server: they update the local
     // state and are queued for replay when live mode is entered. The same applies to
     // every scene/pattern command below. It works while disconnected too, against the
@@ -1082,10 +1330,11 @@ void CLuxClient::clearPatterns() {
         // Mirror the server: clearing also drops the applied scenes. Skip the queue when
         // there is nothing to clear, as the server-side call would be a no-op too. Works
         // while disconnected as well (see setPatternEnabled()).
-        if (m_patterns.isEmpty() && m_appliedScenes.isEmpty())
+        if (m_patterns.isEmpty() && m_appliedScenes.isEmpty() && m_timelines.isEmpty())
             return;
         m_patterns.clear();
         m_appliedScenes.clear();
+        m_timelines.clear();
         Q_EMIT stateChanged();
         queuePendingOp({{QStringLiteral("op"), QStringLiteral("clearPatterns")}});
         return;
@@ -1131,8 +1380,28 @@ void CLuxClient::applyScene(const QString& name) {
             }
         }
 
+        // Mirror the server's sortBySceneOrder(): applied scenes composite in the order
+        // they appear in the scene list, not the order they were applied.
+        const QVariantList before = m_patterns;
+        sortPatternsBySceneOrder();
+        const bool reordered = m_patterns != before;
+
+        // Mirror the server: the scene's timeline starts from the top unless it is
+        // already playing.
+        bool timelineStarted = false;
+        const QVariantMap start = timelineStartFor(scene);
+        if (!start.isEmpty()) {
+            bool playing = false;
+            for (const QVariant& v : m_timelines)
+                playing = playing || v.toMap().value(QStringLiteral("scene")).toString() == name;
+            if (!playing) {
+                m_timelines.append(start);
+                timelineStarted = true;
+            }
+        }
+
         // Skip the queue when applying would change nothing, as on the server.
-        if (added || !m_appliedScenes.contains(name)) {
+        if (added || reordered || timelineStarted || !m_appliedScenes.contains(name)) {
             if (!m_appliedScenes.contains(name))
                 m_appliedScenes.append(name);
             Q_EMIT stateChanged();
@@ -1169,8 +1438,16 @@ void CLuxClient::unapplyScene(const QString& name) {
         if (scene.isEmpty())
             return; // unknown scene: the server would answer 404 as well
 
-        const bool wasApplied = m_appliedScenes.contains(name);
+        bool wasApplied = m_appliedScenes.contains(name);
         m_appliedScenes.removeAll(name);
+
+        // Mirror the server: unapplying stops the scene's timeline.
+        for (int i = m_timelines.size() - 1; i >= 0; --i) {
+            if (m_timelines[i].toMap().value(QStringLiteral("scene")).toString() == name) {
+                m_timelines.removeAt(i);
+                wasApplied = true;
+            }
+        }
 
         // Mirror the server: drop this scene's patterns unless another applied scene
         // still holds them.
@@ -1233,11 +1510,17 @@ void CLuxClient::replaceWithScene(const QString& name) {
         if (scene.isEmpty())
             return; // unknown scene: the server would answer 404 as well
 
-        // Mirror the server: swap in exactly this scene's patterns.
+        // Mirror the server: swap in exactly this scene's patterns, and play only its
+        // timeline, from the top even when it was already running.
         m_patterns.clear();
         for (const QVariant& pv : scene.value(QStringLiteral("patterns")).toList())
             m_patterns.append(pv);
         m_appliedScenes = QStringList{name};
+        m_timelines.clear();
+        const QVariantMap start = timelineStartFor(scene);
+        if (!start.isEmpty())
+            m_timelines.append(start);
+        m_localPreview->restartTimelines();
         Q_EMIT stateChanged();
         queuePendingOp({{QStringLiteral("op"), QStringLiteral("replaceWithScene")},
                         {QStringLiteral("name"), name}});
@@ -1302,10 +1585,13 @@ void CLuxClient::setSolidColor(int r, int g, int b, bool enabled) {
     if (!m_connected || !m_liveMode)
         return;
 
+    // The alpha goes back as the server holds it: leaving it out would make the server
+    // treat the color as opaque and so reset a transparency set from another surface.
     const QJsonObject body{
         {QStringLiteral("color"), QJsonObject{{QStringLiteral("r"), qBound(0, r, 255)},
                                               {QStringLiteral("g"), qBound(0, g, 255)},
-                                              {QStringLiteral("b"), qBound(0, b, 255)}}},
+                                              {QStringLiteral("b"), qBound(0, b, 255)},
+                                              {QStringLiteral("a"), m_solidAlpha}}},
         {QStringLiteral("enabled"), enabled}
     };
     QNetworkReply* reply = request(QNetworkAccessManager::PutOperation,

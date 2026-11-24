@@ -11,10 +11,18 @@
 
 namespace {
 
-// 2*pi without relying on M_PI, which MSVC does not define by default.
+// pi and 2*pi without relying on M_PI, which MSVC does not define by default.
+constexpr double kPi = 3.14159265358979323846;
 constexpr double kTwoPi = 6.2831853071795864769;
 
 } // namespace
+
+LuxColor luxColorFrom(const QVariantMap& map, const LuxColor& fallback) {
+    return {map.value(QStringLiteral("r"), fallback.r).toInt(),
+            map.value(QStringLiteral("g"), fallback.g).toInt(),
+            map.value(QStringLiteral("b"), fallback.b).toInt(),
+            map.value(QStringLiteral("a"), fallback.a).toDouble()};
+}
 
 LuxColor luxHsvToRgb(double h, double s, double v) {
     h = std::fmod(h, 360.0);
@@ -65,16 +73,38 @@ void CLuxPattern::updateFrom(const QVariantMap& params) {
     m_params = params;
     m_enabled = params.value(QStringLiteral("enabled"), true).toBool();
     m_opacity = params.value(QStringLiteral("opacity"), 1.0).toDouble();
+    // Patterns stored before blend modes existed omit it and blend by alpha.
+    const int mode = params.value(QStringLiteral("blendMode"), 0).toInt();
+    m_blendMode = (mode >= 0 && mode <= 3) ? static_cast<LuxBlendMode>(mode) : LuxBlendMode::Alpha;
     applyParams(params);
 }
 
 void CLuxPattern::composite(QVector<double>& accum) const {
     for (int i = 0; i < m_state.size(); ++i) {
-        const double alpha = m_state[i].a * m_opacity;
-        const int dst = i * 3;
-        accum[dst] = m_state[i].r * alpha + accum[dst] * (1.0 - alpha);
-        accum[dst + 1] = m_state[i].g * alpha + accum[dst + 1] * (1.0 - alpha);
-        accum[dst + 2] = m_state[i].b * alpha + accum[dst + 2] * (1.0 - alpha);
+        const Light& light = m_state[i];
+        const double alpha = light.a * m_opacity * m_timelineGate;
+        const double src[3] = {light.r, light.g, light.b};
+        for (int c = 0; c < 3; ++c) {
+            const double s = src[c];
+            double& d = accum[i * 3 + c];
+            switch (m_blendMode) {
+            case LuxBlendMode::Additive:
+                d = std::min(255.0, d + s * alpha);
+                break;
+            case LuxBlendMode::Multiply:
+                // Transparent parts of the layer count as black, so they mask out what is
+                // below; only the opacity eases the effect off.
+                d = d * (1.0 - m_opacity * m_timelineGate + (alpha * s) / 255.0);
+                break;
+            case LuxBlendMode::Subtract:
+                d = std::max(0.0, d - s * alpha);
+                break;
+            case LuxBlendMode::Alpha:
+            default:
+                d = s * alpha + d * (1.0 - alpha);
+                break;
+            }
+        }
     }
 }
 
@@ -84,11 +114,8 @@ CLuxStaticPattern::CLuxStaticPattern(const QString& name, bool enabled, double o
 
 void CLuxStaticPattern::applyParams(const QVariantMap& params) {
     const QVariantMap color = params.value(QStringLiteral("color")).toMap();
-    if (!color.isEmpty()) {
-        m_r = color.value(QStringLiteral("r"), m_r).toInt();
-        m_g = color.value(QStringLiteral("g"), m_g).toInt();
-        m_b = color.value(QStringLiteral("b"), m_b).toInt();
-    }
+    if (!color.isEmpty())
+        m_color = luxColorFrom(color, m_color);
     // Fractions of the ring bounding the lit arc. Older saved scenes predate them, so they
     // are optional and fall back to the full ring.
     if (params.contains(QStringLiteral("start")))
@@ -98,37 +125,34 @@ void CLuxStaticPattern::applyParams(const QVariantMap& params) {
 
     m_fadeDuration = 0;
     m_fadeElapsed = 0;
-    paint(m_r, m_g, m_b);
+    paint(currentColor());
 }
 
-void CLuxStaticPattern::setColor(int r, int g, int b) {
-    m_r = r;
-    m_g = g;
-    m_b = b;
+void CLuxStaticPattern::setColor(const LuxColor& color) {
+    m_color = color;
     m_fadeDuration = 0;
     m_fadeElapsed = 0;
-    paint(m_r, m_g, m_b);
+    paint(currentColor());
 }
 
 void CLuxStaticPattern::fadeTo(const LuxColor& color, double duration) {
     if (duration <= 0) {
-        setColor(color.r, color.g, color.b);
+        setColor(color);
         return;
     }
 
     m_fadeFrom = currentColor();
-    m_r = color.r;
-    m_g = color.g;
-    m_b = color.b;
+    m_color = color;
     m_fadeDuration = duration;
     m_fadeElapsed = 0;
 }
 
 LuxColor CLuxStaticPattern::currentColor() const {
     const double t = progress();
-    return {qRound(m_fadeFrom.r + (m_r - m_fadeFrom.r) * t),
-            qRound(m_fadeFrom.g + (m_g - m_fadeFrom.g) * t),
-            qRound(m_fadeFrom.b + (m_b - m_fadeFrom.b) * t)};
+    return {qRound(m_fadeFrom.r + (m_color.r - m_fadeFrom.r) * t),
+            qRound(m_fadeFrom.g + (m_color.g - m_fadeFrom.g) * t),
+            qRound(m_fadeFrom.b + (m_color.b - m_fadeFrom.b) * t),
+            m_fadeFrom.a + (m_color.a - m_fadeFrom.a) * t};
 }
 
 bool CLuxStaticPattern::fading() const {
@@ -146,18 +170,17 @@ void CLuxStaticPattern::tick(double dt) {
         return;
 
     m_fadeElapsed += dt;
-    const LuxColor color = currentColor();
-    paint(color.r, color.g, color.b);
+    paint(currentColor());
 }
 
-void CLuxStaticPattern::paint(int r, int g, int b) {
+void CLuxStaticPattern::paint(const LuxColor& color) {
     const int n = m_state.size();
     for (int i = 0; i < n; ++i) {
         Light& light = m_state[i];
-        light.r = r;
-        light.g = g;
-        light.b = b;
-        light.a = inRange(i / double(n)) ? 1.0 : 0.0;
+        light.r = color.r;
+        light.g = color.g;
+        light.b = color.b;
+        light.a = inRange(i / double(n)) ? color.a : 0.0;
     }
 }
 
@@ -175,11 +198,8 @@ CLuxSineWavePattern::CLuxSineWavePattern(const QString& name, bool enabled, doub
 
 void CLuxSineWavePattern::applyParams(const QVariantMap& params) {
     const QVariantMap color = params.value(QStringLiteral("color")).toMap();
-    if (!color.isEmpty()) {
-        m_r = color.value(QStringLiteral("r"), m_r).toInt();
-        m_g = color.value(QStringLiteral("g"), m_g).toInt();
-        m_b = color.value(QStringLiteral("b"), m_b).toInt();
-    }
+    if (!color.isEmpty())
+        m_color = luxColorFrom(color, m_color);
     // Wavelength is a fraction of the ring and speed is in full turns per second.
     if (params.contains(QStringLiteral("wavelength")))
         m_wavelength = params.value(QStringLiteral("wavelength")).toDouble();
@@ -215,10 +235,10 @@ void CLuxSineWavePattern::render() {
     for (int i = 0; i < n; ++i) {
         const double wave = 0.5 + 0.5 * std::sin(kTwoPi * (i - m_phase) / wl);
         Light& light = m_state[i];
-        light.r = m_r;
-        light.g = m_g;
-        light.b = m_b;
-        light.a = m_min + (m_max - m_min) * wave;
+        light.r = m_color.r;
+        light.g = m_color.g;
+        light.b = m_color.b;
+        light.a = (m_min + (m_max - m_min) * wave) * m_color.a;
     }
 }
 
@@ -227,17 +247,17 @@ CLuxGradientPattern::CLuxGradientPattern(const QString& name, bool enabled, doub
 }
 
 void CLuxGradientPattern::applyParams(const QVariantMap& params) {
-    const QVariantMap color = params.value(QStringLiteral("color")).toMap();
-    if (!color.isEmpty()) {
-        m_r = color.value(QStringLiteral("r"), m_r).toInt();
-        m_g = color.value(QStringLiteral("g"), m_g).toInt();
-        m_b = color.value(QStringLiteral("b"), m_b).toInt();
-    }
-    const QVariantMap color2 = params.value(QStringLiteral("color2")).toMap();
-    if (!color2.isEmpty()) {
-        m_color2.r = color2.value(QStringLiteral("r"), m_color2.r).toInt();
-        m_color2.g = color2.value(QStringLiteral("g"), m_color2.g).toInt();
-        m_color2.b = color2.value(QStringLiteral("b"), m_color2.b).toInt();
+    if (params.contains(QStringLiteral("colors"))) {
+        QVector<LuxColor> colors;
+        for (const QVariant& v : params.value(QStringLiteral("colors")).toList())
+            colors.append(luxColorFrom(v.toMap(), LuxColor{}));
+        if (!colors.isEmpty())
+            m_colors = colors;
+    } else if (params.contains(QStringLiteral("color")) && params.contains(QStringLiteral("color2"))) {
+        // C-Lux before 1.1 stored two colors; its migration makes them the first two of the
+        // palette (shared/migrate.ts). Kept so a cached state or an older server still renders.
+        m_colors = {luxColorFrom(params.value(QStringLiteral("color")).toMap(), LuxColor{}),
+                    luxColorFrom(params.value(QStringLiteral("color2")).toMap(), LuxColor{})};
     }
     if (params.contains(QStringLiteral("speed")))
         m_speed = params.value(QStringLiteral("speed")).toDouble();
@@ -253,17 +273,23 @@ void CLuxGradientPattern::tick(double dt) {
 
 void CLuxGradientPattern::render() {
     const int n = m_state.size();
-    if (n == 0)
+    const int k = m_colors.size();
+    if (n == 0 || k == 0)
         return;
 
     for (int i = 0; i < n; ++i) {
-        // Cosine blend so the two colors meet seamlessly around the ring.
-        const double t = 0.5 - 0.5 * std::cos(kTwoPi * (i / double(n) + m_phase));
+        // JavaScript's % keeps the dividend's sign, like std::fmod.
+        const double x = std::fmod(std::fmod(i / double(n) + m_phase, 1.0) + 1.0, 1.0) * k;
+        const int from = int(std::floor(x)) % k;
+        // Cosine blend so neighboring colors meet without a visible kink.
+        const double t = 0.5 - 0.5 * std::cos(kPi * (x - std::floor(x)));
+        const LuxColor& c0 = m_colors[from];
+        const LuxColor& c1 = m_colors[(from + 1) % k];
         Light& light = m_state[i];
-        light.r = m_r + (m_color2.r - m_r) * t;
-        light.g = m_g + (m_color2.g - m_g) * t;
-        light.b = m_b + (m_color2.b - m_b) * t;
-        light.a = 1.0;
+        light.r = c0.r + (c1.r - c0.r) * t;
+        light.g = c0.g + (c1.g - c0.g) * t;
+        light.b = c0.b + (c1.b - c0.b) * t;
+        light.a = c0.a + (c1.a - c0.a) * t;
     }
 }
 

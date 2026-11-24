@@ -22,14 +22,28 @@ struct LuxColor {
     int r = 0;
     int g = 0;
     int b = 0;
+    // Opacity in [0, 1]; colors stored before C-Lux had transparency omit it and are opaque.
+    double a = 1.0;
 };
+
+// Reads a serialized {r, g, b, a} color, keeping the fallback's value for every channel the
+// map leaves out - like the TypeScript set()'s `r ?? this.r`.
+LuxColor luxColorFrom(const QVariantMap& map, const LuxColor& fallback);
 
 // Port of shared/patterns/pattern.ts's hsvToRgb(): HSV (h in degrees, s and v in [0, 1])
 // to 8-bit RGB.
 LuxColor luxHsvToRgb(double h, double s, double v);
 
-// Base class mirroring the abstract Pattern: per-light RGBA state plus the shared enabled
-// and opacity fields. composite() is the server's source-over blend of one layer onto an
+// How a layer is composited onto the ones beneath it, pattern.ts's BlendMode.
+enum class LuxBlendMode {
+    Alpha = 0,
+    Additive = 1,
+    Multiply = 2,
+    Subtract = 3
+};
+
+// Base class mirroring the abstract Pattern: per-light RGBA state plus the shared enabled,
+// opacity and blend mode fields. composite() is the server's blend of one layer onto an
 // accumulator (engine.ts's composite()).
 class CLuxPattern {
 public:
@@ -52,6 +66,12 @@ public:
     QString type() const { return m_type; }
     bool enabled() const { return m_enabled; }
     double opacity() const { return m_opacity; }
+    LuxBlendMode blendMode() const { return m_blendMode; }
+
+    // How lit a scene timeline has the pattern, from 0 to 1 (Pattern.timelineGate). A
+    // pattern gated to 0 is neither ticked nor blended, like on the server.
+    double timelineGate() const { return m_timelineGate; }
+    void setTimelineGate(double gate) { m_timelineGate = gate; }
 
     // Apply a serialized parameter set (a /patterns entry). No-op when nothing changed,
     // mirroring the server's update(): the shared fields plus the subclass's own through
@@ -60,8 +80,9 @@ public:
 
     virtual void tick(double dt) = 0;
 
-    // Source-over composite this pattern onto accum (nLights*3 doubles), with alpha scaled
-    // by opacity exactly like Pattern.data() feeds engine.ts's composite().
+    // Composite this pattern onto accum (nLights*3 doubles) by its blend mode, with alpha
+    // scaled by opacity and the timeline gate exactly like Pattern.data() feeds engine.ts's
+    // composite().
     void composite(QVector<double>& accum) const;
 
 protected:
@@ -75,6 +96,8 @@ private:
     QString m_type;
     bool m_enabled;
     double m_opacity;
+    LuxBlendMode m_blendMode = LuxBlendMode::Alpha;
+    double m_timelineGate = 1.0;
     // Last applied parameter set, so updateFrom() can skip unchanged patterns.
     QVariantMap m_params;
 };
@@ -86,8 +109,8 @@ class CLuxStaticPattern : public CLuxPattern {
 public:
     CLuxStaticPattern(const QString& name, bool enabled, double opacity);
 
-    // The counterpart of set({r,g,b}): switches immediately, cancelling any fade.
-    void setColor(int r, int g, int b);
+    // The counterpart of set({r,g,b,a}): switches immediately, cancelling any fade.
+    void setColor(const LuxColor& color);
     // Ease from the color currently on the lights to `color` over `duration` seconds; a
     // non-positive duration switches immediately.
     void fadeTo(const LuxColor& color, double duration);
@@ -103,23 +126,22 @@ private:
     LuxColor currentColor() const;
     bool fading() const;
     double progress() const;
-    void paint(int r, int g, int b);
+    void paint(const LuxColor& color);
     // `position` is a light's place on the ring as a fraction. An empty range (start ==
     // end) covers everything, and a range whose end precedes its start wraps the seam.
     bool inRange(double position) const;
 
-    int m_r = 77;
-    int m_g = 171;
-    int m_b = 247;
+    LuxColor m_color{77, 171, 247};
     double m_start = 0;
     double m_end = 1;
 
-    LuxColor m_fadeFrom;
+    LuxColor m_fadeFrom{0, 0, 0};
     double m_fadeDuration = 0;
     double m_fadeElapsed = 0;
 };
 
-// Port of shared/patterns/sine-wave.ts: a travelling sine wave modulating the alpha.
+// Port of shared/patterns/sine-wave.ts: a travelling sine wave modulating the alpha, scaled
+// by the color's own alpha.
 class CLuxSineWavePattern : public CLuxPattern {
 public:
     CLuxSineWavePattern(const QString& name, bool enabled, double opacity);
@@ -132,9 +154,7 @@ protected:
 private:
     void render();
 
-    int m_r = 77;
-    int m_g = 171;
-    int m_b = 247;
+    LuxColor m_color{77, 171, 247};
     double m_wavelength = 0.14;
     double m_speed = 0.07;
     double m_min = 0;
@@ -144,8 +164,8 @@ private:
     double m_phase = 0;
 };
 
-// Port of shared/patterns/gradient.ts: two colors blended around the ring with a cosine,
-// drifting at `speed` cycles per second.
+// Port of shared/patterns/gradient.ts: a palette of colors spread evenly around the ring,
+// each blending into the next with a cosine, drifting at `speed` cycles per second.
 class CLuxGradientPattern : public CLuxPattern {
 public:
     CLuxGradientPattern(const QString& name, bool enabled, double opacity);
@@ -158,10 +178,7 @@ protected:
 private:
     void render();
 
-    int m_r = 77;
-    int m_g = 171;
-    int m_b = 247;
-    LuxColor m_color2{247, 77, 77};
+    QVector<LuxColor> m_colors{LuxColor{77, 171, 247}, LuxColor{247, 77, 77}};
     double m_speed = 0.1;
 
     // Drift offset in cycles that slides the gradient around the ring.
