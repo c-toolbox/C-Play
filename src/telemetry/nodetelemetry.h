@@ -18,6 +18,7 @@
 #include <chrono>
 #include <memory>
 #include <mutex>
+#include <vector>
 
 #include <layers/baselayer.h>
 #include <layers/mpvlayer.h>
@@ -52,6 +53,63 @@ struct NodeTelemetry {
     // Per video layer: engine (mpv/vulkan), codec, hw decoding, size, fps, drops, file.
     // Optional in the packet (older nodes send none).
     QVariantList layers;
+};
+
+// Running min/max/average of one metric over a measurement.
+struct MeasurementStat {
+    int count = 0;
+    double sum = 0.0;
+    double min = 0.0;
+    double max = 0.0;
+    void add(double v) {
+        if (count == 0 || v < min)
+            min = v;
+        if (count == 0 || v > max)
+            max = v;
+        sum += v;
+        ++count;
+    }
+    double avg() const { return count > 0 ? sum / count : -1.0; }
+};
+
+// Per-node aggregate over one measurement (master side).
+struct NodeMeasurement {
+    int nodeId = -1;
+    QString name;
+    bool isMaster = false;
+    int samples = 0;
+    qint64 firstMs = 0;
+    qint64 lastMs = 0;
+    MeasurementStat fps;                    // only samples with a video playing (fps > 0)
+    MeasurementStat gpuLoad;                // busiest engine of any type
+    MeasurementStat gpuRender;
+    MeasurementStat gpuDecode;
+    QHash<QString, MeasurementStat> gpuEngines;
+    MeasurementStat syncOffsetMs;
+    MeasurementStat latencyMs;
+    quint64 voDrops = 0;                    // totals over the measurement
+    quint64 decoderDrops = 0;
+    // Last seen decoder state, so the summary can show what was measured.
+    QString hwCurrent;
+    QString videoCodec;
+    int layerCount = 0;
+    QVariantList layers;
+};
+
+// One raw report recorded during a measurement, for CSV export.
+struct MeasurementSample {
+    qint64 timeMs = 0;
+    int nodeId = -1;
+    double fps = 0.0;
+    double gpuLoad = -1.0;
+    double gpuRender = -1.0;
+    double gpuDecode = -1.0;
+    QVariantMap gpuEngines;
+    quint64 voDrops = 0;
+    quint64 decoderDrops = 0;
+    double syncOffsetMs = 0.0;
+    double latencyMs = -1.0;
+    int layerCount = 0;
 };
 
 // Collects per-node playback/GPU metrics on the cluster nodes and ships them to the
@@ -117,8 +175,32 @@ public:
     // the main thread before the render thread tears down SGCT (NetworkManager::destroy()).
     void shutdown();
 
+    // Master side, GUI thread: measurement over time. While a measurement runs, every
+    // report (nodes and the master's own row) is accumulated per node and kept as a raw
+    // sample for CSV export. Starting clears the previous measurement; stopping keeps it
+    // for review. Recording needs telemetry enabled; disabling telemetry stops it.
+    void startMeasurement();
+    void stopMeasurement();
+    bool measuring() const;
+
+    // { running, startMs, durationMs, sampleCount, truncated, rows: [ per-node maps ] }
+    QVariantMap measurementSummary() const;
+
+    // Downsampled time series for the timeline graph: the measurement is cut into at most
+    // `buckets` equal time slots and each node's GPU loads are averaged per slot. Empty
+    // slots are left out, so every series lists only the slots it has data in:
+    // { startMs, durationMs, bucketMs, series: [ { nodeId, name, isMaster,
+    //   t: [ms since start, slot centre], render: [%], decode: [%], busiest: [%] } ] }
+    // A load is -1 in a slot where that counter was unavailable.
+    QVariantMap measurementTimeline(int buckets) const;
+
+    // Writes the recorded samples as CSV. Returns an empty string on success, otherwise
+    // an error message.
+    QString exportMeasurementCsv(const QString &path) const;
+
 Q_SIGNALS:
     void telemetryChanged();
+    void measurementChanged(); // started, stopped or cleared (GUI thread)
 
 private:
     explicit NodeTelemetryManager(QObject *parent = nullptr);
@@ -129,6 +211,7 @@ private:
     bool handleCommandPacket(const void *data, int length); // node side; true if consumed
     int syncConnectionIndexForNode(int nodeId) const;     // master side
     void refreshMasterRow(); // master-side: build the master's own row from its mpv
+    void recordSampleLocked(const NodeTelemetry &row); // m_mutex held; no-op unless measuring
 
     // Reads fps/drops/decoder state from one live mpv handle into the aggregates,
     // differencing the cumulative drop counters against per-handle baselines.
@@ -169,6 +252,14 @@ private:
     mutable std::mutex m_mutex;
     QHash<int, NodeTelemetry> m_nodes;       // keyed by cluster node id
     QHash<int, int> m_clientToNode;          // DataTransfer client index -> node id
+
+    // Measurement over time (master side, guarded by m_mutex).
+    bool m_measuring = false;
+    qint64 m_measureStartMs = 0;
+    qint64 m_measureStopMs = 0;
+    QHash<int, NodeMeasurement> m_measurements; // keyed by node id (master row: -1)
+    std::vector<MeasurementSample> m_measureSamples;
+    bool m_measureTruncated = false;         // sample cap reached; stats keep accumulating
 
     QHash<void *, DropBaseline> m_baselines; // per mpv_handle cumulative-counter baselines
     // Per engine layer baselines (render thread only). Rebuilt every collection so that

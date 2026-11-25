@@ -31,6 +31,7 @@
 #include "capture/capturelayer.h"
 #endif
 #include <QColor>
+#include <QDateTime>
 #include <QJsonArray>
 
 #include <QDir>
@@ -84,6 +85,13 @@ PlayerController::PlayerController(QObject *parent)
     // telemetryChanged on the GUI thread (queued), which we forward to QML.
     connect(&NodeTelemetryManager::instance(), &NodeTelemetryManager::telemetryChanged,
             this, &PlayerController::nodeTelemetryChanged);
+    // The measurement summary changes with every report while a measurement runs.
+    connect(&NodeTelemetryManager::instance(), &NodeTelemetryManager::telemetryChanged, this, [this]() {
+        if (NodeTelemetryManager::instance().measuring())
+            Q_EMIT nodeMeasurementChanged();
+    });
+    connect(&NodeTelemetryManager::instance(), &NodeTelemetryManager::measurementChanged,
+            this, &PlayerController::nodeMeasurementChanged);
 
     // Node load-failure rows are pushed from SGCT's network thread; the verifier emits
     // loadFailuresChanged on the GUI thread (queued), which we forward to QML.
@@ -489,6 +497,11 @@ void PlayerController::setupConnections() {
             m_slidesModel->runUpdateMuteOnLayers(m_mpv->mute());
         }
     });
+
+    // Every play/pause/stop path (footer, shortcuts, HTTP/TCP control, rewind, pause at end
+    // of file) ends in a change of mpv's pause property.
+    connect(m_mpv, &MpvObject::pauseChanged, this, &PlayerController::onPlaybackPauseChanged,
+            Qt::UniqueConnection);
 
     Q_EMIT backgroundVisibilityChanged();
 }
@@ -1379,6 +1392,56 @@ void PlayerController::setNodeTelemetryInterval(int ms) {
 
 int PlayerController::nodeTelemetryInterval() const {
     return LoggingSettings::nodeTelemetryInterval();
+}
+
+QVariantMap PlayerController::nodeMeasurement() const {
+    return NodeTelemetryManager::instance().measurementSummary();
+}
+
+QVariantMap PlayerController::nodeMeasurementTimeline(int buckets) const {
+    return NodeTelemetryManager::instance().measurementTimeline(buckets);
+}
+
+void PlayerController::startNodeMeasurement() {
+    m_nodeMeasurementError.clear();
+    NodeTelemetryManager::instance().startMeasurement();
+}
+
+void PlayerController::stopNodeMeasurement() {
+    NodeTelemetryManager::instance().stopMeasurement();
+}
+
+QString PlayerController::exportNodeMeasurementCsv() {
+    const QString path = QDir(QStringLiteral("./data/log")).absoluteFilePath(
+        QStringLiteral("node_measurement_%1.csv")
+            .arg(QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd_HHmmss"))));
+    m_nodeMeasurementError = NodeTelemetryManager::instance().exportMeasurementCsv(path);
+    return m_nodeMeasurementError.isEmpty() ? QDir::toNativeSeparators(path) : QString();
+}
+
+bool PlayerController::nodeMeasurementFollowsPlayback() const {
+    return LoggingSettings::nodeMeasurementFollowsPlayback();
+}
+
+void PlayerController::setNodeMeasurementFollowsPlayback(bool follow) {
+    if (LoggingSettings::nodeMeasurementFollowsPlayback() == follow)
+        return;
+    LoggingSettings::setNodeMeasurementFollowsPlayback(follow);
+    LoggingSettings::self()->save();
+    Q_EMIT nodeMeasurementFollowsPlaybackChanged();
+}
+
+void PlayerController::onPlaybackPauseChanged() {
+    if (!m_mpv || !LoggingSettings::nodeMeasurementFollowsPlayback())
+        return;
+    auto &telemetry = NodeTelemetryManager::instance();
+    if (!telemetry.enabled())
+        return;
+    const bool paused = m_mpv->pause();
+    if (!paused && !telemetry.measuring())
+        telemetry.startMeasurement(); // play: a new measurement
+    else if (paused && telemetry.measuring())
+        telemetry.stopMeasurement();  // pause, stop/rewind or end of file
 }
 
 QString PlayerController::supportedImageNameFilters() const {

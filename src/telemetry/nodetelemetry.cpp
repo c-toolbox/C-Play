@@ -15,10 +15,13 @@
 #include <nlohmann/json.hpp>
 #include <sgct/sgct.h>
 
+#include <QDir>
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QMetaObject>
+#include <QSaveFile>
+#include <QTextStream>
 #include <QTimer>
 #include <QVariantMap>
 
@@ -38,6 +41,32 @@ constexpr qint64 kStaleTimeoutMs = 3000;
 
 // Default reporting interval when the master has not sent one.
 constexpr int kDefaultIntervalMs = 1000;
+
+// Raw samples kept per measurement for CSV export (summary stats keep accumulating past
+// this). 1M samples is e.g. 10 nodes at 10 reports/s for almost 3 hours.
+constexpr size_t kMaxMeasurementSamples = 1000000;
+
+QVariantMap statToMap(const MeasurementStat& s) {
+    QVariantMap m;
+    m.insert(QStringLiteral("count"), s.count);
+    m.insert(QStringLiteral("avg"), s.avg());
+    m.insert(QStringLiteral("min"), s.count > 0 ? s.min : -1.0);
+    m.insert(QStringLiteral("max"), s.count > 0 ? s.max : -1.0);
+    return m;
+}
+
+// CSV number: empty when unavailable (negative = "n/a" throughout the telemetry).
+QString csvNumber(double v, int digits) {
+    return v < 0.0 ? QString() : QString::number(v, 'f', digits);
+}
+
+QString csvText(QString s) {
+    if (s.contains(QLatin1Char(',')) || s.contains(QLatin1Char('"')) || s.contains(QLatin1Char('\n'))) {
+        s.replace(QStringLiteral("\""), QStringLiteral("\"\""));
+        s = QLatin1Char('"') + s + QLatin1Char('"');
+    }
+    return s;
+}
 
 qint64 nowMs() {
     return std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -185,13 +214,22 @@ void NodeTelemetryManager::setEnabled(bool enabled) {
         }
         if (m_sweepTimer)
             m_sweepTimer->start();
+        bool stoppedMeasurement = false;
         if (!enabled) {
             const std::lock_guard<std::mutex> lock(m_mutex);
             m_nodes.clear();
             m_clientToNode.clear();
+            // No more reports will arrive: end a running measurement (results are kept).
+            if (m_measuring) {
+                m_measuring = false;
+                m_measureStopMs = nowMs();
+                stoppedMeasurement = true;
+            }
         }
         broadcastEnableCommand();
         Q_EMIT telemetryChanged();
+        if (stoppedMeasurement)
+            Q_EMIT measurementChanged();
     }
 }
 
@@ -373,7 +411,278 @@ void NodeTelemetryManager::refreshMasterRow() {
     {
         const std::lock_guard<std::mutex> lock(m_mutex);
         m_nodes.insert(row.nodeId, row);
+        recordSampleLocked(row);
     }
+}
+
+// ---------------------------------------------------------------------------
+// Measurement over time (master side)
+// ---------------------------------------------------------------------------
+
+void NodeTelemetryManager::startMeasurement() {
+    if (!m_isMaster)
+        return;
+    {
+        const std::lock_guard<std::mutex> lock(m_mutex);
+        m_measurements.clear();
+        m_measureSamples.clear();
+        m_measureSamples.shrink_to_fit();
+        m_measureTruncated = false;
+        m_measureStartMs = nowMs();
+        m_measureStopMs = 0;
+        m_measuring = true;
+    }
+    Q_EMIT measurementChanged();
+}
+
+void NodeTelemetryManager::stopMeasurement() {
+    {
+        const std::lock_guard<std::mutex> lock(m_mutex);
+        if (!m_measuring)
+            return;
+        m_measuring = false;
+        m_measureStopMs = nowMs();
+    }
+    Q_EMIT measurementChanged();
+}
+
+bool NodeTelemetryManager::measuring() const {
+    const std::lock_guard<std::mutex> lock(m_mutex);
+    return m_measuring;
+}
+
+void NodeTelemetryManager::recordSampleLocked(const NodeTelemetry& row) {
+    if (!m_measuring)
+        return;
+
+    NodeMeasurement& m = m_measurements[row.nodeId];
+    if (m.samples == 0) {
+        m.nodeId = row.nodeId;
+        m.isMaster = row.isMaster;
+        m.firstMs = row.lastSeenMs;
+    }
+    m.name = row.name;
+    m.samples++;
+    m.lastMs = row.lastSeenMs;
+
+    // fps is 0 while nothing plays (paused, no media): leave those out of the average.
+    if (row.fps > 0.0)
+        m.fps.add(row.fps);
+    if (row.gpuLoad >= 0.0)
+        m.gpuLoad.add(row.gpuLoad);
+    if (row.gpuRender >= 0.0)
+        m.gpuRender.add(row.gpuRender);
+    if (row.gpuDecode >= 0.0)
+        m.gpuDecode.add(row.gpuDecode);
+    for (auto it = row.gpuEngines.constBegin(); it != row.gpuEngines.constEnd(); ++it)
+        m.gpuEngines[it.key()].add(it.value().toDouble());
+    if (row.layerCount > 0)
+        m.syncOffsetMs.add(row.syncOffsetMs);
+    if (row.latencyMs >= 0.0)
+        m.latencyMs.add(row.latencyMs);
+    // Reported drops are deltas since the node's previous report: the sum is the total.
+    m.voDrops += row.voDrops;
+    m.decoderDrops += row.decoderDrops;
+    if (row.layerCount > 0) {
+        m.hwCurrent = row.hwCurrent;
+        m.videoCodec = row.videoCodec;
+        m.layerCount = row.layerCount;
+        m.layers = row.layers;
+    }
+
+    if (m_measureSamples.size() >= kMaxMeasurementSamples) {
+        m_measureTruncated = true;
+        return;
+    }
+    MeasurementSample s;
+    s.timeMs = row.lastSeenMs;
+    s.nodeId = row.nodeId;
+    s.fps = row.fps;
+    s.gpuLoad = row.gpuLoad;
+    s.gpuRender = row.gpuRender;
+    s.gpuDecode = row.gpuDecode;
+    s.gpuEngines = row.gpuEngines; // implicitly shared, cheap
+    s.voDrops = row.voDrops;
+    s.decoderDrops = row.decoderDrops;
+    s.syncOffsetMs = row.syncOffsetMs;
+    s.latencyMs = row.latencyMs;
+    s.layerCount = row.layerCount;
+    m_measureSamples.push_back(std::move(s));
+}
+
+QVariantMap NodeTelemetryManager::measurementSummary() const {
+    const std::lock_guard<std::mutex> lock(m_mutex);
+
+    QVariantMap result;
+    const qint64 end = m_measuring ? nowMs() : m_measureStopMs;
+    result.insert(QStringLiteral("running"), m_measuring);
+    result.insert(QStringLiteral("startMs"), m_measureStartMs);
+    result.insert(QStringLiteral("durationMs"), m_measureStartMs > 0 ? std::max<qint64>(0, end - m_measureStartMs) : 0);
+    result.insert(QStringLiteral("sampleCount"), static_cast<qulonglong>(m_measureSamples.size()));
+    result.insert(QStringLiteral("truncated"), m_measureTruncated);
+
+    QList<int> ids = m_measurements.keys();
+    std::sort(ids.begin(), ids.end()); // master row (-1) first
+
+    QVariantList rows;
+    for (int id : ids) {
+        const NodeMeasurement& m = m_measurements.value(id);
+        QVariantMap r;
+        r.insert(QStringLiteral("nodeId"), m.nodeId);
+        r.insert(QStringLiteral("name"), m.name);
+        r.insert(QStringLiteral("isMaster"), m.isMaster);
+        r.insert(QStringLiteral("samples"), m.samples);
+        r.insert(QStringLiteral("durationMs"), std::max<qint64>(0, m.lastMs - m.firstMs));
+        r.insert(QStringLiteral("fps"), statToMap(m.fps));
+        r.insert(QStringLiteral("gpuLoad"), statToMap(m.gpuLoad));
+        r.insert(QStringLiteral("gpuRender"), statToMap(m.gpuRender));
+        r.insert(QStringLiteral("gpuDecode"), statToMap(m.gpuDecode));
+        QVariantMap engines;
+        for (auto it = m.gpuEngines.constBegin(); it != m.gpuEngines.constEnd(); ++it)
+            engines.insert(it.key(), statToMap(it.value()));
+        r.insert(QStringLiteral("gpuEngines"), engines);
+        r.insert(QStringLiteral("syncOffsetMs"), statToMap(m.syncOffsetMs));
+        r.insert(QStringLiteral("latencyMs"), statToMap(m.latencyMs));
+        r.insert(QStringLiteral("voDrops"), static_cast<qulonglong>(m.voDrops));
+        r.insert(QStringLiteral("decoderDrops"), static_cast<qulonglong>(m.decoderDrops));
+        r.insert(QStringLiteral("hwCurrent"), m.hwCurrent);
+        r.insert(QStringLiteral("videoCodec"), m.videoCodec);
+        r.insert(QStringLiteral("layerCount"), m.layerCount);
+        r.insert(QStringLiteral("layers"), m.layers);
+        rows.append(r);
+    }
+    result.insert(QStringLiteral("rows"), rows);
+    return result;
+}
+
+QVariantMap NodeTelemetryManager::measurementTimeline(int buckets) const {
+    const std::lock_guard<std::mutex> lock(m_mutex);
+
+    QVariantMap result;
+    const qint64 end = m_measuring ? nowMs() : m_measureStopMs;
+    const qint64 durationMs = m_measureStartMs > 0 ? std::max<qint64>(0, end - m_measureStartMs) : 0;
+    const int slots = std::clamp(buckets, 10, 4000);
+    const qint64 bucketMs = std::max<qint64>(1, (durationMs + slots - 1) / slots);
+    result.insert(QStringLiteral("startMs"), m_measureStartMs);
+    result.insert(QStringLiteral("durationMs"), durationMs);
+    result.insert(QStringLiteral("bucketMs"), bucketMs);
+
+    // Per node: running sums of the current slot, flushed when a sample lands in a later
+    // one. Samples are appended in arrival order, which is time order per node.
+    struct Acc {
+        double sum[3] = {0, 0, 0};
+        int n[3] = {0, 0, 0};
+        int count = 0;
+    };
+    struct Series {
+        qint64 slot = -1;
+        Acc acc;
+        QVariantList t, load[3];
+    };
+    QHash<int, Series> series;
+
+    auto flush = [bucketMs](Series& s) {
+        if (s.acc.count == 0)
+            return;
+        s.t.append(static_cast<double>(s.slot * bucketMs + bucketMs / 2));
+        for (int k = 0; k < 3; ++k)
+            s.load[k].append(s.acc.n[k] > 0 ? s.acc.sum[k] / s.acc.n[k] : -1.0);
+        s.acc = Acc();
+    };
+
+    for (const MeasurementSample& sample : m_measureSamples) {
+        Series& s = series[sample.nodeId];
+        const qint64 slot = std::max<qint64>(0, sample.timeMs - m_measureStartMs) / bucketMs;
+        if (slot != s.slot) {
+            flush(s);
+            s.slot = slot;
+        }
+        const double v[3] = {sample.gpuRender, sample.gpuDecode, sample.gpuLoad};
+        for (int k = 0; k < 3; ++k) {
+            if (v[k] >= 0.0) {
+                s.acc.sum[k] += v[k];
+                s.acc.n[k]++;
+            }
+        }
+        s.acc.count++;
+    }
+
+    QList<int> ids = series.keys();
+    std::sort(ids.begin(), ids.end()); // master row (-1) first, like the summary table
+
+    QVariantList list;
+    for (int id : ids) {
+        Series& s = series[id];
+        flush(s);
+        const NodeMeasurement m = m_measurements.value(id);
+        QVariantMap entry;
+        entry.insert(QStringLiteral("nodeId"), id);
+        entry.insert(QStringLiteral("name"), m.name);
+        entry.insert(QStringLiteral("isMaster"), m.isMaster);
+        entry.insert(QStringLiteral("t"), s.t);
+        entry.insert(QStringLiteral("render"), s.load[0]);
+        entry.insert(QStringLiteral("decode"), s.load[1]);
+        entry.insert(QStringLiteral("busiest"), s.load[2]);
+        list.append(entry);
+    }
+    result.insert(QStringLiteral("series"), list);
+    return result;
+}
+
+QString NodeTelemetryManager::exportMeasurementCsv(const QString& path) const {
+    // Copy under the lock, write without it (reports keep arriving while measuring).
+    std::vector<MeasurementSample> samples;
+    QHash<int, QString> names;
+    qint64 startMs = 0;
+    {
+        const std::lock_guard<std::mutex> lock(m_mutex);
+        samples = m_measureSamples;
+        for (auto it = m_measurements.constBegin(); it != m_measurements.constEnd(); ++it)
+            names.insert(it.key(), it->name);
+        startMs = m_measureStartMs;
+    }
+    if (samples.empty())
+        return tr("No measurement samples to export.");
+
+    // One column per GPU engine type seen in any sample.
+    QStringList engineTypes;
+    for (const auto& s : samples) {
+        for (auto it = s.gpuEngines.constBegin(); it != s.gpuEngines.constEnd(); ++it) {
+            if (!engineTypes.contains(it.key()))
+                engineTypes.append(it.key());
+        }
+    }
+    engineTypes.sort();
+
+    QDir().mkpath(QFileInfo(path).absolutePath());
+    QSaveFile file(path);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text))
+        return tr("Could not write %1: %2").arg(path, file.errorString());
+
+    QTextStream out(&file);
+    out << "time_s,node_id,node,fps,gpu_busiest_pct,gpu_3d_pct,gpu_decode_pct";
+    for (const QString& t : engineTypes)
+        out << ',' << csvText(QStringLiteral("gpu_%1_pct").arg(t));
+    out << ",vo_drops,dec_drops,sync_offset_ms,latency_ms,layers\n";
+
+    for (const auto& s : samples) {
+        out << QString::number((s.timeMs - startMs) / 1000.0, 'f', 3) << ','
+            << s.nodeId << ',' << csvText(names.value(s.nodeId)) << ','
+            << QString::number(s.fps, 'f', 2) << ','
+            << csvNumber(s.gpuLoad, 1) << ',' << csvNumber(s.gpuRender, 1) << ','
+            << csvNumber(s.gpuDecode, 1);
+        for (const QString& t : engineTypes) {
+            const auto it = s.gpuEngines.constFind(t);
+            out << ',' << (it != s.gpuEngines.constEnd() ? csvNumber(it->toDouble(), 1) : QString());
+        }
+        out << ',' << s.voDrops << ',' << s.decoderDrops << ','
+            << QString::number(s.syncOffsetMs, 'f', 2) << ',' << csvNumber(s.latencyMs, 2) << ','
+            << s.layerCount << '\n';
+    }
+    out.flush();
+    if (!file.commit())
+        return tr("Could not write %1: %2").arg(path, file.errorString());
+    return QString();
 }
 
 void NodeTelemetryManager::broadcastEnableCommand() {
@@ -489,6 +798,7 @@ void NodeTelemetryManager::handleNodeData(void* data, int length, int /*packageI
             const std::lock_guard<std::mutex> lock(m_mutex);
             m_nodes.insert(nodeId, row);
             m_clientToNode.insert(clientIndex, nodeId);
+            recordSampleLocked(row);
         }
     } catch (const json::exception&) {
         return; // not our JSON (or malformed) - ignore

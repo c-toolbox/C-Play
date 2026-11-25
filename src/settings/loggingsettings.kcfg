@@ -28,5 +28,9 @@ SPDX-License-Identifier: GPL-3.0-or-later
       <min>100</min>
       <max>5000</max>
     </entry>
+    <entry name="NodeMeasurementFollowsPlayback" type="bool">
+      <label>Start the node measurement on play and stop it on pause/stop</label>
+      <default>false</default>
+    </entry>
   </group>
 </kcfg>

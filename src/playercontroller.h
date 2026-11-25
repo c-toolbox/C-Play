@@ -91,6 +91,27 @@ public:
     Q_INVOKABLE void setNodeTelemetryInterval(int ms);
     Q_INVOKABLE int nodeTelemetryInterval() const;
 
+    // Node measurement over time: per-node averages/peaks (GPU render/decode, FPS, drops)
+    // accumulated from the telemetry reports between start and stop. See
+    // NodeTelemetryManager::measurementSummary() for the map layout.
+    Q_PROPERTY(QVariantMap nodeMeasurement
+        READ nodeMeasurement
+        NOTIFY nodeMeasurementChanged)
+    Q_PROPERTY(bool nodeMeasurementFollowsPlayback
+        READ nodeMeasurementFollowsPlayback
+        WRITE setNodeMeasurementFollowsPlayback
+        NOTIFY nodeMeasurementFollowsPlaybackChanged)
+
+    // Downsampled GPU load series for the timeline graph; see
+    // NodeTelemetryManager::measurementTimeline().
+    Q_INVOKABLE QVariantMap nodeMeasurementTimeline(int buckets) const;
+    Q_INVOKABLE void startNodeMeasurement();
+    Q_INVOKABLE void stopNodeMeasurement();
+    // Writes the recorded samples to data/log/node_measurement_<date>_<time>.csv.
+    // Returns the written file path, or an empty string and sets nodeMeasurementError.
+    Q_INVOKABLE QString exportNodeMeasurementCsv();
+    Q_INVOKABLE QString nodeMeasurementError() const { return m_nodeMeasurementError; }
+
     // Per-node file load failures reported by the cluster nodes (always-on, independent of the
     // telemetry toggle). One row per failed (node, path) pair.
     Q_PROPERTY(QVariantList nodeLoadFailures
@@ -250,6 +271,8 @@ Q_SIGNALS:
     void nodeWindowsHideInsteadOfFadeChanged();
     void syncPropertiesChanged();
     void nodeTelemetryChanged();
+    void nodeMeasurementChanged();
+    void nodeMeasurementFollowsPlaybackChanged();
     void nodeLoadFailuresChanged();
 
 private:
@@ -264,6 +287,12 @@ private:
     void setSlidesModel(SlidesModel* sm);
 
     QVariantList nodeTelemetry() const;
+
+    QVariantMap nodeMeasurement() const;
+    bool nodeMeasurementFollowsPlayback() const;
+    void setNodeMeasurementFollowsPlayback(bool follow);
+    void onPlaybackPauseChanged(); // starts/stops the node measurement when following playback
+    QString m_nodeMeasurementError;
 
     QVariantList nodeLoadFailures() const;
 

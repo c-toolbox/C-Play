@@ -18,7 +18,7 @@ Kirigami.ApplicationWindow {
     id: root
 
     color: Kirigami.Theme.alternateBackgroundColor
-    height: 560
+    height: 800
     title: qsTr("Logging")
     visible: false
     width: 900
@@ -29,6 +29,74 @@ Kirigami.ApplicationWindow {
 
     ListModel { id: loadFailuresModel }
 
+    ListModel { id: measurementModel }
+
+    // Last summary from playerController.nodeMeasurement.
+    property var measurement: ({})
+    readonly property bool measurementRunning: measurement.running === true
+    readonly property bool measurementHasData: (measurement.rows || []).length > 0
+
+    // --- measurement timeline graph ---
+    // Downsampled series from playerController.nodeMeasurementTimeline().
+    property var timeline: ({})
+    property real timelineCrosshair: -1
+    readonly property bool timelineVisible: root.visible && nodeTelemetryCheck.checked
+                                            && root.measurementHasData && measurementTabs.currentIndex === 1
+
+    // Categorical palette (validated for colour-vision deficiency in this fixed order), one
+    // step set per theme. A node keeps its slot by its position: master first, then node id.
+    readonly property bool darkTheme: Kirigami.ColorUtils.brightnessForColor(Kirigami.Theme.backgroundColor) === Kirigami.ColorUtils.Dark
+    readonly property var seriesPalette: darkTheme
+        ? ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#0ca30c", "#9085e9", "#e66767"]
+        : ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"]
+
+    // Per series { color, other }. Up to 8 nodes get a colour each; with more, the first 7
+    // keep theirs and the rest fold into thin muted "other" lines (never a generated 9th hue).
+    readonly property var timelineStyles: {
+        const n = (timeline.series || []).length;
+        const coloured = n <= seriesPalette.length ? n : seriesPalette.length - 1;
+        const styles = [];
+        for (let i = 0; i < n; ++i)
+            styles.push(i < coloured ? { "color": seriesPalette[i], "other": false }
+                                     : { "color": Kirigami.Theme.disabledTextColor, "other": true });
+        return styles;
+    }
+
+    readonly property var timelineLegend: {
+        const series = timeline.series || [];
+        const legend = [];
+        let others = 0;
+        for (let i = 0; i < series.length; ++i) {
+            const style = timelineStyles[i] || {};
+            if (style.other)
+                others++;
+            else
+                legend.push({ "name": series[i].name, "color": style.color, "other": false });
+        }
+        if (others > 0)
+            legend.push({ "name": qsTr("Other nodes (%1)").arg(others), "color": Kirigami.Theme.disabledTextColor, "other": true });
+        return legend;
+    }
+
+    // Name the lines at their ends when there are few enough to read that way.
+    readonly property bool timelineDirectLabels: (timeline.series || []).length <= 4
+
+    function refreshTimeline() {
+        if (!timelineVisible)
+            return;
+        // About one time slot per two pixels of plot width.
+        timeline = playerController.nodeMeasurementTimeline(Math.max(50, Math.floor((renderChart.plotW || 600) / 2)));
+    }
+
+    onTimelineVisibleChanged: refreshTimeline()
+
+    // Reports arrive per node and per interval: redraw at most once a second while recording.
+    Timer {
+        id: timelineRefreshTimer
+        interval: 1000
+        onTriggered: root.refreshTimeline()
+    }
+
     onVisibleChanged: {
         if (visible) {
             // Center over the main application window. From this nested component "window" is
@@ -36,8 +104,10 @@ Kirigami.ApplicationWindow {
             // the main window never rises above its top corner.
             x = window.x + (window.width - width) / 2;
             y = Math.max(window.y, window.y + (window.height - height) / 2);
-            if (nodeTelemetryCheck.checked)
+            if (nodeTelemetryCheck.checked) {
                 updateNodeTable();
+                updateMeasurementTable();
+            }
             updateNodeLoadFailureTable();
         }
     }
@@ -47,6 +117,94 @@ Kirigami.ApplicationWindow {
         function onNodeTelemetryChanged() {
             if (root.visible && nodeTelemetryCheck.checked)
                 updateNodeTable();
+        }
+        function onNodeMeasurementChanged() {
+            if (!root.visible)
+                return;
+            updateMeasurementTable();
+            if (!root.measurementRunning)
+                root.refreshTimeline();          // started, stopped: show it now
+            else if (!timelineRefreshTimer.running)
+                timelineRefreshTimer.start();
+        }
+    }
+
+    // --- node measurement over time ---------------------------------------------------
+
+    function fmtDuration(ms) {
+        const total = Math.floor(Math.max(0, ms || 0) / 1000);
+        const h = Math.floor(total / 3600);
+        const m = Math.floor((total % 3600) / 60);
+        const s = total % 60;
+        const pad = n => (n < 10 ? "0" : "") + n;
+        return (h > 0 ? h + ":" + pad(m) : String(m)) + ":" + pad(s);
+    }
+
+    // "avg / peak" of a stat map ({count, avg, min, max}); "n/a" when never measured.
+    function pctAvgPeak(s) {
+        if (!s || s.count === 0)
+            return "n/a";
+        return fmt(s.avg, 0) + " / " + fmt(s.max, 0) + " %";
+    }
+
+    function measurementStatusText() {
+        const m = measurement;
+        if (!m.startMs)
+            return qsTr("No measurement yet");
+        const parts = [m.running ? qsTr("Recording") : qsTr("Stopped"),
+                       fmtDuration(m.durationMs),
+                       qsTr("%1 reports").arg(m.sampleCount || 0)];
+        if (m.truncated)
+            parts.push(qsTr("CSV sample limit reached"));
+        return parts.join(" · ");
+    }
+
+    function measurementGpuTip(r, title) {
+        const lines = [title, qsTr("Average / peak over %1 reports (%2).").arg(r.samples).arg(fmtDuration(r.durationMs))];
+        const engines = r.gpuEngines || {};
+        const types = Object.keys(engines);
+        if (types.length === 0)
+            return lines.concat([qsTr("No GPU counters on this computer (Windows only).")]).join("\n");
+        types.sort((a, b) => engines[b].avg - engines[a].avg);
+        lines.push("");
+        for (const t of types)
+            lines.push(t + ": " + pctAvgPeak(engines[t]));
+        lines.push("");
+        lines.push(qsTr("Busiest engine: %1").arg(pctAvgPeak(r.gpuLoad)));
+        return lines.join("\n");
+    }
+
+    function updateMeasurementTable() {
+        measurement = playerController.nodeMeasurement || {};
+        const rows = measurement.rows || [];
+        // Updated in place, like the telemetry table, so open tooltips stay open.
+        while (measurementModel.count > rows.length)
+            measurementModel.remove(measurementModel.count - 1);
+        for (let i = 0; i < rows.length; ++i) {
+            const r = rows[i];
+            const fps = r.fps || {};
+            const entry = {
+                "rowName": r.name,
+                "rowSamples": String(r.samples),
+                "rowFps": fps.count > 0 ? fmt(fps.avg, 1) + " / " + fmt(fps.min, 1) : "-",
+                "rowGpu": pctAvgPeak(r.gpuRender && r.gpuRender.count > 0 ? r.gpuRender : r.gpuLoad),
+                "rowGpuDec": pctAvgPeak(r.gpuDecode),
+                "rowVoDrops": String(r.voDrops),
+                "rowDecDrops": String(r.decoderDrops),
+                "rowOffset": r.syncOffsetMs && r.syncOffsetMs.count > 0 ? fmt(r.syncOffsetMs.max, 1) + " ms" : "-",
+                "rowDecoder": decoderCell(r),
+                "tipName": qsTr("%1 reports over %2.").arg(r.samples).arg(fmtDuration(r.durationMs)),
+                "tipFps": fps.count > 0
+                          ? qsTr("Average / lowest frame rate while a video was playing (%1 of %2 reports).").arg(fps.count).arg(r.samples)
+                          : qsTr("No video was playing during the measurement."),
+                "tipGpu": measurementGpuTip(r, qsTr("Render load (busiest 3D engine).")),
+                "tipGpuDec": measurementGpuTip(r, qsTr("Hardware video decode load (busiest VideoDecode engine, e.g. NVDEC).")),
+                "tipDecoder": decoderTip(r)
+            };
+            if (i < measurementModel.count)
+                measurementModel.set(i, entry);
+            else
+                measurementModel.append(entry);
         }
     }
 
@@ -428,8 +586,10 @@ Kirigami.ApplicationWindow {
                     LoggingSettings.save();
                 }
                 playerController.setNodeTelemetryEnabled(checked);
-                if (checked)
+                if (checked) {
                     updateNodeTable();
+                    updateMeasurementTable();
+                }
             }
         }
         Label {
@@ -523,6 +683,209 @@ Kirigami.ApplicationWindow {
             }
 
             ScrollBar.vertical: ScrollBar {}
+        }
+
+        RowLayout {
+            visible: nodeTelemetryCheck.checked
+            Layout.fillWidth: true
+            Layout.topMargin: Kirigami.Units.largeSpacing
+            spacing: Kirigami.Units.largeSpacing
+
+            Label {
+                text: qsTr("Measurement over time")
+                font.pointSize: 12
+                font.bold: true
+            }
+            Label {
+                text: root.measurementStatusText()
+                color: root.measurementRunning ? "crimson" : Kirigami.Theme.textColor
+                opacity: root.measurementRunning ? 1.0 : 0.7
+            }
+            Item {
+                Layout.fillWidth: true
+            }
+            CheckBox {
+                text: qsTr("Start/stop with playback")
+                checked: playerController.nodeMeasurementFollowsPlayback
+                onToggled: playerController.nodeMeasurementFollowsPlayback = checked
+                ToolTip.visible: hovered
+                ToolTip.text: qsTr("Play starts a new measurement; pause, stop/rewind or the end of the file stops it.")
+            }
+            Button {
+                icon.name: root.measurementRunning ? "media-playback-stop" : "media-record"
+                text: root.measurementRunning ? qsTr("Stop") : qsTr("Start")
+                onClicked: {
+                    exportResultLabel.text = "";
+                    if (root.measurementRunning)
+                        playerController.stopNodeMeasurement();
+                    else
+                        playerController.startNodeMeasurement();
+                }
+                ToolTip.visible: hovered
+                ToolTip.text: root.measurementRunning ? qsTr("Stop recording and keep the results.")
+                                                      : qsTr("Start a new measurement (clears the previous results).")
+            }
+            Button {
+                icon.name: "document-export"
+                text: qsTr("Export CSV")
+                enabled: (root.measurement.sampleCount || 0) > 0
+                onClicked: {
+                    const path = playerController.exportNodeMeasurementCsv();
+                    exportResultLabel.isError = path === "";
+                    exportResultLabel.text = path !== "" ? qsTr("Saved %1").arg(path) : playerController.nodeMeasurementError();
+                }
+                ToolTip.visible: hovered
+                ToolTip.text: qsTr("Write every recorded report (one row per node and report) to data/log/node_measurement_<date>_<time>.csv.")
+            }
+        }
+        Label {
+            visible: nodeTelemetryCheck.checked
+            text: qsTr("Averages and peaks of the reports above, per node, from Start to Stop. FPS shows average / lowest while a video was playing; drops are totals; sync offset is the largest seen.")
+            font.italic: true
+            opacity: 0.7
+            wrapMode: Text.WordWrap
+            Layout.fillWidth: true
+        }
+        Label {
+            id: exportResultLabel
+            property bool isError: false
+            visible: nodeTelemetryCheck.checked && text.length > 0
+            color: isError ? "crimson" : Kirigami.Theme.textColor
+            elide: Text.ElideMiddle
+            Layout.fillWidth: true
+        }
+
+        TabBar {
+            id: measurementTabs
+            visible: nodeTelemetryCheck.checked && root.measurementHasData
+            Layout.fillWidth: true
+            TabButton { text: qsTr("Summary"); width: implicitWidth }
+            TabButton { text: qsTr("Timeline"); width: implicitWidth }
+            onCurrentIndexChanged: {
+                if (currentIndex === 1)
+                    root.refreshTimeline();
+            }
+        }
+
+        StackLayout {
+            visible: nodeTelemetryCheck.checked && root.measurementHasData
+            currentIndex: measurementTabs.currentIndex
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            Layout.minimumHeight: measurementTabs.currentIndex === 1 ? 300 : 100
+
+        ListView {
+            id: measurementTable
+            clip: true
+
+            model: measurementModel
+
+            header: RowLayout {
+                width: measurementTable.width
+                spacing: Kirigami.Units.smallSpacing
+
+                Label { text: qsTr("Node"); font.bold: true; Layout.fillWidth: true }
+                Label { text: qsTr("Reports"); font.bold: true; Layout.preferredWidth: 60 }
+                Label { text: qsTr("FPS avg/min"); font.bold: true; Layout.preferredWidth: 90 }
+                Label { text: qsTr("GPU avg/peak"); font.bold: true; Layout.preferredWidth: 96 }
+                Label { text: qsTr("Decode avg/peak"); font.bold: true; Layout.preferredWidth: 110 }
+                Label { text: qsTr("VO drops"); font.bold: true; Layout.preferredWidth: 70 }
+                Label { text: qsTr("Dec drops"); font.bold: true; Layout.preferredWidth: 70 }
+                Label { text: qsTr("Max offset"); font.bold: true; Layout.preferredWidth: 80 }
+                Label { text: qsTr("Decoder"); font.bold: true; Layout.preferredWidth: 170 }
+            }
+
+            delegate: RowLayout {
+                width: measurementTable.width
+                spacing: Kirigami.Units.smallSpacing
+
+                TipLabel { text: model.rowName; tip: model.tipName; elide: Text.ElideRight; Layout.fillWidth: true }
+                TipLabel { text: model.rowSamples; tip: model.tipName; Layout.preferredWidth: 60 }
+                TipLabel { text: model.rowFps; tip: model.tipFps; Layout.preferredWidth: 90 }
+                TipLabel { text: model.rowGpu; tip: model.tipGpu; Layout.preferredWidth: 96 }
+                TipLabel { text: model.rowGpuDec; tip: model.tipGpuDec; Layout.preferredWidth: 110 }
+                TipLabel {
+                    text: model.rowVoDrops
+                    tip: qsTr("Frames dropped because they were late for display, total over the measurement.")
+                    Layout.preferredWidth: 70
+                    color: Number(model.rowVoDrops) > 0 ? "orange" : Kirigami.Theme.textColor
+                }
+                TipLabel {
+                    text: model.rowDecDrops
+                    tip: qsTr("Frames the decoder skipped to keep up, total over the measurement.")
+                    Layout.preferredWidth: 70
+                    color: Number(model.rowDecDrops) > 0 ? "orange" : Kirigami.Theme.textColor
+                }
+                TipLabel {
+                    text: model.rowOffset
+                    tip: qsTr("Largest distance between this node's playback position and the master's.")
+                    Layout.preferredWidth: 80
+                    color: parseFloat(model.rowOffset) > 100 ? "crimson" : Kirigami.Theme.textColor
+                }
+                TipLabel { text: model.rowDecoder; tip: model.tipDecoder; elide: Text.ElideRight; Layout.preferredWidth: 170 }
+            }
+
+            ScrollBar.vertical: ScrollBar {}
+        }
+
+        // Timeline: GPU render and decode load per node over the measurement, as two
+        // stacked charts sharing the time axis and the crosshair.
+        ColumnLayout {
+            id: timelinePane
+            spacing: Kirigami.Units.smallSpacing
+
+            Flow {
+                Layout.fillWidth: true
+                Layout.leftMargin: 40
+                spacing: Kirigami.Units.largeSpacing
+
+                Repeater {
+                    model: root.timelineLegend
+                    delegate: Row {
+                        required property var modelData
+                        spacing: Kirigami.Units.smallSpacing
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 16
+                            height: modelData.other ? 1 : 2
+                            color: modelData.color
+                        }
+                        Label { text: modelData.name }
+                    }
+                }
+            }
+
+            GpuTimelineChart {
+                id: renderChart
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                title: qsTr("Render load (busiest 3D engine)")
+                metric: "render"
+                timeline: root.timeline
+                seriesStyles: root.timelineStyles
+                directLabels: root.timelineDirectLabels
+                crosshairT: root.timelineCrosshair
+                onHoverMoved: t => root.timelineCrosshair = t
+            }
+            GpuTimelineChart {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                title: qsTr("Video decode load (busiest VideoDecode engine)")
+                metric: "decode"
+                timeline: root.timeline
+                seriesStyles: root.timelineStyles
+                directLabels: root.timelineDirectLabels
+                crosshairT: root.timelineCrosshair
+                onHoverMoved: t => root.timelineCrosshair = t
+            }
+            Label {
+                text: qsTr("Each point is the average of the reports in its time slot; the Summary tab holds the peaks. GPU load is only available on Windows.")
+                font.italic: true
+                opacity: 0.7
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
+            }
+        }
         }
 
         Label {
