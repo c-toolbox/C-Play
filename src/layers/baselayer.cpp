@@ -1909,6 +1909,56 @@ void BaseLayer::setRoi(float x, float y, float width, float height) {
     setNeedSync();
 }
 
+bool BaseLayer::autoAspectRoiEnabled(bool master) {
+    return master ? GridSettings::autoAspectRoi() : SyncHelper::instance().variables.autoAspectRoi;
+}
+
+glm::vec4 BaseLayer::aspectCorrectedRoi(const glm::vec4 &roi, int width, int height, int gridMode, int stereoMode) {
+    double target = 0.0;
+    if (gridMode == GridMode::Dome)
+        target = 1.0;
+    else if (gridMode == GridMode::Sphere_EQR)
+        target = 2.0;
+    if (target <= 0.0 || width <= 0 || height <= 0 || !(roi.z > 0.f) || !(roi.w > 0.f))
+        return roi;
+
+    // Aspect ratio of one eye's whole image. Side-by-side and top-bottom come as full
+    // (each eye keeps its pixels) or half (each eye squeezed); assume whichever is closer
+    // to the target. Top-bottom-flip turns the eye, so its width runs along the height.
+    const double ratio = static_cast<double>(width) / static_cast<double>(height);
+    const auto closer = [target](double a, double b) {
+        return std::abs(std::log(a / target)) <= std::abs(std::log(b / target)) ? a : b;
+    };
+    double eye = ratio;
+    if (stereoMode == StereoMode::SBS_3D)
+        eye = closer(ratio / 2.0, ratio);
+    else if (stereoMode == StereoMode::TB_3D)
+        eye = closer(ratio * 2.0, ratio);
+    else if (stereoMode == StereoMode::TBF_3D)
+        eye = 2.0 / ratio;
+
+    // The ROI is applied per eye, before the stereo split, so it scales the eye's image.
+    const double shown = eye * roi.z / roi.w;
+    if (std::abs(shown / target - 1.0) < 1e-3)
+        return roi;
+    glm::vec4 r = roi;
+    if (shown > target) { // too wide: crop the sides
+        r.z = static_cast<float>(roi.z * target / shown);
+        r.x += (roi.z - r.z) * 0.5f;
+    } else {              // too tall: crop top and bottom
+        r.w = static_cast<float>(roi.w * shown / target);
+        r.y += (roi.w - r.w) * 0.5f;
+    }
+    return r;
+}
+
+glm::vec4 BaseLayer::renderRoi() const {
+    const glm::vec4 roi = renderData.roiEnabled ? renderData.roi : glm::vec4(0.f, 0.f, 1.f, 1.f);
+    if (!autoAspectRoiEnabled(isMaster()))
+        return roi;
+    return aspectCorrectedRoi(roi, width(), height(), gridMode(), renderStereoMode());
+}
+
 double BaseLayer::planeAzimuth() const {
     return planeData.azimuth;
 }

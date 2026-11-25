@@ -611,12 +611,7 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
             glUniform1i(sv->meshStereoscopicModeLoc, 0);
         }
 
-        if (layer->roiEnabled()) {
-            glUniform4fv(sv->meshRoi, 1, glm::value_ptr(layer->roi()));
-        }
-        else {
-            glUniform4f(sv->meshRoi, 0.f, 0.f, 1.f, 1.f);
-        }
+        glUniform4fv(sv->meshRoi, 1, glm::value_ptr(layer->renderRoi()));
 
         glUniform1f(sv->meshAlphaLoc, alpha);
         sv->meshMaskLocs.apply(setter, anim, 2.f, fx);
@@ -664,12 +659,7 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
             glUniform1i(sv->meshStereoscopicModeLoc, 0);
         }
 
-        if (layer->roiEnabled()) {
-            glUniform4fv(sv->meshRoi, 1, glm::value_ptr(layer->roi()));
-        }
-        else {
-            glUniform4f(sv->meshRoi, 0.f, 0.f, 1.f, 1.f);
-        }
+        glUniform4fv(sv->meshRoi, 1, glm::value_ptr(layer->renderRoi()));
 
         glUniform1f(sv->meshAlphaLoc, alpha);
         sv->meshMaskLocs.apply(setter, anim, 2.f, fx);
@@ -704,12 +694,7 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
             glUniform1i(sv->meshStereoscopicModeLoc, 0);
         }
 
-        if (layer->roiEnabled()) {
-            glUniform4fv(sv->meshRoi, 1, glm::value_ptr(layer->roi()));
-        }
-        else {
-            glUniform4f(sv->meshRoi, 0.f, 0.f, 1.f, 1.f);
-        }
+        glUniform4fv(sv->meshRoi, 1, glm::value_ptr(layer->renderRoi()));
 
         glUniform1f(sv->meshAlphaLoc, alpha);
         sv->meshMaskLocs.apply(setter, anim, aspect, fx);
@@ -773,12 +758,7 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
             glUniform1i(sv->videoStereoscopicModeLoc, 0);
         }
 
-        if (layer->roiEnabled()) {
-            glUniform4fv(sv->videoRoi, 1, glm::value_ptr(layer->roi()));
-        }
-        else {
-            glUniform4f(sv->videoRoi, 0.f, 0.f, 1.f, 1.f);
-        }
+        glUniform4fv(sv->videoRoi, 1, glm::value_ptr(layer->renderRoi()));
 
         glUniform1f(sv->videoAlphaLoc, alpha);
         sv->videoMaskLocs.apply(setter, anim, aspect, fx);

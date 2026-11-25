@@ -307,7 +307,7 @@ unsigned int ParticleCompositor::layerTexture(const BaseLayer *layer, int gridMo
     Target &t = ctx.targets[layer];
     t.usedThisFrame = true;
     if (!t.rendered || t.frame != frame) {
-        render(ctx, t, source, width, height, a, gridMode, stereoMode, layer->roiEnabled(), layer->roi(),
+        render(ctx, t, source, width, height, a, gridMode, stereoMode, true, layer->renderRoi(),
                domeFovDeg);
         t.frame = frame;
         t.rendered = true;

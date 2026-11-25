@@ -316,6 +316,10 @@ static std::vector<std::byte> encode() {
 
         serializeObject(data, SyncHelper::instance().variables.paused);
 
+        // The grid settings below go with the MpvObject variables; a change sends them.
+        if (SyncHelper::instance().variables.autoAspectRoi != GridSettings::autoAspectRoi())
+            SyncHelper::instance().variables.mpvNeedSync = true;
+
         // MpvObject variables - only sync when dirty
         bool mpvSync = SyncHelper::instance().variables.mpvNeedSync;
         serializeObject(data, mpvSync);
@@ -372,6 +376,8 @@ static std::vector<std::byte> encode() {
                 SyncHelper::instance().variables.circularClockwise = GridSettings::circularClockwise();
                 serializeObject(data, SyncHelper::instance().variables.circularClockwise);
             }
+            SyncHelper::instance().variables.autoAspectRoi = GridSettings::autoAspectRoi();
+            serializeObject(data, SyncHelper::instance().variables.autoAspectRoi);
 
             // Looptime
             serializeObject(data, SyncHelper::instance().variables.loopTimeDirty);
@@ -759,6 +765,8 @@ static void decode(const std::vector<std::byte> &data) {
                 deserializeObject(data, pos, SyncHelper::instance().variables.circularSeamDegrees);
                 deserializeObject(data, pos, SyncHelper::instance().variables.circularClockwise);
             }
+            if (!safeToRead()) return;
+            deserializeObject(data, pos, SyncHelper::instance().variables.autoAspectRoi);
 
             // Looptime
             if (!safeToRead()) return;

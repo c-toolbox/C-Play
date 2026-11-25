@@ -1494,30 +1494,52 @@ Kirigami.ApplicationWindow {
 
                     target: layerViewItem
                 }
-                MouseArea {
-                    id: dragArea
+                Rectangle { // Move handle: only the centre drags the ROI, so the rest of the
+                            // region lets clicks through to the controls beneath it.
+                    id: moveHandle
 
-                    // drag mouse area
-                    anchors.fill: parent
+                    anchors.centerIn: parent
+                    border.color: "steelblue"
+                    border.width: 2
+                    color: dragArea.pressed ? "#d04682B4" : (dragArea.containsMouse ? "#b04682B4" : "#804682B4")
+                    height: Math.max(selComp.rulersSize, Math.min(40, selComp.height / 3))
+                    radius: 6
+                    width: Math.max(selComp.rulersSize, Math.min(40, selComp.width / 3))
 
-                    onDoubleClicked:
-                    // destroy component
-                    {}
-                    onPositionChanged: {
-                        if (drag.active) {
-                            layerViewItem.setRoi(Qt.point(selComp.x, selComp.y), Qt.size(selComp.width, selComp.height));
+                    Kirigami.Icon {
+                        anchors.centerIn: parent
+                        color: "white"
+                        height: width
+                        isMask: true
+                        source: "transform-move"
+                        width: Math.min(parent.width, parent.height) - 8
+                    }
+                    MouseArea {
+                        id: dragArea
+
+                        anchors.fill: parent
+                        cursorShape: Qt.SizeAllCursor
+                        hoverEnabled: true
+
+                        onPositionChanged: {
+                            if (drag.active) {
+                                layerViewItem.setRoi(Qt.point(selComp.x, selComp.y), Qt.size(selComp.width, selComp.height));
+                            }
+                        }
+
+                        drag {
+                            axis: Drag.XAndYAxis
+                            maximumX: layerViewItem.viewOffset.x + layerViewItem.viewSize.width - selComp.width
+                            maximumY: layerViewItem.viewOffset.y + layerViewItem.viewSize.height - selComp.height
+                            minimumX: layerViewItem.viewOffset.x
+                            minimumY: layerViewItem.viewOffset.y
+                            smoothed: true
+                            target: selComp
                         }
                     }
-
-                    drag {
-                        axis: Drag.XAndYAxis
-                        maximumX: layerViewItem.viewOffset.x + layerViewItem.viewSize.width - selComp.width
-                        maximumY: layerViewItem.viewOffset.y + layerViewItem.viewSize.height - selComp.height
-                        minimumX: layerViewItem.viewOffset.x
-                        minimumY: layerViewItem.viewOffset.y
-                        smoothed: true
-                        target: parent
-                    }
+                    ToolTip.delay: 500
+                    ToolTip.text: qsTr("Drag to move the region of interest")
+                    ToolTip.visible: dragArea.containsMouse && !dragArea.pressed
                 }
                 Rectangle { // Left
                     id: rectangleLeft

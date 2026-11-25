@@ -647,6 +647,7 @@ public:
         double circularSurfaceWidthCM = 1480.0;
         double circularSeamDegrees = 0.0;
         bool circularClockwise = true;
+        bool autoAspectRoi = false;
         double planeWidth;
         double planeHeight;
         double planeElevation;
@@ -792,6 +793,7 @@ public:
         /*circularSurfaceWidthCM*/ 1480.0,
         /*circularSeamDegrees*/ 0.0,
         /*circularClockwise*/ true,
+        /*autoAspectRoi*/ false,
         /*planeWidth*/ 0,
         /*planeHeight*/ 0,
         /*planeElevation*/ 0,

@@ -107,6 +107,23 @@ SettingsBasePage {
         }
 
         // ------------------------------------
+        // Aspect ratio correction
+        // ------------------------------------
+        CheckBox {
+            Layout.columnSpan: 3
+            text: qsTr("Auto-fix aspect ratio with ROI (crop dome content to 1:1 and sphere content to 2:1)")
+            checked: GridSettings.autoAspectRoi
+            onToggled: {
+                GridSettings.autoAspectRoi = checked;
+                GridSettings.save();
+            }
+
+            ToolTip.visible: hovered
+            ToolTip.delay: 500
+            ToolTip.text: qsTr("Crops the main video and layers mapped on the dome or the equirectangular sphere around their centre, so content with another aspect ratio is not stretched. Applies per eye for stereoscopic content, on top of any ROI set on a layer.")
+        }
+
+        // ------------------------------------
         // Plane parameters
         // ------------------------------------
         Label {

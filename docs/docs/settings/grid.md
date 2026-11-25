@@ -9,6 +9,12 @@ sidebar_position: 2
 
 The grid/mapping settings within C-Play control the geometry used for texture mapping of all media. Objects such as planes (for flat media), domes (fulldome/fisheye content), and spheres (for equirectangular and equi-angular cubemap content) are used depending on the projection type.
 
+### Aspect ratio correction
+
+The dome mapping expects fisheye content at 1:1, and the equirectangular sphere expects 2:1. Content with another aspect ratio is stretched to fit.
+
+* **Auto-fix aspect ratio with ROI** — When enabled, content mapped on the dome or the equirectangular sphere is cropped around its centre to 1:1 or 2:1, instead of being stretched (default off). This applies to the main video and to all layers, on the master and the nodes. For stereoscopic content the crop is made per eye. Side-by-side and top-bottom media are treated as full or half resolution, whichever is closer to the expected ratio. A layer's own ROI is applied first, then cropped further. Plane, flat and equi-angular cubemap content is not affected.
+
 ### Plane settings
 
 These define the default plane geometry for flat media:

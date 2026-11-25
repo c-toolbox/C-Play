@@ -468,6 +468,16 @@ public:
     void setRoi(const glm::vec4 &r);
     void setRoi(float x, float y, float width, float height);
 
+    // The ROI the renderers use: roi() when enabled, else the whole texture. When the
+    // grid setting "auto-fix aspect ratio with ROI" is on, it is cropped around its centre
+    // so each eye shows 1:1 on the dome and 2:1 on the equirectangular sphere.
+    glm::vec4 renderRoi() const;
+    // That grid setting: the master's own, synced to the nodes.
+    static bool autoAspectRoiEnabled(bool master);
+    // roi cropped around its centre so each eye of a width x height texture shows the
+    // aspect ratio gridMode maps (1:1 Dome, 2:1 Sphere_EQR); other grid modes keep roi.
+    static glm::vec4 aspectCorrectedRoi(const glm::vec4 &roi, int width, int height, int gridMode, int stereoMode);
+
     const glm::vec4 &screenRect() const { return renderData.screenRect; }
     void setScreenRect(const glm::vec4 &rect) { renderData.screenRect = rect; }
 
