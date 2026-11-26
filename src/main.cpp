@@ -1078,6 +1078,38 @@ static void throttleWhileHidden() {
 // activation fixes the Z-order within the topmost band while leaving keyboard/mouse
 // focus untouched.
 #ifdef WIN32
+// True when the window is a GLFW window of a C-Play process (this one or another node
+// started on the same machine), compared by executable name.
+static bool isCPlayGlfwWindow(HWND window) {
+    WCHAR className[64];
+    if (GetClassNameW(window, className, 64) <= 0 || lstrcmpW(className, L"GLFW30") != 0)
+        return false;
+
+    DWORD pid = 0;
+    GetWindowThreadProcessId(window, &pid);
+    if (pid == GetCurrentProcessId())
+        return true;
+
+    static std::wstring ownExeName = [] {
+        WCHAR path[MAX_PATH];
+        const DWORD len = GetModuleFileNameW(nullptr, path, MAX_PATH);
+        const std::wstring full(path, len);
+        return full.substr(full.find_last_of(L"\\/") + 1);
+    }();
+
+    HANDLE process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+    if (!process)
+        return false;
+    WCHAR path[MAX_PATH];
+    DWORD len = MAX_PATH;
+    const bool gotPath = QueryFullProcessImageNameW(process, 0, path, &len) != FALSE;
+    CloseHandle(process);
+    if (!gotPath)
+        return false;
+    const std::wstring full(path, len);
+    return lstrcmpiW(full.substr(full.find_last_of(L"\\/") + 1).c_str(), ownExeName.c_str()) == 0;
+}
+
 static void assertNodeWindowsTopmost() {
     static DWORD lastAssertTime = 0;
     const DWORD now = GetTickCount();
@@ -1101,10 +1133,10 @@ static void assertNodeWindowsTopmost() {
             if (!(GetWindowLongW(other, GWL_EXSTYLE) & WS_EX_TOPMOST) || !IsWindowVisible(other))
                 continue;
 
-            // Skip sibling GLFW windows (e.g. other C-Play nodes on this machine) to
-            // avoid Z-order thrashing between them.
-            WCHAR className[64];
-            if (GetClassNameW(other, className, 64) > 0 && lstrcmpW(className, L"GLFW30") == 0)
+            // Skip C-Play's own node windows (also those of other C-Play nodes on this
+            // machine) to avoid Z-order thrashing between them. Other GLFW applications,
+            // such as SGCT apps in borderless fullscreen, are covering windows like any other.
+            if (isCPlayGlfwWindow(other))
                 continue;
 
             SetWindowPos(handle, HWND_TOPMOST, 0, 0, 0, 0,
