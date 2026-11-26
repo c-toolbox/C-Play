@@ -1,1 +1,3 @@
 IDI_ICON1               ICON                    "C_play_transparent.ico"
+// GLFW (SGCT node windows) uses the icon resource named GLFW_ICON as its window class icon.
+GLFW_ICON               ICON                    "C_play_transparent.ico"

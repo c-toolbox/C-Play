@@ -32,6 +32,7 @@
 #include <layersmodel.h>
 #include <QCoreApplication>
 #include <QFileInfo>
+#include <QImage>
 #include <KConfig>
 #include <KConfigGroup>
 #include <algorithm>
@@ -2210,6 +2211,31 @@ int main(int argc, char *argv[]) {
         Engine::destroy();
         return EXIT_FAILURE;
     }
+
+#ifndef WIN32
+    // Give the node windows the C-Play icon. On Windows GLFW already uses the GLFW_ICON
+    // resource (data/images/icon.rc) as the window class icon. Not supported on Wayland/macOS,
+    // where GLFW ignores the call.
+    if (!Engine::instance().isMaster()) {
+        const QImage source(QStringLiteral(":/C_play_transparent.png"));
+        if (!source.isNull()) {
+            std::vector<QImage> images;
+            std::vector<GLFWimage> icons;
+            for (int size : {16, 32, 48, 64, 128}) {
+                images.push_back(source.scaled(size, size, Qt::KeepAspectRatio, Qt::SmoothTransformation)
+                                     .convertToFormat(QImage::Format_RGBA8888));
+            }
+            for (QImage& image : images) {
+                icons.push_back({image.width(), image.height(), image.bits()});
+            }
+            for (const std::unique_ptr<Window>& win : ClusterManager::instance().thisNode().windows()) {
+                if (GLFWwindow* handle = win->windowHandle()) {
+                    glfwSetWindowIcon(handle, static_cast<int>(icons.size()), icons.data());
+                }
+            }
+        }
+    }
+#endif // !WIN32
 
     // Now that ClusterManager/NetworkManager exist, record which node this process is and
     // whether it is the master, so ConfigModel can exclude the master's own (hidden, never
