@@ -16,7 +16,8 @@ Kirigami.ApplicationWindow {
     id: root
 
     color: Kirigami.Theme.alternateBackgroundColor
-    height: 612
+    // Grows only when the content (e.g. with the missing-properties warning) needs more room than the default.
+    height: Math.max(612, mainLayout.implicitHeight + 2 * mainLayout.anchors.margins)
     title: qsTr("Add new layer")
     visible: false
     width: 400
@@ -29,7 +30,61 @@ Kirigami.ApplicationWindow {
         }
         y = window.y;
     }
+    // Set by a click on "Add new layer"; from then on the warning follows the fields as they are filled in.
+    property bool showMissingProperties: false
+
+    // Names of the properties that must be filled in before the layer can be added (empty when complete).
+    function missingProperties() {
+        var p = layerCoreProps;
+        var type = p.typeComboBox.currentText;
+        var missing = [];
+        // A TCP layer without a title is named after its command.
+        if (p.layerTitle.text === "" && type !== "TCP")
+            missing.push(qsTr("Title"));
+        switch (type) {
+        case "NDI":
+        case "Spout":
+        case "OMT":
+        case "Stream":
+        case "Text":
+        case "Control":
+        case "REST":
+            break;
+        case "DirectShow":
+            if (!p.captureNodeTargeted && !p.directShowPresetsLayout.customEntry && p.directShowPresetAvailable) {
+                if (!p.getDirectShowPresetDevices())
+                    missing.push(qsTr("Setup"));
+            } else if (p.directShowVideoDeviceComboBox.currentText === "" && p.fileForLayer.text === "") {
+                missing.push(qsTr("Video device or File"));
+            }
+            break;
+        case "Capture":
+            if (p.getCaptureSourceString() === "" && !p.captureUsesPreset())
+                missing.push(qsTr("Input"));
+            break;
+        case "YouTube":
+            if (p.youtubeUrlField.text.trim() === "")
+                missing.push(qsTr("URL"));
+            break;
+        case "TCP":
+            if (p.tcpCommandsComboBox.currentIndex < 0)
+                missing.push(qsTr("TCP command"));
+            break;
+        case "WebRTC":
+            if (p.whepUrlField.text.trim() === "")
+                missing.push(qsTr("WHEP URL"));
+            break;
+        default:
+            if (p.fileForLayer.text === "")
+                missing.push(qsTr("File"));
+            break;
+        }
+        return missing;
+    }
+
     onVisibilityChanged: {
+        // Cleared on close too, so the warning (and the extra height) is gone before the next open.
+        showMissingProperties = false;
         if (visible) {
             layerCoreProps.resetValues();
         } else {
@@ -41,6 +96,7 @@ Kirigami.ApplicationWindow {
     }
 
     GridLayout {
+        id: mainLayout
         anchors.fill: parent
         anchors.margins: 15
         columnSpacing: 2
@@ -70,7 +126,16 @@ Kirigami.ApplicationWindow {
             id: layerCoreProps
             Layout.columnSpan: 2
         }
-        
+
+        Kirigami.InlineMessage {
+            id: missingPropertiesMessage
+            Layout.columnSpan: 2
+            Layout.fillWidth: true
+            type: Kirigami.MessageType.Warning
+            visible: root.showMissingProperties && root.missingProperties().length > 0
+            text: qsTr("Missing: %1").arg(root.missingProperties().join(", "))
+        }
+
         RowLayout {
             Layout.bottomMargin: 5
             Layout.columnSpan: 2
@@ -81,7 +146,8 @@ Kirigami.ApplicationWindow {
                 text: qsTr("Add new layer")
 
                 onClicked: {
-                    if (layerCoreProps.layerTitle.text !== "") {
+                    root.showMissingProperties = true;
+                    if (root.missingProperties().length === 0) {
                         if (layerCoreProps.typeComboBox.currentText === "NDI") {
                             layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.ndiSenderComboBox.currentText, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex);
                             layersAddNew.visible = false;
