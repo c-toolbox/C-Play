@@ -700,7 +700,9 @@ void LayersRenderer::renderLayer(const sgct::RenderData& data, const BaseLayer* 
         sv->meshMaskLocs.apply(setter, anim, aspect, fx);
         glUniform1i(sv->meshFlipYLoc, (layer->renderFlipY() ? 1 : 0));
 
-        const sgct::mat4 mvp = data.projectionMatrix * data.viewMatrix;
+        // Include the SGCT scene transform (config "scene": offset/orientation/scale), as the
+        // dome and sphere grids do, so planes stay in the same frame as dome content.
+        const sgct::mat4 mvp = data.modelViewProjectionMatrix;
 
         if (layer->circularPlaneActive()) {
             const_cast<BaseLayer*>(layer)->updatePlane();
