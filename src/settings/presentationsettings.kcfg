@@ -38,6 +38,10 @@
       <label>The default grid mode for new layers</label>
       <default>1</default>
     </entry>
+    <entry name="AddNewLayersToTop" type="bool">
+      <label>Place layers added through the add-new-layer dialog at the top of the layers list (false = at the bottom)</label>
+      <default>true</default>
+    </entry>
     <entry name="GuessGridModeOnDragAndDrop" type="bool">
       <label>Guess grid mode on drag-and-drop</label>
       <default>true</default>

@@ -33,6 +33,24 @@ Kirigami.ApplicationWindow {
     // Set by a click on "Add new layer"; from then on the warning follows the fields as they are filled in.
     property bool showMissingProperties: false
 
+    // Moves a just-added layer to the top of the list when the presentation setting asks for it,
+    // makes it the selected layer in the layers list, and returns the row the layer ends up on
+    // (-1 stays -1 when adding failed).
+    function placeNewLayer(layerIdx) {
+        if (layerIdx < 0)
+            return layerIdx;
+        if (layerIdx > 0 && PresentationSettings.addNewLayersToTop) {
+            app.slides.selected.moveLayerTop(layerIdx);
+            layerIdx = 0;
+        }
+        // Marked rows would take over the highlight, so drop them and select only the new layer.
+        layers.clearMarked();
+        layers.layersView.currentIndex = layerIdx;
+        layerView.layerItem.layerIdx = layerIdx;
+        layers.layersView.positionViewAtIndex(layerIdx, ListView.Contain);
+        return layerIdx;
+    }
+
     // Names of the properties that must be filled in before the layer can be added (empty when complete).
     function missingProperties() {
         var p = layerCoreProps;
@@ -149,12 +167,12 @@ Kirigami.ApplicationWindow {
                     root.showMissingProperties = true;
                     if (root.missingProperties().length === 0) {
                         if (layerCoreProps.typeComboBox.currentText === "NDI") {
-                            layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.ndiSenderComboBox.currentText, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex);
+                            layerView.layerItem.layerIdx = root.placeNewLayer(app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.ndiSenderComboBox.currentText, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex));
                             layersAddNew.visible = false;
                             app.slides.updateSelectedSlide();
                             mpv.focus = true;
                         } else if (layerCoreProps.typeComboBox.currentText === "Spout") {
-                            layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.spoutSenderComboBox.currentText, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex);
+                            layerView.layerItem.layerIdx = root.placeNewLayer(app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.spoutSenderComboBox.currentText, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex));
                             layerView.layerItem.layerCaptureTargetNode = layerCoreProps.captureTargetNode();
                             // "Master sends content to nodes" enables Node stream on the new layer immediately.
                             if (!layerCoreProps.captureNodeTargeted && !layerCoreProps.captureMasterOnly && layerCoreProps.nodeSourceComboBox.currentIndex === 1) {
@@ -168,7 +186,7 @@ Kirigami.ApplicationWindow {
                             app.slides.updateSelectedSlide();
                             mpv.focus = true;
                         } else if (layerCoreProps.typeComboBox.currentText === "OMT") {
-                            layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.omtSenderComboBox.currentText, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex);
+                            layerView.layerItem.layerIdx = root.placeNewLayer(app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.omtSenderComboBox.currentText, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex));
                             layersAddNew.visible = false;
                             app.slides.updateSelectedSlide();
                             mpv.focus = true;
@@ -196,7 +214,7 @@ Kirigami.ApplicationWindow {
                                 directShowParam = layerCoreProps.fileForLayer.text;
                             }
                             if (directShowParam !== "" || directShowPresetKey !== "") {
-                                layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, directShowParam, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex);
+                                layerView.layerItem.layerIdx = root.placeNewLayer(app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, directShowParam, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex));
                                 layerView.layerItem.layerCaptureTargetNode = layerCoreProps.captureTargetNode();
                                 if (directShowPresetKey !== "") {
                                     layerView.layerItem.layerDirectShowPresetKey = directShowPresetKey;
@@ -219,7 +237,7 @@ Kirigami.ApplicationWindow {
                             var captureParam = layerCoreProps.getCaptureSourceString();
                             var capturePresetKey = layerCoreProps.captureUsesPreset() ? layerCoreProps.capturePresetsComboBox.currentText : "";
                             if (captureParam !== "" || capturePresetKey !== "") {
-                                layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, captureParam, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex);
+                                layerView.layerItem.layerIdx = root.placeNewLayer(app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, captureParam, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex));
                                 if (capturePresetKey !== "") {
                                     layerView.layerItem.layerCapturePresetKey = capturePresetKey;
                                 }
@@ -240,14 +258,14 @@ Kirigami.ApplicationWindow {
                             }
                         } else if (layerCoreProps.typeComboBox.currentText === "Stream") {
                             if(layerCoreProps.streamsLayout.customEntry){
-                                layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.streamCustomEntryField.text, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex);
+                                layerView.layerItem.layerIdx = root.placeNewLayer(app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.streamCustomEntryField.text, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex));
                             }
                             else if(layerCoreProps.streamsLayout.mediaMtxEntry){
                                 // MediaMTX streams resolve to a plain RTSP URL, so they behave like a custom path.
-                                layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.mediaMtxStreamsComboBox.currentValue, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex);
+                                layerView.layerItem.layerIdx = root.placeNewLayer(app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.mediaMtxStreamsComboBox.currentValue, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex));
                             }
                             else {
-                                layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.streamsComboBox.currentValue, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex);
+                                layerView.layerItem.layerIdx = root.placeNewLayer(app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.streamsComboBox.currentValue, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex));
                                 // Remember which predefined entry this layer was created from (the entry title), so each machine in the cluster can resolve its own local path from data/predefined-streams.json. Custom paths keep an empty key and use the file path verbatim.
                                 layerView.layerItem.layerStreamKey = layerCoreProps.streamsComboBox.currentText;
                             }
@@ -260,7 +278,7 @@ Kirigami.ApplicationWindow {
                             mpv.focus = true;
                         } else if (layerCoreProps.typeComboBox.currentText === "YouTube") {
                             if (layerCoreProps.youtubeUrlField.text.trim() !== "") {
-                                layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.youtubeUrlField.text.trim(), layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex);
+                                layerView.layerItem.layerIdx = root.placeNewLayer(app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.youtubeUrlField.text.trim(), layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex));
                                 // "Master sends content to nodes" enables Node stream on the new layer immediately.
                                 if (layerCoreProps.nodeSourceComboBox.currentIndex === 1) {
                                     layerView.layerItem.layerNodeStreamOutputEnabled = true;
@@ -270,29 +288,29 @@ Kirigami.ApplicationWindow {
                                 mpv.focus = true;
                             }
                         } else if (layerCoreProps.typeComboBox.currentText === "Text") {
-                            layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.textForLayer.text, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex);
+                            layerView.layerItem.layerIdx = root.placeNewLayer(app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.textForLayer.text, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex));
                             layersAddNew.visible = false;
                             app.slides.updateSelectedSlide();
                             mpv.focus = true;
                         } else if (layerCoreProps.typeComboBox.currentText === "MultiVideo") {
                             if (layerCoreProps.fileForLayer.text !== "") {
-                                layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.fileForLayer.text, 0, 0);
+                                layerView.layerItem.layerIdx = root.placeNewLayer(app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.fileForLayer.text, 0, 0));
                                 layersAddNew.visible = false;
                                 app.slides.updateSelectedSlide();
                                 mpv.focus = true;
                             }
                         } else if (layerCoreProps.typeComboBox.currentText === "Control") {
                             var controlPath = layerCoreProps.controlOperationComboBox.currentText + ":" + layerCoreProps.controlParameterField.text;
-                            layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, controlPath, 0, 0);
+                            layerView.layerItem.layerIdx = root.placeNewLayer(app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, controlPath, 0, 0));
                             layersAddNew.visible = false;
                             app.slides.updateSelectedSlide();
                             mpv.focus = true;
                         } else if (layerCoreProps.typeComboBox.currentText === "TCP") {
                             if (layerCoreProps.tcpCommandsComboBox.currentIndex < 0)
                                 return;
-                            layerView.layerItem.layerIdx = app.slides.selected.addTcpLayer(
+                            layerView.layerItem.layerIdx = root.placeNewLayer(app.slides.selected.addTcpLayer(
                                 layerCoreProps.layerTitle.text || layerCoreProps.tcpCommandsComboBox.currentText,
-                                layerCoreProps.tcpCommandsComboBox.currentValue);
+                                layerCoreProps.tcpCommandsComboBox.currentValue));
                             layersAddNew.visible = false;
                             app.slides.updateSelectedSlide();
                             mpv.focus = true;
@@ -303,7 +321,7 @@ Kirigami.ApplicationWindow {
                             } else {
                                 restUrl = layerCoreProps.restCommandsComboBox.currentValue;
                             }
-                            layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, restUrl, 0, 0);
+                            layerView.layerItem.layerIdx = root.placeNewLayer(app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, restUrl, 0, 0));
                             // Set method, parameters, ignoreStatus after creation
                             layerView.layerItem.layerRestMethod = layerCoreProps.restMethodComboBox.currentIndex;
                             layerView.layerItem.layerRestParameters = layerCoreProps.getRestParametersJson();
@@ -313,7 +331,7 @@ Kirigami.ApplicationWindow {
                             mpv.focus = true;
                         } else if (layerCoreProps.typeComboBox.currentText === "WebRTC") {
                             if (layerCoreProps.whepUrlField.text.trim() !== "") {
-                                layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.whepUrlField.text.trim(), layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex);
+                                layerView.layerItem.layerIdx = root.placeNewLayer(app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.whepUrlField.text.trim(), layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex));
                                 // The relay is on by default; only an unchecked box changes that.
                                 layerView.layerItem.layerMasterRelay = layerCoreProps.masterRelayCheckBox.checked;
                                 layersAddNew.visible = false;
@@ -321,7 +339,7 @@ Kirigami.ApplicationWindow {
                                 mpv.focus = true;
                             }
                         } else if (layerCoreProps.fileForLayer.text !== "") {
-                            layerView.layerItem.layerIdx = app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.fileForLayer.text, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex);
+                            layerView.layerItem.layerIdx = root.placeNewLayer(app.slides.selected.addLayer(layerCoreProps.layerTitle.text, layerCoreProps.typeComboBox.currentIndex + 1, layerCoreProps.fileForLayer.text, layerCoreProps.stereoscopicModeForLayer.currentIndex, layerCoreProps.gridModeForLayer.currentIndex));
                             // If an image sequence was detected and user did not opt to load only this image
                             if (layerCoreProps.typeComboBox.currentText === "Image" && layerCoreProps.imageSequenceDetected && !layerCoreProps.imageSequenceLoadOnlyThis) {
                                 var scanResult = playerController.scanImageSequence(layerCoreProps.fileForLayer.text);
@@ -351,7 +369,7 @@ Kirigami.ApplicationWindow {
                 }
 
                 ToolTip {
-                    text: qsTr("Add layer to bottom of list")
+                    text: PresentationSettings.addNewLayersToTop ? qsTr("Add layer to top of list") : qsTr("Add layer to bottom of list")
                 }
             }
             Item {

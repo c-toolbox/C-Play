@@ -446,6 +446,28 @@ SettingsBasePage {
             width: 1
         }
         CheckBox {
+            checked: PresentationSettings.addNewLayersToTop
+            text: qsTr("Add new layers to the top of the layers list")
+
+            onCheckedChanged: {
+                PresentationSettings.addNewLayersToTop = checked;
+                PresentationSettings.save();
+            }
+
+            ToolTip {
+                text: qsTr("Layers added with the \"+\" button go to the top of the list. Uncheck to add them to the bottom instead.")
+            }
+        }
+        Item {
+            // spacer item
+            Layout.fillWidth: true
+        }
+
+        Item {
+            height: 1
+            width: 1
+        }
+        CheckBox {
             checked: PresentationSettings.guessGridModeOnDragAndDrop
             text: qsTr("Guess grid mode on drag-and-drop")
 
