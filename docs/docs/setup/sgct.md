@@ -36,16 +36,7 @@ In a real installation, set `masteraddress` and the `address` of every node to t
 
 ## Communication between master and nodes
 
-Every node in the configuration has two ports, and the master and the nodes need both of them to work together:
-
-```json
-{
-  "address": "127.0.0.2",
-  "port": 20402,
-  "datatransferport": 21402,
-  "windows": [ ... ]
-}
-```
+Every node in the configuration has two ports, `port` and `datatransferport`, and the master and the nodes need both of them to work together:
 
 * **`port`** — The sync connection. The master sends the synchronized state to the node every frame: playback position, layers, visibility and so on. This is what keeps the nodes showing the same content as the master.
 * **`datatransferport`** — The data transfer connection, which goes the other way. The nodes report back to the master on what is going on in each of them, so the pilot at the master sees the state of the complete system, not only of the master:
@@ -58,11 +49,64 @@ Every node in the configuration has two ports, and the master and the nodes need
 
 Without the data transfer connection, the nodes still show the synchronized content, but the master knows nothing about them: playback is not held while nodes load, and failures and problems on the nodes are not shown to the pilot.
 
-When a node has no `datatransferport`, C-Play uses its `port` + 1000. Still, set it explicitly for every node, as in the examples, so that the ports are documented in the configuration and can be opened in the firewall. Note that:
+### Example: a master and two nodes
 
-* Every `port` and `datatransferport` must be unique within the configuration, as the master listens on all of them. In particular, the `datatransferport` of one node must not be the `port` of another.
-* The nodes connect to the master, so the firewall on the master has to allow incoming TCP connections on both the `port` and the `datatransferport` of every node.
+An installation has three computers: the master, where the pilot works, at `192.168.1.10`, and two computers that drive projectors at `192.168.1.11` and `192.168.1.12`. The configuration for it looks like this. The `users` and `windows` are left out, since they do not affect the ports:
+
+```json
+{
+  "version": 1,
+  "masteraddress": "192.168.1.10",
+  "nodes": [
+    {
+      "address": "192.168.1.10",
+      "port": 20401,
+      "datatransferport": 21401,
+      "windows": [ ... ]
+    },
+    {
+      "address": "192.168.1.11",
+      "port": 20402,
+      "datatransferport": 21402,
+      "windows": [ ... ]
+    },
+    {
+      "address": "192.168.1.12",
+      "port": 20403,
+      "datatransferport": 21403,
+      "windows": [ ... ]
+    }
+  ]
+}
+```
+
+Every node opens two TCP connections to `masteraddress`, one on its own `port` and one on its own `datatransferport`. The master listens on all four ports:
+
+| Computer | Connects to | Connection | Direction of the data |
+|:---|:---|:---|:---|
+| Node `192.168.1.11` | `192.168.1.10:20402` | Sync | Master → node |
+| Node `192.168.1.11` | `192.168.1.10:21402` | Data transfer | Node → master |
+| Node `192.168.1.12` | `192.168.1.10:20403` | Sync | Master → node |
+| Node `192.168.1.12` | `192.168.1.10:21403` | Data transfer | Node → master |
+
+The master does not connect to itself, so its own `port` and `datatransferport` (`20401` and `21401`) are not used. Set them anyway: `port` is required for every node, and the master entry then looks like the others.
+
+In this example, the firewall on the master has to allow incoming TCP connections on ports `20402`, `20403`, `21402` and `21403`. On Windows, you can add the rule in a PowerShell started as administrator on the master:
+
+```powershell
+New-NetFirewallRule -DisplayName "C-Play cluster" -Direction Inbound -Protocol TCP -LocalPort 20402,20403,21402,21403 -Action Allow
+```
+
+The nodes only make outgoing connections, so their firewalls normally need no new rule.
+
+To add a third node, give it the next free ports, such as `"port": 20404` and `"datatransferport": 21404`, and open both of them in the firewall on the master.
+
+### Rules for the ports
+
+* Every `port` and `datatransferport` must be unique within the configuration. In particular, the `datatransferport` of one node must not be the `port` of another. In the example above, `"datatransferport": 20403` for node `192.168.1.11` would clash with the sync port of node `192.168.1.12`.
+* When a node has no `datatransferport`, C-Play uses its `port` + 1000. That is why the example uses the `20400` range for `port` and the `21400` range for `datatransferport`. Still, set it explicitly for every node so that all ports to open in the firewall can be read from the configuration.
 * A node with `"datatransferport": 0` has no data transfer connection.
+* If the firewall allows `port` but blocks `datatransferport`, the nodes still show the synchronized content, but the master gets no reports from them, as described above. If loading on nodes or node telemetry never shows anything, check the `datatransferport` first.
 
 ## Auto 2D vs 3D switch
 
