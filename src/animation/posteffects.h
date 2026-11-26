@@ -33,7 +33,8 @@ enum PostEffectFlag : uint32_t {
 struct PostEffects {
     uint32_t enabled = 0;
 
-    // Chroma key: chroma distance (CbCr) to keyColor below similarity is removed,
+    // Chroma key: color distance (CbCr, plus luma weighted by how neutral keyColor is) to
+    // keyColor below similarity is removed,
     // smoothness widens the transition, spill desaturates the key color left on edges.
     glm::vec3 keyColor = glm::vec3(0.f, 1.f, 0.f);
     float keySimilarity = 0.4f;
@@ -138,12 +139,18 @@ vec4 cplayPost(vec2 uv, vec2 localUv) {
     vec4 c = cplayPostSample(uv);
     const vec3 lumaW = vec3(0.2126, 0.7152, 0.0722);
     if ((postFlags & 1) != 0) {
-        // BT.709 CbCr distance (as OBS) so the familiar similarity values apply.
+        // BT.709 CbCr distance (as OBS) so the familiar similarity values apply, plus a luma
+        // term: chroma alone cannot tell black, greys and white apart (all have CbCr 0), so
+        // keying a neutral color would remove every neutral pixel. The luma weight follows the
+        // key's saturation: neutral keys are matched mostly on luma, saturated keys (green or
+        // blue screens) mostly on chroma so uneven lighting of the screen is still keyed.
         const vec3 cbW = vec3(-0.100644, -0.338572, 0.439216);
         const vec3 crW = vec3(0.439216, -0.398942, -0.040274);
         vec3 key = postParams[0].rgb;
-        float d = distance(vec2(dot(c.rgb, cbW), dot(c.rgb, crW)), vec2(dot(key, cbW), dot(key, crW)));
-        float base = d - postParams[0].a;
+        vec2 keyC = vec2(dot(key, cbW), dot(key, crW));
+        float dC = distance(vec2(dot(c.rgb, cbW), dot(c.rgb, crW)), keyC);
+        float dY = (dot(c.rgb, lumaW) - dot(key, lumaW)) * mix(2.0, 0.5, clamp(length(keyC) / 0.25, 0.0, 1.0));
+        float base = sqrt(dC * dC + dY * dY) - postParams[0].a;
         c.a *= pow(clamp(base / max(postParams[1].x, 0.0001), 0.0, 1.0), 1.5);
         float spill = pow(clamp(base / max(postParams[1].y, 0.0001), 0.0, 1.0), 1.5);
         c.rgb = mix(vec3(dot(c.rgb, lumaW)), c.rgb, spill);

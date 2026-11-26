@@ -57,7 +57,7 @@ Click **Effects** in the Inspect view toolbar and open the **Post Process** tab.
 
 | Effect | Settings | Description |
 |--------|----------|-------------|
-| **Chroma key** | Key color, Similarity, Smoothness, Spill reduction | Makes a background color, such as a green or blue screen, transparent. *Similarity* sets how close to the key color a pixel must be to be removed, *Smoothness* softens the edge, and *Spill reduction* removes the key color's tint from the edges that remain. |
+| **Chroma key** | Key color, Similarity, Smoothness, Spill reduction | Makes a background color, such as a green or blue screen, transparent. *Similarity* sets how close to the key color a pixel must be to be removed, *Smoothness* softens the edge, and *Spill reduction* removes the key color's tint from the edges that remain. Neutral colors such as a black or white background can be keyed too; only colors near the key color's brightness are removed. |
 | **Luma key** | Threshold, Smoothness, Remove bright areas instead | Makes dark areas transparent, for example graphics on a black background, or bright areas when inverted. |
 | **Color correction** | Brightness, Contrast, Saturation, Gamma, Hue | Adjusts the colors. A saturation of 0 % gives black and white. |
 | **Invert colors** | — | Shows the image as a negative. |
