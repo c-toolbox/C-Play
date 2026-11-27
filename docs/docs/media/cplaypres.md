@@ -7,6 +7,8 @@ sidebar_position: 8
 
 Presentations in C-Play are essentially a list of *slides*, where each slide contains a list of *layers*. These lists can be saved and loaded as "*.cplaypres" files.
 
+To see a finished presentation first, download the [example dome presentation](/media/example-presentation).
+
 These lists are shown or hidden through the buttons on either the left or right side of the *footer* taskbar, depending on your playlist preference.
 
 ![Slide and Layers show and hide](/assets/ui/slides_layers_show_hide.png)
