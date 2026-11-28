@@ -10,6 +10,7 @@
 #include "_debug.h"
 #include "locationsettings.h"
 #include "layers/baselayer.h"
+#include "utils/pathutils.h"
 #include <algorithm>
 
 #include <QDir>
@@ -524,14 +525,7 @@ void PlayListItem::setIndex(int index) {
 }
 
 QString PlayListItem::makePathRelativeTo(const QString &filePath, const QStringList &pathsToConsider) const {
-    // Assuming filePath is absolute
-    for (int i = 0; i < pathsToConsider.size(); i++) {
-        if (filePath.startsWith(pathsToConsider[i])) {
-            QDir foundDir(pathsToConsider[i]);
-            return foundDir.relativeFilePath(filePath);
-        }
-    }
-    return filePath;
+    return PathUtils::makePathRelativeTo(filePath, pathsToConsider);
 }
 
 QJsonDocument PlayListItem::asJSONPlayFileDocument(const QStringList &pathsToConsider) const {
@@ -635,8 +629,7 @@ QJsonDocument PlayListItem::asJSONPlayFileDocument(const QStringList &pathsToCon
 }
 
 void PlayListItem::saveAsJSONPlayFile(const QString &path) const {
-    QString fileToSave = path;
-    fileToSave.replace(QStringLiteral("file:///"), QStringLiteral(""));
+    QString fileToSave = PathUtils::toLocalPath(path);
     QFileInfo fileToSaveInfo(fileToSave);
 
     QStringList pathsToConsider;
@@ -1066,23 +1059,5 @@ void PlayListItem::loadUniviewFDV() {
 }
 
 QString PlayListItem::checkAndCorrectPath(const QString &filePath, const QStringList &searchPaths) {
-    QFileInfo fileInfo(filePath);
-    if (fileInfo.exists())
-        return filePath;
-    else if (fileInfo.isRelative()) { // Go through search list in order
-        for (int i = 0; i < searchPaths.size(); i++) {
-            QString newFilePath = QDir::cleanPath(searchPaths[i] + QDir::separator() + filePath);
-            QFileInfo newFilePathInfo(newFilePath);
-            if (newFilePathInfo.exists())
-                return newFilePath;
-        }
-
-        // Maybe from network share?
-        QString sharefilePath = filePath;
-        sharefilePath.replace(QStringLiteral("file://"), QStringLiteral("\\\\"));
-        fileInfo = QFileInfo(sharefilePath);
-        if (fileInfo.exists())
-            return sharefilePath;
-    }
-    return QStringLiteral("");
+    return PathUtils::checkAndCorrectPath(filePath, searchPaths);
 }

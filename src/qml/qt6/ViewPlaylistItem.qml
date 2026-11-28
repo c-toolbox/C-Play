@@ -461,11 +461,11 @@ Kirigami.ApplicationWindow {
                 parentWindow: viewPlaylistItemWindow
                 title: qsTr("Select Audio File")
                 fileMode: CPlayFileDialog.OpenFile
-                currentFolder: startFolder.length > 0 ? "file:///" + startFolder : ""
+                currentFolder: startFolder.length > 0 ? app.pathToUrl(startFolder) : ""
                 nameFilters: [qsTr("Audio files") + " (*.wav *.mp3 *.flac *.ogg *.aac *.wma *.m4a *.opus *.aiff *.ac3 *.dts *.pcm)"]
 
                 onAccepted: {
-                    var filePath = selectedFile.toString().replace("file:///", "");
+                    var filePath = app.urlToPath(selectedFile);
                     listAudioTextField.text = filePath;
                     if (viewPlaylistItemWindow.selectedIndex >= 0) {
                         mpv.playlistModel.setListAudioFile(viewPlaylistItemWindow.selectedIndex, filePath);

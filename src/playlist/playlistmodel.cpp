@@ -14,6 +14,7 @@
 #include "playlistitem.h"
 #include "worker.h"
 #include "utils/autosave.h"
+#include "utils/pathutils.h"
 
 #include <QCollator>
 #include <QCoreApplication>
@@ -237,7 +238,7 @@ QUrl PlaySectionsModel::getSuggestedFileURL() {
         QFileInfo filePathInfo(m_currentEditItem->filePath());
         QString fileExt = filePathInfo.suffix();
         if (fileExt == QStringLiteral("cplayfile") || fileExt == QStringLiteral("cplay_file")) {
-            return QUrl(QStringLiteral("file:///") + m_currentEditItem->filePath());
+            return PathUtils::toFileUrl(m_currentEditItem->filePath());
         } else {
             QString fileName = filePathInfo.baseName();
             if (fileName.isEmpty()) {
@@ -245,7 +246,7 @@ QUrl PlaySectionsModel::getSuggestedFileURL() {
                 fileName = mediaInfo.baseName();
             }
             fileName.replace(QStringLiteral(" "), QStringLiteral("_"));
-            return QUrl(QStringLiteral("file:///") + suggestFolderPath + QStringLiteral("/") + fileName + QStringLiteral(".cplayfile"));
+            return PathUtils::toFileUrl(suggestFolderPath + QStringLiteral("/") + fileName + QStringLiteral(".cplayfile"));
         }
     } else {
         return QUrl();
@@ -579,7 +580,7 @@ QHash<int, QByteArray> PlayListModel::roleNames() const {
 
 void PlayListModel::getVideos(QString path) {
     clear();
-    path = QUrl(path).toLocalFile().isEmpty() ? path : QUrl(path).toLocalFile();
+    path = PathUtils::toLocalPath(path);
     QFileInfo pathInfo(path);
     QStringList videoFiles;
     if (pathInfo.exists() && pathInfo.isFile()) {
@@ -688,7 +689,7 @@ QString PlayListModel::getPlayListPath() const {
 }
 
 QUrl PlayListModel::getPlayListPathAsURL() const {
-    return QUrl(QStringLiteral("file:///") + m_playListPath);
+    return PathUtils::toFileUrl(m_playListPath);
 }
 
 int PlayListModel::getPlayingVideo() const {
@@ -877,7 +878,7 @@ QString PlayListModel::filePath(int i) const {
 
 QUrl PlayListModel::filePathAsURL(int i) const {
     if (i >= 0 && m_playList.size() > i && m_playList[i])
-        return QUrl(QStringLiteral("file:///") + m_playList[i].data()->filePath());
+        return PathUtils::toFileUrl(m_playList[i].data()->filePath());
     return QUrl();
 }
 
@@ -895,7 +896,7 @@ QString PlayListModel::fileFolderPath(int i) const {
 
 QUrl PlayListModel::fileFolderPathAsURL(int i) const {
     if (i >= 0 && m_playList.size() > i && m_playList[i])
-        return QUrl(QStringLiteral("file:///") + m_playList[i].data()->fileFolderPath());
+        return PathUtils::toFileUrl(m_playList[i].data()->fileFolderPath());
     return QUrl();
 }
 
@@ -1167,14 +1168,7 @@ void PlayListModel::setListFileEndTimeFromString(int i, const QString &endTime) 
 }
 
 QString PlayListModel::makePathRelativeTo(const QString &filePath, const QStringList &pathsToConsider) {
-    // Assuming filePath is absolute
-    for (int i = 0; i < pathsToConsider.size(); i++) {
-        if (filePath.startsWith(pathsToConsider[i])) {
-            QDir foundDir(pathsToConsider[i]);
-            return foundDir.relativeFilePath(filePath);
-        }
-    }
-    return filePath;
+    return PathUtils::makePathRelativeTo(filePath, pathsToConsider);
 }
 
 QJsonDocument PlayListModel::asJSONPlaylistDocument(const QStringList &pathsToConsider) {
@@ -1233,8 +1227,7 @@ QJsonDocument PlayListModel::asJSONPlaylistDocument(const QStringList &pathsToCo
 }
 
 void PlayListModel::saveAsJSONPlaylist(const QString &path) {
-    QString fileToSave = path;
-    fileToSave.replace(QStringLiteral("file:///"), QStringLiteral(""));
+    QString fileToSave = PathUtils::toLocalPath(path);
     QFileInfo fileToSaveInfo(fileToSave);
 
     QStringList pathsToConsider;

@@ -7,6 +7,7 @@
 
 #include "nodemediafolder.h"
 #include "nodeidentityconfig.h"
+#include "pathutils.h"
 
 #include <sgct/sgct.h>
 #include <nlohmann/json.hpp>
@@ -20,9 +21,7 @@
 
 namespace {
 QString localPath(const QString& file) {
-    QString path = file;
-    path.replace(QStringLiteral("file:///"), QStringLiteral(""));
-    return path;
+    return PathUtils::toLocalPath(file);
 }
 
 std::string nodeEntryLog(const NodeMediaEntry& e) {

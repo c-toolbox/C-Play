@@ -9,6 +9,7 @@
 #include "tracksmodel.h"
 #include "_debug.h"
 #include "track.h"
+#include "utils/utf8path.h"
 #include <filesystem>
 #include <utility>
 
@@ -50,9 +51,9 @@ QVariant TracksModel::data(const QModelIndex &index, int role) const {
             shortText = QString::fromStdString(track.lang());
         }
         else if (!track.title().empty()) {
-            std::filesystem::path titlePath = std::filesystem::path(track.title());
+            const std::filesystem::path titlePath = utf8Path(track.title());
             if (titlePath.has_extension()) {
-                shortText = QString::fromStdString(titlePath.stem().string());
+                shortText = QString::fromStdString(pathToUtf8(titlePath.stem()));
             }
             else {
                 shortText = QString::fromStdString(track.title());
@@ -120,9 +121,9 @@ std::string TracksModel::getListAsFormattedString(std::string removePrefix, int 
             shortText = QString::fromStdString(m_tracks->at(i).lang());
         }
         else if (!m_tracks->at(i).title().empty()) {
-            std::filesystem::path titlePath = std::filesystem::path(m_tracks->at(i).title());
+            const std::filesystem::path titlePath = utf8Path(m_tracks->at(i).title());
             if (titlePath.has_extension()) {
-                shortText = QString::fromStdString(titlePath.stem().string());
+                shortText = QString::fromStdString(pathToUtf8(titlePath.stem()));
             }
             else {
                 shortText = QString::fromStdString(m_tracks->at(i).title());

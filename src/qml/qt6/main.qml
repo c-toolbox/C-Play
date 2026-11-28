@@ -524,19 +524,6 @@ Kirigami.ApplicationWindow {
         }
 
         mpvObject: mpv
-        backgroundImageFile: playerController.checkAndCorrectPath(playerController.backgroundImageFileUrl())
-        foregroundImageFile: playerController.checkAndCorrectPath(playerController.foregroundImageFileUrl())
-
-        Connections {
-           function onBackgroundImageChanged() {
-                viewLayersIn3DRenderItem.backgroundImageFile = playerController.checkAndCorrectPath(playerController.backgroundImageFileUrl());
-           }
-           function onForegroundImageChanged() {
-                viewLayersIn3DRenderItem.foregroundImageFile = playerController.checkAndCorrectPath(playerController.foregroundImageFileUrl());
-           }
-
-            target: playerController
-        }
 
         onVisibleChanged: {
             if (layerView.layerItem)
@@ -1431,7 +1418,7 @@ Kirigami.ApplicationWindow {
             // once the table view rows are loaded
             playList.scrollPositionTimer.start();
             mpv.focus = true;
-            LocationSettings.fileDialogLastLocation = app.pathToUrl(newMediaFileToOpen);
+            LocationSettings.fileDialogLastLocation = app.parentUrl(newMediaFileToOpen);
             LocationSettings.save();
         }
     }

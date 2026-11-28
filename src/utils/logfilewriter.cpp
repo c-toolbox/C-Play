@@ -6,6 +6,7 @@
  */
 
 #include "utils/logfilewriter.h"
+#include "utils/utf8path.h"
 
 #include <sgct/log.h>
 
@@ -37,14 +38,14 @@ void logFileCallback(sgct::Log::Level, std::string_view message) {
 namespace LogFileWriter {
 
 int open(const std::string &path, bool truncate) {
-    const std::filesystem::path filePath(path);
+    const std::filesystem::path filePath = utf8Path(path);
     if (filePath.has_parent_path()) {
         std::error_code ec;
         std::filesystem::create_directories(filePath.parent_path(), ec); // ignore: open() reports failure
     }
 
-    std::ofstream file(path, truncate ? (std::ofstream::out | std::ofstream::trunc)
-                                      : (std::ofstream::out | std::ofstream::app));
+    std::ofstream file(filePath, truncate ? (std::ofstream::out | std::ofstream::trunc)
+                                          : (std::ofstream::out | std::ofstream::app));
     if (!file.is_open()) {
         return -1;
     }

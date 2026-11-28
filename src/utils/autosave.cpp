@@ -6,6 +6,7 @@
  */
 
 #include "autosave.h"
+#include "pathutils.h"
 
 #include <QCryptographicHash>
 #include <QDebug>
@@ -31,12 +32,11 @@ QString folder() {
 bool isAutosave(const QString &path) {
     if (path.isEmpty())
         return false;
-    QString p = path;
-    p.replace(QStringLiteral("file:///"), QStringLiteral(""));
-    return QFileInfo(p).absoluteDir() == QDir(folder());
+    return QFileInfo(PathUtils::toLocalPath(path)).absoluteDir() == QDir(folder());
 }
 
-QString filePathFor(const QString &sourcePath, const QString &fallbackName, const QString &ext) {
+QString filePathFor(const QString &source, const QString &fallbackName, const QString &ext) {
+    const QString sourcePath = PathUtils::toLocalPath(source);
     if (isAutosave(sourcePath) && QFileInfo(sourcePath).suffix() == ext)
         return QFileInfo(sourcePath).absoluteFilePath();
 

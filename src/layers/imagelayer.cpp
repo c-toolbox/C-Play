@@ -7,6 +7,8 @@
 
 #include "imagelayer.h"
 #include "imagesettings.h"
+#include "../utils/utf8path.h"
+#include <QFile>
 #include <QString>
 #include <sgct/opengl.h>
 
@@ -23,6 +25,7 @@
 #include <cstring>
 #include <filesystem>
 #include <format>
+#include <limits>
 #include <utility>
 
 std::atomic_int ImageLayer::s_lastKnownGpuMemoryKB{0};
@@ -102,7 +105,7 @@ static const char* decoderName(ImageLayer::ImageDecoder decoder) {
 }
 
 static bool sgctSupportedExtension(const std::filesystem::path& path) {
-    std::string extension = path.extension().generic_string();
+    std::string extension = pathToUtf8(path.extension());
     std::ranges::transform(extension, extension.begin(), [](unsigned char character) {
         return static_cast<char>(std::tolower(character));
     });
@@ -127,7 +130,7 @@ static bool enqueueDecodedFrame(const std::shared_ptr<ImageLayer::ThreadContext>
 static bool loadWuffsImage(const std::shared_ptr<ImageLayer::ThreadContext>& ctx, int maxBuffered) {
     WuffsImage::Image image;
     std::string error;
-    if (!WuffsImage::decodeRgbaFile(ctx->filename, image, &error)) {
+    if (!WuffsImage::decodeRgbaFile(utf8Path(ctx->filename), image, &error)) {
         sgct::Log::Warning(std::format("ImageLayer '{}': Wuffs decode failed for '{}': {}",
             ctx->identifier, ctx->filename, error));
         return false;
@@ -187,6 +190,7 @@ auto loadImageAsync = [](std::shared_ptr<ImageLayer::ThreadContext> ctx, int max
         int firstPassAnimatedFrames = 0;
 
         while (!ctx->abortRequested) {
+            // SAIL takes UTF-8 paths, also on Windows (verified with SAIL 1.2.0).
             sail::image_input input(ctx->filename);
             int passFrameIndex = 0;
 
@@ -266,8 +270,23 @@ auto loadImageAsync = [](std::shared_ptr<ImageLayer::ThreadContext> ctx, int max
         if (ctx->decoder != ImageLayer::ImageDecoder::Sgct) {
             sgct::Log::Warning(std::format("ImageLayer '{}': Falling back to SGCT image loading for '{}'", ctx->identifier, ctx->filename));
         }
-        try { ctx->img.load(ctx->filename); ctx->imageDone = true; }
-        catch (...) { ctx->img = sgct::Image(); }
+        // SGCT's filename overload narrows the path before opening it on Windows.
+        try {
+            QFile file(QString::fromStdString(ctx->filename));
+            if (file.open(QIODevice::ReadOnly)) {
+                const qint64 size = file.size();
+                if (size > 0 && size <= std::numeric_limits<int>::max()) {
+                    QByteArray bytes = file.read(size);
+                    if (bytes.size() == size) {
+                        ctx->img.load(reinterpret_cast<unsigned char*>(bytes.data()),
+                                      static_cast<int>(bytes.size()));
+                        ctx->imageDone = true;
+                    }
+                }
+            }
+        } catch (...) {
+            ctx->img = sgct::Image();
+        }
     }
 
     ctx->allFramesLoaded = true;
@@ -473,11 +492,11 @@ std::string ImageLayer::loadedFile() {
 
 bool ImageLayer::fileIsImage(std::string &filePath, ImageLayer::ImageDecoder& decoder, std::string *error) {
     if (!filePath.empty()) {
-        if (std::filesystem::exists(filePath)) {
+        const std::filesystem::path bgPath = utf8Path(filePath);
+        if (std::filesystem::exists(bgPath)) {
             m_lastMissingFileLogged.clear(); // log again should it go missing later
-            std::filesystem::path bgPath = std::filesystem::path(filePath);
             if (bgPath.has_extension()) {
-                std::string bgPathExt = bgPath.extension().generic_string();
+                std::string bgPathExt = pathToUtf8(bgPath.extension());
                 const ImageDecoder dec = configuredImageDecoder();
 #ifdef WUFFS_SUPPORT
                 if ((dec == ImageDecoder::Auto || dec == ImageDecoder::Wuffs) && WuffsImage::isSupportedExtension(bgPath)) {

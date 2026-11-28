@@ -34,6 +34,7 @@
 #include "utils/logfilewriter.h"
 #include "utils/mediasizeprobe.h"
 #include "utils/nodemediafolder.h"
+#include "utils/pathutils.h"
 #include <iostream>
 #include <thread>
 #ifdef MULTI_VIDEO_LAYER
@@ -1052,30 +1053,11 @@ void MpvObject::setLoadAudioInVidFolder(bool enabled) {
 }
 
 QString MpvObject::checkAndCorrectPath(const QString &filePath, const QStringList &searchPaths) {
-    QFileInfo fileInfo(filePath);
-    if (fileInfo.exists())
-        return filePath;
-    else if (fileInfo.isRelative()) { // Go through search list in order
-        for (int i = 0; i < searchPaths.size(); i++) {
-            QString newFilePath = QDir::cleanPath(searchPaths[i] + QDir::separator() + filePath);
-            QFileInfo newFilePathInfo(newFilePath);
-            if (newFilePathInfo.exists())
-                return newFilePath;
-        }
-
-        // Maybe from network share?
-        QString sharefilePath = filePath;
-        sharefilePath.replace(QStringLiteral("file://"), QStringLiteral("\\\\"));
-        fileInfo = QFileInfo(sharefilePath);
-        if (fileInfo.exists())
-            return sharefilePath;
-    }
-    return QStringLiteral("");
+    return PathUtils::checkAndCorrectPath(filePath, searchPaths);
 }
 
 void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile, bool guessGridMode) {
-    QString fileToLoad = file;
-    fileToLoad.replace(QStringLiteral("file:///"), QStringLiteral(""));
+    QString fileToLoad = PathUtils::toLocalPath(file);
     QFileInfo fileInfo(fileToLoad);
     if (!fileInfo.exists()) {
         QStringList fileSearchPaths;
@@ -1083,10 +1065,11 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile, bool gu
         fileSearchPaths.append(LocationSettings::cPlayFileLocation());
         fileSearchPaths.append(LocationSettings::cPlayMediaLocation());
         fileSearchPaths.append(LocationSettings::univiewVideoLocation());
-        fileToLoad = checkAndCorrectPath(fileToLoad, fileSearchPaths);
+        fileToLoad = checkAndCorrectPath(file, fileSearchPaths);
         if (fileToLoad.isEmpty()) {
             return;
         }
+        fileInfo.setFile(fileToLoad);
     }
 
     m_playlistModel->setPlayingVideo(-1);
@@ -1164,8 +1147,8 @@ void MpvObject::loadFile(const QString &file, bool updateLastPlayedFile, bool gu
 
 void MpvObject::loadMultiVideo(const QString &jsonPath, bool updateLastPlayedFile) {
 #ifdef MULTI_VIDEO_LAYER
-    QString path = jsonPath;
-    path.replace(QStringLiteral("file:///"), QStringLiteral(""));
+    const QString resolvedPath = PathUtils::checkAndCorrectPath(jsonPath, {});
+    const QString path = resolvedPath.isEmpty() ? PathUtils::toLocalPath(jsonPath) : resolvedPath;
     m_guessGridModeOnVideoReconfig = false;
     m_gridGuessPlaylistItem.clear();
 
@@ -1231,8 +1214,7 @@ void MpvObject::loadMultiVideo(const QString &jsonPath, bool updateLastPlayedFil
             }
 
             if (!masterFile.isEmpty()) {
-                QString fileToLoad = masterFile;
-                fileToLoad.replace(QStringLiteral("file:///"), QStringLiteral(""));
+                QString fileToLoad = PathUtils::toLocalPath(masterFile);
 
                 QFileInfo jsonFileInfo(path);
                 QStringList fileSearchPaths;
@@ -1243,7 +1225,7 @@ void MpvObject::loadMultiVideo(const QString &jsonPath, bool updateLastPlayedFil
 
                 QFileInfo fileInfo(fileToLoad);
                 if (!fileInfo.exists()) {
-                    fileToLoad = checkAndCorrectPath(fileToLoad, fileSearchPaths);
+                    fileToLoad = checkAndCorrectPath(masterFile, fileSearchPaths);
                 }
 
                 // Build loadfile command with audio-file option (mirrors MpvObject::loadItem behavior)
@@ -1253,11 +1235,10 @@ void MpvObject::loadMultiVideo(const QString &jsonPath, bool updateLastPlayedFil
                     optionsList << QStringLiteral("aid=no");
                 }
                 else if (!masterAudioFile.isEmpty()) {
-                    QString audioFileToLoad = masterAudioFile;
-                    audioFileToLoad.replace(QStringLiteral("file:///"), QStringLiteral(""));
+                    QString audioFileToLoad = PathUtils::toLocalPath(masterAudioFile);
                     QFileInfo audioFileInfo(audioFileToLoad);
                     if (!audioFileInfo.exists()) {
-                        audioFileToLoad = checkAndCorrectPath(audioFileToLoad, fileSearchPaths);
+                        audioFileToLoad = checkAndCorrectPath(masterAudioFile, fileSearchPaths);
                     }
 
                     if(!audioFileToLoad.isEmpty())
@@ -1335,8 +1316,7 @@ void MpvObject::loadMultiVideo(const QString &jsonPath, bool updateLastPlayedFil
 }
 
 void MpvObject::probeGridModeForFile(const QString &file) {
-    QString path = file;
-    path.replace(QStringLiteral("file:///"), QStringLiteral(""));
+    QString path = PathUtils::toLocalPath(file);
     if (!PresentationSettings::guessGridModeOnDragAndDrop() || !QFileInfo::exists(path)) {
         Q_EMIT gridModeProbed(file, -1);
         return;
@@ -1355,8 +1335,7 @@ void MpvObject::probeGridModeForFile(const QString &file) {
 
 int MpvObject::addFileToPlaylist(const QString &file, int index, bool guessGridMode) {
     // Read the file's details without loading it: adding a multi-video entry must not start it.
-    QString fileToAdd = file;
-    fileToAdd.replace(QStringLiteral("file:///"), QStringLiteral(""));
+    QString fileToAdd = PathUtils::toLocalPath(file);
     if (!QFileInfo::exists(fileToAdd))
         return -1;
     auto *item = new PlayListItem(fileToAdd);
@@ -1611,10 +1590,8 @@ void MpvObject::loadItem(PlayListItemData itemData, bool updateLastPlayedFile, Q
 }
 
 PlayListItem *MpvObject::loadMediaFileDescription(const QString &file) {
-    QString fileToLoad = file;
-    fileToLoad.replace(QStringLiteral("file:///"), QStringLiteral(""));
-    QFileInfo fileInfo(fileToLoad);
-    if (!fileInfo.exists())
+    const QString fileToLoad = PathUtils::checkAndCorrectPath(file, {});
+    if (fileToLoad.isEmpty())
         return nullptr;
 
     auto item = new PlayListItem(fileToLoad);
@@ -1629,11 +1606,10 @@ PlayListItem *MpvObject::loadMediaFileDescription(const QString &file) {
 }
 
 void MpvObject::loadJSONPlayList(const QString &file, bool updateLastPlayedFile) {
-    QString fileToLoad = file;
-    fileToLoad.replace(QStringLiteral("file:///"), QStringLiteral(""));
-    QFileInfo jsonFileInfo(fileToLoad);
-    if (!jsonFileInfo.exists())
+    const QString fileToLoad = PathUtils::checkAndCorrectPath(file, {});
+    if (fileToLoad.isEmpty())
         return;
+    const QFileInfo jsonFileInfo(fileToLoad);
 
     QFile f(fileToLoad);
     if (!f.open(QIODevice::ReadOnly)) {
@@ -1737,11 +1713,10 @@ void MpvObject::loadJSONPlayList(const QString &file, bool updateLastPlayedFile)
 }
 
 void MpvObject::loadUniviewPlaylist(const QString &file, bool updateLastPlayedFile) {
-    QString fileToLoad = file;
-    fileToLoad.replace(QStringLiteral("file:///"), QStringLiteral(""));
-    QFileInfo fileInfo(fileToLoad);
-    if (!fileInfo.exists())
+    const QString fileToLoad = PathUtils::checkAndCorrectPath(file, {});
+    if (fileToLoad.isEmpty())
         return;
+    const QFileInfo fileInfo(fileToLoad);
 
     QFile f(fileToLoad);
     if (!f.open(QIODevice::ReadOnly)) {

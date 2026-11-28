@@ -8,7 +8,7 @@ set(CPLAY_VERSION_MAJOR 2)
 set(CPLAY_VERSION_MINOR 4)
 set(CPLAY_VERSION_PATCH 0)
 set(CPLAY_VERSION_PR_NAME "Beta")
-set(CPLAY_VERSION_PR_VERS 72)
+set(CPLAY_VERSION_PR_VERS 73)
 
 qt_add_executable(${TARGET_NAME})
 set_compile_options(${TARGET_NAME})
@@ -177,6 +177,9 @@ set(SOURCE_FILES
     utils/nodeidentityconfig.h
     utils/nodemediafolder.cpp
     utils/nodemediafolder.h
+    utils/pathutils.cpp
+    utils/pathutils.h
+    utils/utf8path.h
     utils/streampathsconfig.cpp
     utils/streampathsconfig.h
     utils/streampathresolver.cpp
@@ -763,7 +766,7 @@ endif()
 
 find_package(OpenGL REQUIRED)
 if(WIN32)
-    list(APPEND TARGET_LIBRARIES opengl32)
+    list(APPEND TARGET_LIBRARIES opengl32 shell32)
     # Node telemetry: GPU Engine utilization counters (GpuLoadProbe).
     list(APPEND TARGET_LIBRARIES pdh)
     if(BUILD_CPLAY_WITH_MEDIA_MTX)

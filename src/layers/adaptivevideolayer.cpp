@@ -1,6 +1,7 @@
 #include "adaptivevideolayer.h"
 #include "videolayer.h"
 #include "mdklayer.h"
+#include "../utils/utf8path.h"
 #include <filesystem>
 #include <QFile>
 #include <QJsonArray>
@@ -135,30 +136,30 @@ void AdaptiveVideoLayer::initializeAndLoad(std::string filePath) {
 void AdaptiveVideoLayer::loadFile(std::string filePath, bool reload) {
     if (!filePath.empty()) {
         // Check which library (MPV or MDK) we should start using based on file name.
-        if (std::filesystem::exists(filePath)) {
-            std::filesystem::path videoPath = std::filesystem::path(filePath);
+        const std::filesystem::path videoPath = utf8Path(filePath);
+        if (std::filesystem::exists(videoPath)) {
             if (videoPath.has_extension() && m_am == AdaptiveMethod::USE_EXTENSION) {
-                std::filesystem::path videoPathExt = videoPath.extension();
-                if (std::find(extPrioMdk.begin(), extPrioMdk.end(), videoPathExt.string().substr(1)) != extPrioMdk.end()) {
+                const std::string videoPathExt = pathToUtf8(videoPath.extension());
+                if (std::find(extPrioMdk.begin(), extPrioMdk.end(), videoPathExt.substr(1)) != extPrioMdk.end()) {
                     if (m_mpl == MediaPlayerLibrary::MPV) {
                         mpvVideoLayer->stop();
                         std::vector<std::byte> data;
                         mpvVideoLayer->encodeFull(data);
                         unsigned int pos = 0;
                         mdkVideoLayer->decodeFull(data, pos);
-                        sgct::Log::Info(std::format("Switching to mdk as file has extension: {}", videoPathExt.string().substr(1)));
+                        sgct::Log::Info(std::format("Switching to mdk as file has extension: {}", videoPathExt.substr(1)));
                     }
                     m_mpl = MediaPlayerLibrary::MDK;
                     mdkVideoLayer->loadFile(filePath, reload);
                 }
-                else if(std::find(extPrioMpv.begin(), extPrioMpv.end(), videoPathExt.string().substr(1)) != extPrioMpv.end()) {
+                else if(std::find(extPrioMpv.begin(), extPrioMpv.end(), videoPathExt.substr(1)) != extPrioMpv.end()) {
                     if (m_mpl == MediaPlayerLibrary::MDK) {
                         mdkVideoLayer->stop();
                         std::vector<std::byte> data;
                         mdkVideoLayer->encodeFull(data);
                         unsigned int pos = 0;
                         mpvVideoLayer->decodeFull(data, pos);
-                        sgct::Log::Info(std::format("Switching to mpv as file has extension: {}", videoPathExt.string().substr(1)));
+                        sgct::Log::Info(std::format("Switching to mpv as file has extension: {}", videoPathExt.substr(1)));
                     }
                     m_mpl = MediaPlayerLibrary::MPV;
                     mpvVideoLayer->loadFile(filePath, reload);

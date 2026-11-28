@@ -25,9 +25,7 @@ SettingsBasePage {
         title: "Choose Primary File Dialog Location"
 
         onAccepted: {
-            var filePath = openPrimaryFileDialogLocation.selectedFolder.toString();
-            // remove prefixed "file:///"
-            filePath = filePath.replace(/^(file:\/{3})/, "");
+            var filePath = app.urlToPath(openPrimaryFileDialogLocation.selectedFolder);
             fileDialogLocationText.text = filePath;
             LocationSettings.fileDialogLocation = fileDialogLocationText.text;
             LocationSettings.save();
@@ -43,9 +41,7 @@ SettingsBasePage {
         title: "Choose Common C-Play File Location"
 
         onAccepted: {
-            var filePath = openCPlayFileLocation.selectedFolder.toString();
-            // remove prefixed "file:///"
-            filePath = filePath.replace(/^(file:\/{3})/, "");
+            var filePath = app.urlToPath(openCPlayFileLocation.selectedFolder);
             cPlayFileLocationText.text = filePath;
             LocationSettings.cPlayFileLocation = cPlayFileLocationText.text;
             LocationSettings.save();
@@ -61,9 +57,7 @@ SettingsBasePage {
         title: "Choose Common C-Play Media Location"
 
         onAccepted: {
-            var filePath = openCPlayMediaLocation.selectedFolder.toString();
-            // remove prefixed "file:///"
-            filePath = filePath.replace(/^(file:\/{3})/, "");
+            var filePath = app.urlToPath(openCPlayMediaLocation.selectedFolder);
             cPlayMediaLocationText.text = filePath;
             LocationSettings.cPlayMediaLocation = cPlayMediaLocationText.text;
             LocationSettings.save();
@@ -79,9 +73,7 @@ SettingsBasePage {
         title: "Choose Cue List Location"
 
         onAccepted: {
-            var filePath = openCueListLocation.selectedFolder.toString();
-            // remove prefixed "file:///"
-            filePath = filePath.replace(/^(file:\/{3})/, "");
+            var filePath = app.urlToPath(openCueListLocation.selectedFolder);
             cueListLocationText.text = filePath;
             LocationSettings.cueListLocation = cueListLocationText.text;
             LocationSettings.save();
@@ -97,9 +89,7 @@ SettingsBasePage {
         title: "Choose Presentation Thumbnail Location"
 
         onAccepted: {
-            var filePath = openPresentationThumbnailLocation.selectedFolder.toString();
-            // remove prefixed "file:///"
-            filePath = filePath.replace(/^(file:\/{3})/, "");
+            var filePath = app.urlToPath(openPresentationThumbnailLocation.selectedFolder);
             presentationThumbnailLocationText.text = filePath;
             LocationSettings.presentationThumbnailLocation = presentationThumbnailLocationText.text;
             LocationSettings.save();
@@ -115,9 +105,7 @@ SettingsBasePage {
         title: "Choose Common Uniview Media Location"
 
         onAccepted: {
-            var filePath = openUniviewVideoLocation.selectedFolder.toString();
-            // remove prefixed "file:///"
-            filePath = filePath.replace(/^(file:\/{3})/, "");
+            var filePath = app.urlToPath(openUniviewVideoLocation.selectedFolder);
             univiewVideoLocationText.text = filePath;
             LocationSettings.univiewVideoLocation = univiewVideoLocationText.text;
             LocationSettings.save();
@@ -133,9 +121,7 @@ SettingsBasePage {
         title: "Choose Common Media Location For Video Files"
 
         onAccepted: {
-            var filePath = videoFileDialogLocation.selectedFolder.toString();
-            // remove prefixed "file:///"
-            filePath = filePath.replace(/^(file:\/{3})/, "");
+            var filePath = app.urlToPath(videoFileDialogLocation.selectedFolder);
             videoFileDialogLocationText.text = filePath;
             LocationSettings.videoFileDialogLocation = videoFileDialogLocationText.text;
             LocationSettings.save();
@@ -151,9 +137,7 @@ SettingsBasePage {
         title: "Choose Common Media Location For Image Files"
 
         onAccepted: {
-            var filePath = imageFileDialogLocation.selectedFolder.toString();
-            // remove prefixed "file:///"
-            filePath = filePath.replace(/^(file:\/{3})/, "");
+            var filePath = app.urlToPath(imageFileDialogLocation.selectedFolder);
             imageFileDialogLocationText.text = filePath;
             LocationSettings.imageFileDialogLocation = imageFileDialogLocationText.text;
             LocationSettings.save();
@@ -169,9 +153,7 @@ SettingsBasePage {
         title: "Choose Common Media Location For Audio Files"
 
         onAccepted: {
-            var filePath = audioFileDialogLocation.selectedFolder.toString();
-            // remove prefixed "file:///"
-            filePath = filePath.replace(/^(file:\/{3})/, "");
+            var filePath = app.urlToPath(audioFileDialogLocation.selectedFolder);
             audioFileDialogLocationText.text = filePath;
             LocationSettings.audioFileDialogLocation = audioFileDialogLocationText.text;
             LocationSettings.save();
@@ -187,9 +169,7 @@ SettingsBasePage {
         title: "Choose Common Media Location For PDF Files"
 
         onAccepted: {
-            var filePath = pdfFileDialogLocation.selectedFolder.toString();
-            // remove prefixed "file:///"
-            filePath = filePath.replace(/^(file:\/{3})/, "");
+            var filePath = app.urlToPath(pdfFileDialogLocation.selectedFolder);
             pdfFileDialogLocationText.text = filePath;
             LocationSettings.pdfFileDialogLocation = pdfFileDialogLocationText.text;
             LocationSettings.save();
@@ -205,9 +185,7 @@ SettingsBasePage {
         title: "Choose Screenshot Location"
 
         onAccepted: {
-            var filePath = screenshotLocationDialog.selectedFolder.toString();
-            // remove prefixed "file:///"
-            filePath = filePath.replace(/^(file:\/{3})/, "");
+            var filePath = app.urlToPath(screenshotLocationDialog.selectedFolder);
             screenshotPath.text = filePath;
             LocationSettings.screenshotPath = screenshotPath.text;
             LocationSettings.save();

@@ -6,6 +6,7 @@
  */
 
 #include "wuffsimage.h"
+#include "utf8path.h"
 
 #include <algorithm>
 #include <cctype>
@@ -38,7 +39,7 @@ namespace {
 
 std::string lowerExtension(const std::filesystem::path &path)
 {
-    std::string extension = path.extension().generic_string();
+    std::string extension = pathToUtf8(path.extension());
     std::ranges::transform(extension, extension.begin(), [](unsigned char character) {
         return static_cast<char>(std::tolower(character));
     });
@@ -50,7 +51,7 @@ bool readFile(const std::filesystem::path &path, std::vector<unsigned char> &byt
     std::ifstream file(path, std::ios::binary | std::ios::ate);
     if (!file) {
         if (errorMessage) {
-            *errorMessage = "Could not open image file '" + path.string() + "'";
+            *errorMessage = "Could not open image file '" + pathToUtf8(path) + "'";
         }
         return false;
     }
@@ -58,7 +59,7 @@ bool readFile(const std::filesystem::path &path, std::vector<unsigned char> &byt
     const std::streamsize size = file.tellg();
     if (size <= 0 || size > static_cast<std::streamsize>(std::numeric_limits<int>::max())) {
         if (errorMessage) {
-            *errorMessage = "Image file is empty or too large for Wuffs loading: '" + path.string() + "'";
+            *errorMessage = "Image file is empty or too large for Wuffs loading: '" + pathToUtf8(path) + "'";
         }
         return false;
     }
@@ -67,7 +68,7 @@ bool readFile(const std::filesystem::path &path, std::vector<unsigned char> &byt
     file.seekg(0, std::ios::beg);
     if (!file.read(reinterpret_cast<char *>(bytes.data()), size)) {
         if (errorMessage) {
-            *errorMessage = "Could not read image file '" + path.string() + "'";
+            *errorMessage = "Could not read image file '" + pathToUtf8(path) + "'";
         }
         return false;
     }
@@ -111,7 +112,7 @@ bool decodeRgbaFile(const std::filesystem::path &path, Image &image, std::string
             stbi_image_free(decoded);
         }
         if (errorMessage) {
-            *errorMessage = "Wuffs could not decode image file '" + path.string() + "'";
+            *errorMessage = "Wuffs could not decode image file '" + pathToUtf8(path) + "'";
         }
         return false;
     }

@@ -223,6 +223,9 @@ public:
     Q_INVOKABLE void quitApp();
     Q_INVOKABLE QUrl parentUrl(const QString &path);
     Q_INVOKABLE QUrl pathToUrl(const QString &path);
+    // Local path for a file url or path from QML (selectedFile, drop urls). Do not strip
+    // "file:///" in QML: it leaves "%23" for '#' and misses network shares ("file://server/...").
+    Q_INVOKABLE QString urlToPath(const QString &url);
     Q_INVOKABLE QString argument(int key);
     Q_INVOKABLE void addArgument(int key, const QString &value);
     Q_INVOKABLE QAction *action(const QString &name);

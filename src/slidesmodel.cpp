@@ -11,6 +11,7 @@
 #include "presentationsettings.h"
 #include "layers/baselayer.h"
 #include "utils/autosave.h"
+#include "utils/pathutils.h"
 #ifdef CAPTURE_SUPPORT
 #include <capture/capturelayer.h>
 #endif
@@ -1426,7 +1427,7 @@ QString SlidesModel::getSlidesPath() const {
 }
 
 QUrl SlidesModel::getSlidesPathAsURL() const {
-    return QUrl(QStringLiteral("file:///") + m_slidesPath);
+    return PathUtils::toFileUrl(m_slidesPath);
 }
 
 std::string SlidesModel::getSlidesAsFormattedString(size_t charsPerItem) const {
@@ -1455,28 +1456,19 @@ std::string SlidesModel::getSlidesAsFormattedString(size_t charsPerItem) const {
 }
 
 QString SlidesModel::makePathRelativeTo(const QString &filePath, const QStringList &pathsToConsider) {
-    // Assuming filePath is absolute
-    for (int i = 0; i < pathsToConsider.size(); i++) {
-        if (filePath.startsWith(pathsToConsider[i])) {
-            QDir foundDir(pathsToConsider[i]);
-            return foundDir.relativeFilePath(filePath);
-        }
-    }
-    return filePath;
+    return PathUtils::makePathRelativeTo(filePath, pathsToConsider);
 }
 
 void SlidesModel::loadFromJSONFile(const QString &path) {
     // Removals from the presentation loaded before cannot be put back into this one.
     clearRemovalUndo();
-    QString fileToOpen = path;
-    fileToOpen.replace(QStringLiteral("file:///"), QStringLiteral(""));
 
     QStringList pathsToConsider;
     pathsToConsider.append(LocationSettings::cPlayMediaLocation());
     pathsToConsider.append(LocationSettings::cPlayFileLocation());
     pathsToConsider.append(LocationSettings::univiewVideoLocation());
 
-    fileToOpen = m_masterSlide->checkAndCorrectPath(fileToOpen, pathsToConsider);
+    const QString fileToOpen = m_masterSlide->checkAndCorrectPath(path, pathsToConsider);
 
     QFileInfo jsonFileInfo(fileToOpen);
     if (!jsonFileInfo.exists()) {
@@ -1574,8 +1566,7 @@ QJsonDocument SlidesModel::asJSONDocument(const QStringList &pathsToConsider) {
 }
 
 void SlidesModel::saveAsJSONFile(const QString &path) {
-    QString fileToSave = path;
-    fileToSave.replace(QStringLiteral("file:///"), QStringLiteral(""));
+    QString fileToSave = PathUtils::toLocalPath(path);
     QFileInfo fileToSaveInfo(fileToSave);
 
     QStringList pathsToConsider;

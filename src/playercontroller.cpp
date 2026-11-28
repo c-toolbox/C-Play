@@ -19,6 +19,7 @@
 #include "tracksmodel.h"
 #include "layers/imagelayer.h"
 #include "utils/imagesequenceutils.h"
+#include "utils/pathutils.h"
 #include "tcpcontrolsettings.h"
 #include "tcp/tcpcontrolcommandadapter.h"
 #include "controleventfeed.h"
@@ -874,9 +875,7 @@ void PlayerController::DispatchControlOperation(const QString &operation, const 
 }
 
 QString PlayerController::returnRelativeOrAbsolutePath(const QString &path) {
-    QString filePath = path;
-    filePath.replace(QStringLiteral("file:///"), QStringLiteral(""));
-    QFileInfo fileInfo(filePath);
+    const QString filePath = PathUtils::toLocalPath(path);
 
     QStringList pathsToConsider;
     pathsToConsider.append(LocationSettings::cPlayMediaLocation());
@@ -886,59 +885,34 @@ QString PlayerController::returnRelativeOrAbsolutePath(const QString &path) {
     // Assuming filePath is absolute
     // Looking for shortest relative path
     QString shortFilePath = filePath;
-    for (int i = 0; i < pathsToConsider.size(); i++) {
-        if (filePath.startsWith(pathsToConsider[i])) {
-            QDir foundDir(pathsToConsider[i]);
-            QString newRelativePath = foundDir.relativeFilePath(filePath);
-            if (newRelativePath.length() < shortFilePath.length())
-                shortFilePath = newRelativePath;
-        }
+    for (const QString &location : pathsToConsider) {
+        const QString newRelativePath = PathUtils::relativeTo(filePath, location);
+        if (!newRelativePath.isEmpty() && newRelativePath.length() < shortFilePath.length())
+            shortFilePath = newRelativePath;
     }
     return shortFilePath;
 }
 
 QString PlayerController::checkAndCorrectPath(const QString &path) {
-    QString filePath = path;
-    filePath.replace(QStringLiteral("file:///"), QStringLiteral(""));
-    QFileInfo fileInfo(filePath);
-
-    if (fileInfo.exists())
-        return filePath;
-    else if (fileInfo.isRelative()) { // Go through search list in order
-        QStringList searchPaths;
-        searchPaths.append(LocationSettings::cPlayMediaLocation());
-        searchPaths.append(LocationSettings::cPlayFileLocation());
-        searchPaths.append(LocationSettings::univiewVideoLocation());
-
-        for (int i = 0; i < searchPaths.size(); i++) {
-            QString newFilePath = QDir::cleanPath(searchPaths[i] + QDir::separator() + filePath);
-            QFileInfo newFilePathInfo(newFilePath);
-            if (newFilePathInfo.exists())
-                return newFilePath;
-        }
-
-        // Maybe from network share?
-        filePath = path;
-        filePath.replace(QStringLiteral("file://"), QStringLiteral("\\\\"));
-        fileInfo = QFileInfo(filePath);
-        if (fileInfo.exists())
-            return filePath;
-    }
-    return QStringLiteral("");
+    QStringList searchPaths;
+    searchPaths.append(LocationSettings::cPlayMediaLocation());
+    searchPaths.append(LocationSettings::cPlayFileLocation());
+    searchPaths.append(LocationSettings::univiewVideoLocation());
+    return PathUtils::checkAndCorrectPath(path, searchPaths);
 }
 
 QString PlayerController::returnFileBaseName(const QString &path) {
-    QFileInfo fileInfo(path);
+    QFileInfo fileInfo(PathUtils::toLocalPath(path));
     return fileInfo.baseName();
 }
 
 QString PlayerController::returnFileName(const QString& path) {
-    QFileInfo fileInfo(path);
+    QFileInfo fileInfo(PathUtils::toLocalPath(path));
     return fileInfo.fileName();
 }
 
 QString PlayerController::returnFileExtension(const QString& path) {
-    QFileInfo fileInfo(path);
+    QFileInfo fileInfo(PathUtils::toLocalPath(path));
     return fileInfo.suffix();
 }
 
@@ -975,25 +949,14 @@ void PlayerController::setBackgroundImageFile(const QString &path) {
         return;
     }
 
-    QString filePath = path;
-    filePath.replace(QStringLiteral("file:///"), QStringLiteral(""));
-    QFileInfo fileInfo(filePath);
-
-    QString absolutePath;
-    if (fileInfo.exists()) { // isAbsolute
-        m_backgroundFile = returnRelativeOrAbsolutePath(path);
-        absolutePath = path;
-    } else if (fileInfo.isRelative()) { // isRelative
-        QString bgFilePath = checkAndCorrectPath(path);
-        if (bgFilePath.isEmpty()) {
-            return;
-        }
-        m_backgroundFile = path;
-        absolutePath = bgFilePath;
-    } else
+    const QString filePath = PathUtils::toLocalPath(path);
+    const QFileInfo fileInfo(filePath);
+    const bool exists = fileInfo.exists();
+    const QString absolutePath = exists ? filePath : checkAndCorrectPath(path);
+    if (absolutePath.isEmpty())
         return;
+    m_backgroundFile = !exists && fileInfo.isRelative() ? filePath : returnRelativeOrAbsolutePath(absolutePath);
 
-    absolutePath.replace(QStringLiteral("file:///"), QStringLiteral(""));
     std::string str = absolutePath.toStdString();
     if (SyncHelper::instance().variables.bgImageFile != str) {
         SyncHelper::instance().setString(SyncHelper::instance().variables.bgImageFile, str);
@@ -1083,25 +1046,14 @@ void PlayerController::setForegroundImageFile(const QString &path) {
         return;
     }
 
-    QString filePath = path;
-    filePath.replace(QStringLiteral("file:///"), QStringLiteral(""));
-    QFileInfo fileInfo(filePath);
-
-    QString absolutePath;
-    if (fileInfo.exists()) { // isAbsolute
-        m_foregroundFile = returnRelativeOrAbsolutePath(path);
-        absolutePath = path;
-    } else if (fileInfo.isRelative()) { // isRelative
-        QString fgFilePath = checkAndCorrectPath(path);
-        if (fgFilePath.isEmpty()) {
-            return;
-        }
-        m_foregroundFile = path;
-        absolutePath = fgFilePath;
-    } else
+    const QString filePath = PathUtils::toLocalPath(path);
+    const QFileInfo fileInfo(filePath);
+    const bool exists = fileInfo.exists();
+    const QString absolutePath = exists ? filePath : checkAndCorrectPath(path);
+    if (absolutePath.isEmpty())
         return;
+    m_foregroundFile = !exists && fileInfo.isRelative() ? filePath : returnRelativeOrAbsolutePath(absolutePath);
 
-    absolutePath.replace(QStringLiteral("file:///"), QStringLiteral(""));
     std::string str = absolutePath.toStdString();
     if (SyncHelper::instance().variables.fgImageFile != str) {
         SyncHelper::instance().setString(SyncHelper::instance().variables.fgImageFile, str);

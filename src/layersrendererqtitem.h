@@ -110,8 +110,6 @@ public:
 #endif
 
     void setMpvObject(MpvObject* mpv);
-    void setBackgroundImageFile(const QString& file);
-    void setForegroundImageFile(const QString& file);
 
     // fxSource: layer whose post effects apply (a sublayer uses its parent's), nullptr = layer.
     void renderLayer(const BaseLayer* layer, int eyeMode, float angle, const QMatrix4x4& viewMatrix, const QMatrix4x4& projectionMatrix,
@@ -198,8 +196,8 @@ private:
     std::shared_ptr<ImageLayer> m_foregroundImageLayer;
     std::shared_ptr<ImageLayer> m_overlayImageLayer;
     std::vector<std::shared_ptr<BaseLayer>> m_layers;
-    QString m_backgroundImageFile;
-    QString m_foregroundImageFile;
+    std::string m_backgroundImageFile;
+    std::string m_foregroundImageFile;
     bool m_backgroundImageDirty = false;
     bool m_foregroundImageDirty = false;
     MpvObject* m_mpvObject = nullptr;
@@ -362,8 +360,6 @@ class LayersRendererQtItem : public QQuickItem {
     Q_PROPERTY(QQuaternion sphereRotation READ sphereRotation WRITE setSphereRotation NOTIFY cameraChanged)
     Q_PROPERTY(float sphereDistance READ sphereDistance WRITE setSphereDistance NOTIFY cameraChanged)
     Q_PROPERTY(MpvObject* mpvObject READ mpvObject WRITE setMpvObject NOTIFY mpvObjectChanged)
-    Q_PROPERTY(QString backgroundImageFile READ backgroundImageFile WRITE setBackgroundImageFile NOTIFY backgroundImageFileChanged)
-    Q_PROPERTY(QString foregroundImageFile READ foregroundImageFile WRITE setForegroundImageFile NOTIFY foregroundImageFileChanged)
     Q_PROPERTY(bool uiPopupOpen READ isUiPopupOpen WRITE setUiPopupOpen NOTIFY uiPopupOpenChanged)
     Q_PROPERTY(int selectedPlaneLayerIndex READ selectedPlaneLayerIndex NOTIFY planeSelectionChanged)
 
@@ -438,12 +434,6 @@ public:
     MpvObject* mpvObject() const;
     void setMpvObject(MpvObject* mpv);
 
-    QString backgroundImageFile() const;
-    void setBackgroundImageFile(const QString& file);
-
-    QString foregroundImageFile() const;
-    void setForegroundImageFile(const QString& file);
-
     bool isUiPopupOpen() const;
     void setUiPopupOpen(bool open);
 
@@ -495,8 +485,6 @@ Q_SIGNALS:
     void cluxPreviewVisibleChanged();
 #endif
     void mpvObjectChanged();
-    void backgroundImageFileChanged();
-    void foregroundImageFileChanged();
     void uiPopupOpenChanged();
     void planeSelectionChanged();
     // The requested snapshot, a null image when it could not be rendered.
@@ -616,8 +604,6 @@ private:
     int m_snapshotWidth = 0;
 
     MpvObject* m_mpvObject = nullptr;
-    QString m_backgroundImageFile;
-    QString m_foregroundImageFile;
     bool m_uiPopupOpen = false;
 
     static std::atomic_bool s_shuttingDown;

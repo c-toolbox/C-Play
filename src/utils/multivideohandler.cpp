@@ -9,48 +9,21 @@
 #include <layers/videolayer.h>
 #include <layers/audiolayer.h>
 #include "locationsettings.h"
+#include "pathutils.h"
 #include <sgct/sgct.h>
 
 #include <QDir>
 #include <QFileInfo>
 
 // Resolve a potentially relative file path against known search locations.
-// Mirrors the same logic as MpvObject::checkAndCorrectPath() (mpvobject.cpp:860-879).
 static std::string resolveFilePath(const std::string& filePath) {
-    QString qPath = QString::fromStdString(filePath);
-    qPath.replace(QStringLiteral("file:///"), QStringLiteral(""));
-
-    QFileInfo fileInfo(qPath);
-    if (fileInfo.exists())
-        return qPath.toStdString();
-
-    if (fileInfo.isRelative()) {
-        // Search common media locations (mirrors MpvObject::loadFile search paths)
-        QStringList searchPaths;
-        // Add the directory of a hypothetical config file's parent as base
-        // (in practice, users should use absolute paths or paths relative to CWD)
-        searchPaths.append(QDir::currentPath());
-        searchPaths.append(LocationSettings::cPlayFileLocation());
-        searchPaths.append(LocationSettings::cPlayMediaLocation());
-        searchPaths.append(LocationSettings::univiewVideoLocation());
-
-        for (int i = 0; i < searchPaths.size(); ++i) {
-            QString newFilePath = QDir::cleanPath(searchPaths[i] + QDir::separator() + qPath);
-            QFileInfo newFileInfo(newFilePath);
-            if (newFileInfo.exists())
-                return newFilePath.toStdString();
-        }
-
-        // Try network share format (Windows UNC path conversion)
-        QString sharePath = qPath;
-        sharePath.replace(QStringLiteral("file://"), QStringLiteral("\\\\"));
-        QFileInfo shareFileInfo(sharePath);
-        if (shareFileInfo.exists())
-            return sharePath.toStdString();
-    }
+    // In practice, users should use absolute paths or paths relative to CWD.
+    const QStringList searchPaths = {QDir::currentPath(), LocationSettings::cPlayFileLocation(),
+                                     LocationSettings::cPlayMediaLocation(), LocationSettings::univiewVideoLocation()};
+    const QString found = PathUtils::checkAndCorrectPath(QString::fromStdString(filePath), searchPaths);
 
     // Return original path if not found — let mpv handle the error
-    return filePath;
+    return found.isEmpty() ? filePath : found.toStdString();
 }
 
 
@@ -80,7 +53,7 @@ void MultiVideoHandler::setConfig(const MultiVideoConfig& config,
     for (const auto& entry : entries) {
         std::string filePath = MultiVideoConfig::resolvePathForNode(entry, nodeId);
 
-        // Resolve relative paths against known locations (mirrors MpvObject::checkAndCorrectPath)
+        // Resolve relative paths against known locations (PathUtils::checkAndCorrectPath)
         if (!filePath.empty()) {
             filePath = resolveFilePath(filePath);
         }

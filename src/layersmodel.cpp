@@ -13,6 +13,7 @@
 #include "presentationsettings.h"
 #include "slidesmodel.h"
 #include "subtitlesettings.h"
+#include "utils/pathutils.h"
 #include "utils/texturesubdivision.h"
 #ifdef NDI_SUPPORT
 #include <ndi/ndilayer.h>
@@ -1766,7 +1767,7 @@ QString LayersModel::getLayersPath() const {
 }
 
 QUrl LayersModel::getLayersPathAsURL() const {
-    return QUrl(QStringLiteral("file:///") + m_layersPath);
+    return PathUtils::toFileUrl(m_layersPath);
 }
 
 std::string LayersModel::getLayersAsFormattedString(size_t charsPerItem) const {
@@ -1794,49 +1795,13 @@ std::string LayersModel::getLayersAsFormattedString(size_t charsPerItem) const {
     return fullItemList;
 }
 
-// A path stored as a file URL ("file:///E:/x.png") would never be found as a file.
-static QString withoutFileScheme(const QString &path) {
-    if (path.startsWith(QStringLiteral("file:"), Qt::CaseInsensitive)) {
-        const QUrl url(path);
-        if (url.isLocalFile())
-            return url.toLocalFile();
-    }
-    return path;
-}
-
 QString LayersModel::checkAndCorrectPath(const QString &path, const QStringList &searchPaths) {
-    const QString filePath = withoutFileScheme(path);
-    QFileInfo fileInfo(filePath);
-    if (fileInfo.exists())
-        return filePath;
-    else if (fileInfo.isRelative()) { // Go through search list in order
-        for (int i = 0; i < searchPaths.size(); i++) {
-            QString newFilePath = QDir::cleanPath(searchPaths[i] + QDir::separator() + filePath);
-            QFileInfo newFilePathInfo(newFilePath);
-            if (newFilePathInfo.exists())
-                return newFilePath;
-        }
-
-        // Maybe from network share?
-        QString sharefilePath = filePath;
-        sharefilePath.replace(QStringLiteral("file://"), QStringLiteral("\\\\"));
-        fileInfo = QFileInfo(sharefilePath);
-        if (fileInfo.exists())
-            return sharefilePath;
-    }
-    return QStringLiteral("");
+    // Also takes a path stored as a file URL ("file:///E:/x.png").
+    return PathUtils::checkAndCorrectPath(path, searchPaths);
 }
 
 QString LayersModel::makePathRelativeTo(const QString &filePath, const QStringList &pathsToConsider) {
-    // Assuming filePath is absolute
-    for (int i = 0; i < pathsToConsider.size(); i++) {
-        // An unset location is empty, which every path starts with.
-        if (!pathsToConsider[i].isEmpty() && filePath.startsWith(pathsToConsider[i])) {
-            QDir foundDir(pathsToConsider[i]);
-            return foundDir.relativeFilePath(filePath);
-        }
-    }
-    return filePath;
+    return PathUtils::makePathRelativeTo(filePath, pathsToConsider);
 }
 
 int LayersModel::decodeLayerFromJSON(const QJsonObject &o, const QStringList &forRelativePaths) {
@@ -1866,7 +1831,7 @@ int LayersModel::decodeLayerFromJSON(const QJsonObject &o, const QStringList &fo
                 else if (!path.isEmpty()) {
                     // Kept when not found: the drive or folder may only be unavailable right now,
                     // and the layer view shows the path with a warning. Saving keeps it too.
-                    path = withoutFileScheme(path);
+                    path = PathUtils::toLocalPath(path);
                     qWarning() << "Layer" << title << "file not found:" << path;
                 }
             }

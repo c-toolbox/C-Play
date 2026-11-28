@@ -12,6 +12,7 @@
 #include "playlist/playlistitem.h"
 #include "playlist/playlistmodel.h"
 #include "qthelper.h"
+#include "utils/pathutils.h"
 #ifdef MOVIE_PREVIEW_SUPPORT
 #include "webrtc/moviepreviewstreamer.h"
 #endif
@@ -285,7 +286,7 @@ QJsonObject MovieController::recentFiles() const {
         QJsonArray files;
         for (const QString &path : paths) {
             // Media files can be URLs, which have no file name to show.
-            const QString name = QFileInfo(QString(path).replace(QStringLiteral("file:///"), QString())).fileName();
+            const QString name = QFileInfo(PathUtils::toLocalPath(path)).fileName();
             files.append(QJsonObject{{QStringLiteral("path"), path}, {QStringLiteral("name"), name.isEmpty() ? path : name}});
         }
         return files;

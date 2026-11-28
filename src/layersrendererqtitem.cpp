@@ -838,28 +838,6 @@ void LayersRendererQtItem::setMpvObject(MpvObject* mpv) {
     Q_EMIT mpvObjectChanged();
 }
 
-QString LayersRendererQtItem::backgroundImageFile() const {
-    return m_backgroundImageFile;
-}
-
-void LayersRendererQtItem::setBackgroundImageFile(const QString& file) {
-    if (m_backgroundImageFile == file)
-        return;
-    m_backgroundImageFile = file;
-    Q_EMIT backgroundImageFileChanged();
-}
-
-QString LayersRendererQtItem::foregroundImageFile() const {
-    return m_foregroundImageFile;
-}
-
-void LayersRendererQtItem::setForegroundImageFile(const QString& file) {
-    if (m_foregroundImageFile == file)
-        return;
-    m_foregroundImageFile = file;
-    Q_EMIT foregroundImageFileChanged();
-}
-
 bool LayersRendererQtItem::isUiPopupOpen() const {
     return m_uiPopupOpen;
 }
@@ -1910,8 +1888,6 @@ void LayersRendererQtItem::sync() {
     m_renderer->setSphereView(m_renderAsSphere, sphereRotation, m_sphereDistance);
     m_renderer->updateMeshes(m_meshRadius, m_meshFov, m_meshAngle);
     m_renderer->setMpvObject(m_mpvObject);
-    m_renderer->setBackgroundImageFile(m_backgroundImageFile);
-    m_renderer->setForegroundImageFile(m_foregroundImageFile);
 #ifdef CLUX_SUPPORT
     m_renderer->setCluxPreviewVisible(m_cluxPreviewVisible);
     m_renderer->setCluxPreviewFrame(m_cluxPreviewFrame);
@@ -2523,20 +2499,6 @@ void LayersRendererQtOpenGLObject::renderMirror() {
 
 void LayersRendererQtOpenGLObject::setMpvObject(MpvObject* mpv) {
     m_mpvObject = mpv;
-}
-
-void LayersRendererQtOpenGLObject::setBackgroundImageFile(const QString& file) {
-    if (m_backgroundImageFile != file) {
-        m_backgroundImageFile = file;
-        m_backgroundImageDirty = true;
-    }
-}
-
-void LayersRendererQtOpenGLObject::setForegroundImageFile(const QString& file) {
-    if (m_foregroundImageFile != file) {
-        m_foregroundImageFile = file;
-        m_foregroundImageDirty = true;
-    }
 }
 
 void LayersRendererQtOpenGLObject::createShaders() {
@@ -3592,9 +3554,24 @@ void LayersRendererQtOpenGLObject::updateLayers() {
         }
     };
 
+    // The exact paths the nodes load: a round trip through a QML url string dropped relative
+    // paths and file names with '#' or '%', so the master showed no image where nodes did.
+    {
+        std::lock_guard<std::recursive_mutex> lock(SyncHelper::instance().stringsMutex);
+        const auto& vars = SyncHelper::instance().variables;
+        if (m_backgroundImageFile != vars.bgImageFile) {
+            m_backgroundImageFile = vars.bgImageFile;
+            m_backgroundImageDirty = true;
+        }
+        if (m_foregroundImageFile != vars.fgImageFile) {
+            m_foregroundImageFile = vars.fgImageFile;
+            m_foregroundImageDirty = true;
+        }
+    }
+
     // Process layer image uploads
     if (m_backgroundImageLayer) {
-        m_backgroundImageLayer->processImageUpload(m_backgroundImageFile.toStdString(), m_backgroundImageDirty);
+        m_backgroundImageLayer->processImageUpload(m_backgroundImageFile, m_backgroundImageDirty);
         if (m_backgroundImageDirty) {
             m_backgroundImageLayer->setRotate(rotXYZ);
             m_backgroundImageLayer->setTranslate(translateXYZ);
@@ -3605,7 +3582,7 @@ void LayersRendererQtOpenGLObject::updateLayers() {
             SyncHelper::instance().variables.stereoscopicModeBg);
     }
     if (m_foregroundImageLayer) {
-        m_foregroundImageLayer->processImageUpload(m_foregroundImageFile.toStdString(), m_foregroundImageDirty);
+        m_foregroundImageLayer->processImageUpload(m_foregroundImageFile, m_foregroundImageDirty);
         if (m_foregroundImageDirty) {
             m_foregroundImageLayer->setRotate(rotXYZ);
             m_foregroundImageLayer->setTranslate(translateXYZ);

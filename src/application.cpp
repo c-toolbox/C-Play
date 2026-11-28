@@ -26,6 +26,7 @@
 #include "telemetry/nodeshutdowncoordinator.h"
 #include <capture/nodecaptureinventory.h>
 #include "utils/autosave.h"
+#include "utils/pathutils.h"
 #include "utils/ytdlpresolver.h"
 
 #ifdef JACK_SUPPORT
@@ -745,32 +746,26 @@ void Application::quitApp() {
 }
 
 QUrl Application::parentUrl(const QString &path) {
-    QUrl url(path);
-    if (!url.isValid()) {
-        return QUrl(QStandardPaths::writableLocation(QStandardPaths::MoviesLocation));
+    const QString localPath = PathUtils::toLocalPath(path);
+    const QUrl url(localPath);
+    // A stream URL has no parent folder; a scheme of one letter is a Windows drive.
+    if (localPath.isEmpty() || (url.scheme().size() > 1 && !url.isLocalFile())) {
+        return QUrl::fromLocalFile(QStandardPaths::writableLocation(QStandardPaths::MoviesLocation));
     }
-    QFileInfo fileInfo;
-    if (url.isLocalFile()) {
-        fileInfo.setFile(url.toLocalFile());
-    } else {
-        fileInfo.setFile(url.toString());
-    }
-    QUrl parentFolderUrl(QStringLiteral("file:///") + fileInfo.absolutePath());
-    parentFolderUrl.setScheme(QStringLiteral("file"));
-
-    return parentFolderUrl;
+    return QUrl::fromLocalFile(QFileInfo(localPath).absolutePath());
 }
 
 QUrl Application::pathToUrl(const QString &path) {
-    QString correctedFilePath = path;
-    correctedFilePath.replace(QStringLiteral("file:///"), QStringLiteral(""));
-    QUrl url(QStringLiteral("file:///") + correctedFilePath);
-    if (!url.isValid()) {
+    const QString existingPath = PathUtils::checkAndCorrectPath(path, {});
+    const QString localPath = existingPath.isEmpty() ? PathUtils::toLocalPath(path) : existingPath;
+    if (localPath.isEmpty())
         return QUrl();
-    }
-    url.setScheme(QStringLiteral("file"));
+    // A relative location such as "./data/multivideo" is relative to the working folder.
+    return QUrl::fromLocalFile(QFileInfo(localPath).absoluteFilePath());
+}
 
-    return url;
+QString Application::urlToPath(const QString &url) {
+    return PathUtils::toLocalPath(url);
 }
 
 void Application::setLayersRenderer(LayersRendererQtItem* item) {

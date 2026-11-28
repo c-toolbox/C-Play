@@ -13,6 +13,7 @@
 #include <GLFW/glfw3.h>
 #ifdef WIN32
 #include <Windows.h>
+#include <shellapi.h>
 #define GLFW_EXPOSE_NATIVE_WIN32
 #include <GLFW/glfw3native.h>
 #endif // WIN32
@@ -39,6 +40,7 @@
 #include <atomic>
 #include <chrono>
 #include <cstdio>
+#include <memory>
 #include <mutex>
 #include <thread>
 #include <slidesmodel.h>
@@ -1111,6 +1113,23 @@ static bool isCPlayGlfwWindow(HWND window) {
     return lstrcmpiW(full.substr(full.find_last_of(L"\\/") + 1).c_str(), ownExeName.c_str()) == 0;
 }
 
+static bool nodeWindowNeedsRaise(HWND handle) {
+    // GLFW_FLOATING reports the requested setting. Restore the native flag if Windows
+    // or another program has changed the window's position in the Z-order.
+    if (!(GetWindowLongPtrW(handle, GWL_EXSTYLE) & WS_EX_TOPMOST))
+        return true;
+
+    // Look for a visible topmost window above this one. Skip sibling C-Play nodes
+    // to avoid Z-order thrashing, but include other GLFW apps such as OpenSpace.
+    for (HWND other = GetWindow(handle, GW_HWNDPREV); other; other = GetWindow(other, GW_HWNDPREV)) {
+        if ((GetWindowLongPtrW(other, GWL_EXSTYLE) & WS_EX_TOPMOST) &&
+            IsWindowVisible(other) && !isCPlayGlfwWindow(other)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 static void assertNodeWindowsTopmost() {
     static DWORD lastAssertTime = 0;
     const DWORD now = GetTickCount();
@@ -1120,29 +1139,15 @@ static void assertNodeWindowsTopmost() {
         return;
     lastAssertTime = now;
 
-    for (const std::unique_ptr<Window> &win : Engine::instance().thisNode().windows()) {
-        if (!glfwGetWindowAttrib(win->windowHandle(), GLFW_FLOATING))
+    for (const std::unique_ptr<Window>& win : Engine::instance().thisNode().windows()) {
+        GLFWwindow* window = win->windowHandle();
+        if (!window || glfwGetWindowMonitor(window) || !glfwGetWindowAttrib(window, GLFW_FLOATING))
             continue;
 
-        HWND handle = glfwGetWin32Window(win->windowHandle());
-        if (!handle || !IsWindowVisible(handle))
-            continue;
-
-        // Walk up the Z-order from our position. If a visible topmost window that is
-        // not one of ours sits above us, bring ourselves back to the front.
-        for (HWND other = GetWindow(handle, GW_HWNDPREV); other != NULL; other = GetWindow(other, GW_HWNDPREV)) {
-            if (!(GetWindowLongW(other, GWL_EXSTYLE) & WS_EX_TOPMOST) || !IsWindowVisible(other))
-                continue;
-
-            // Skip C-Play's own node windows (also those of other C-Play nodes on this
-            // machine) to avoid Z-order thrashing between them. Other GLFW applications,
-            // such as SGCT apps in borderless fullscreen, are covering windows like any other.
-            if (isCPlayGlfwWindow(other))
-                continue;
-
+        HWND handle = glfwGetWin32Window(window);
+        if (handle && IsWindowVisible(handle) && nodeWindowNeedsRaise(handle)) {
             SetWindowPos(handle, HWND_TOPMOST, 0, 0, 0, 0,
                          SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
-            break; // only the nearest covering window matters
         }
     }
 }
@@ -2045,7 +2050,29 @@ int main(int argc, char *argv[]) {
         nodeWindowContentBased = group.readEntry("WindowOpacityContentBased", false);
         savedWindowContentBased = nodeWindowContentBased;
     }
-    std::vector<std::string> arg(argv + 1, argv + argc);
+    std::vector<std::string> arg;
+#ifdef Q_OS_WIN
+    int wideArgc = 0;
+    const std::unique_ptr<LPWSTR, decltype(&LocalFree)> wideArgv(
+        CommandLineToArgvW(GetCommandLineW(), &wideArgc), &LocalFree);
+    if (!wideArgv) {
+        Log::Error("Could not read the Windows command line");
+        return EXIT_FAILURE;
+    }
+    arg.reserve(wideArgc - 1);
+    for (int i = 1; i < wideArgc; ++i) {
+        const QString option = QString::fromWCharArray(wideArgv.get()[i]);
+        arg.push_back(option.toStdString());
+        // These SGCT options still pass narrow strings to native filesystem APIs.
+        if (i + 1 < wideArgc &&
+            (option == QStringLiteral("--config") || option == QStringLiteral("-c") ||
+             option == QStringLiteral("--screenshot-path") || option == QStringLiteral("--screenshot-prefix"))) {
+            arg.push_back(QString::fromWCharArray(wideArgv.get()[++i]).toLocal8Bit().toStdString());
+        }
+    }
+#else
+    arg.assign(argv + 1, argv + argc);
+#endif
     Configuration config = parseArguments(arg);
     clusterConfig = loadCluster(config.configFilename);
     if (!clusterConfig.success) {
@@ -2286,19 +2313,18 @@ int main(int argc, char *argv[]) {
 
         // Consider arguments not processed by C-Play or SGCT to be QApplication related
         std::vector<char*> qapp_argv;
-        std::string app_path(argv[0]);
-        qapp_argv.reserve(arg.size() + app_path.size());
+        qapp_argv.reserve(arg.size() + 2);
         qapp_argv.push_back(argv[0]);
-        size_t q = 0;
-        while (q < arg.size()) {
-            qapp_argv.push_back(const_cast<char*>(arg[q].c_str()));
-            arg.erase(arg.begin() + q);
+        for (std::string &option : arg) {
+#ifdef Q_OS_WIN
+            option = QString::fromStdString(option).toLocal8Bit().toStdString();
+#endif
+            qapp_argv.push_back(option.data());
         }
 
         // Launch master application (which calls Engine::render from thread)
         int qapp_argv_size = static_cast<int>(qapp_argv.size());
-        if (qapp_argv.empty())
-            return EXIT_FAILURE;
+        qapp_argv.push_back(nullptr);
         Application::create(qapp_argv_size, qapp_argv.data(), QStringLiteral("C-Play"));
         Application::instance().setStartupFile(startupFile);
         const int appReturnCode = Application::instance().run();

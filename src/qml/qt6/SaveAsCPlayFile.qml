@@ -114,8 +114,7 @@ Kirigami.ApplicationWindow {
 
         onAccepted: {
             separateAudioFileCheckBox.checked = true;
-            var filePath = openSeparateAudioFileDialog.selectedFile.toString();
-            filePath = filePath.replace(/^(file:\/{3})/, "");
+            var filePath = app.urlToPath(openSeparateAudioFileDialog.selectedFile);
             separateAudioFileTextField.text = filePath;
             mpv.focus = true;
         }
@@ -132,8 +131,7 @@ Kirigami.ApplicationWindow {
 
         onAccepted: {
             separateOverlayFileCheckBox.checked = true;
-            var filePath = openSeparateOverlayFileDialog.selectedFile.toString();
-            filePath = filePath.replace(/^(file:\/{3})/, "");
+            var filePath = app.urlToPath(openSeparateOverlayFileDialog.selectedFile);
             separateOverlayFileTextField.text = filePath;
             mpv.focus = true;
         }
@@ -150,8 +148,7 @@ Kirigami.ApplicationWindow {
 
         onAccepted: {
             multivideoJsonCheckBox.checked = true;
-            var filePath = openMultivideoJsonDialog.selectedFile.toString();
-            filePath = filePath.replace(/^(file:\/{3})/, "");
+            var filePath = app.urlToPath(openMultivideoJsonDialog.selectedFile);
             multivideoJsonTextField.text = filePath;
             mpv.focus = true;
         }

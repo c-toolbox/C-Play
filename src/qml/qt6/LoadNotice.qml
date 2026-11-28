@@ -48,7 +48,7 @@ Pane {
         if (!UserInterfaceSettings.showLoadNotice)
             return;
         const pathString = String(path);
-        expectedFileName = playerController.returnFileName(pathString.replace(/^file:\/\/\//, ""));
+        expectedFileName = playerController.returnFileName(pathString);
         expecting = true;
     }
 

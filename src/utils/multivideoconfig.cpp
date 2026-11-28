@@ -6,6 +6,7 @@
  */
 
 #include "multivideoconfig.h"
+#include "utf8path.h"
 #include <sgct/sgct.h>
 #include <fstream>
 #include <sstream>
@@ -14,7 +15,7 @@
 MultiVideoConfig::MultiVideoConfig() {}
 
 bool MultiVideoConfig::loadFromFile(const std::string& filePath) {
-    std::ifstream file(filePath);
+    std::ifstream file(utf8Path(filePath));
     if (!file.is_open()) {
         sgct::Log::Warning(std::format("MultiVideoConfig: cannot open file '{}'", filePath));
         return false;
